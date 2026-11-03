@@ -5,7 +5,10 @@
  * slot (its data-message, else <body data-not-saved>), announces it in #annonce and moves
  * focus: a row action outside any <form> that is still in the document keeps it; otherwise the
  * first visible field of the form or scope gets it (a field in a closed <details> cannot take
- * focus), else the trigger. No user-facing text and no business rule here.
+ * focus), else the trigger. A form with data-request-focus="trigger" (the next-set form) keeps
+ * focus on what was tapped: its submit button when the form itself sent the request (the confirm button),
+ * else the trigger (a stepper). The slot is scrolled into view when it is not. No user-facing
+ * text and no business rule here.
  */
 (function () {
   "use strict";
@@ -72,7 +75,19 @@
     return null;
   }
 
+  function keptFocus(trigger, scope) {
+    if (!scope || scope.dataset.requestFocus !== "trigger") {
+      return null;
+    }
+    var kept = trigger === scope ? scope.querySelector("button[type=submit]") : trigger;
+    return kept && kept.isConnected ? kept : null;
+  }
+
   function focusTarget(trigger, scope) {
+    var kept = keptFocus(trigger, scope);
+    if (kept) {
+      return kept;
+    }
     var inForm = Boolean(trigger && trigger.closest && trigger.closest("form"));
     if (!inForm && trigger && trigger.isConnected) {
       return trigger;
@@ -108,6 +123,7 @@
       slot.textContent = message;
       slot.dataset.kind = "error";
       slot.hidden = false;
+      slot.scrollIntoView({ block: "nearest" });
     }
     var annonce = document.getElementById("annonce");
     if (annonce) {

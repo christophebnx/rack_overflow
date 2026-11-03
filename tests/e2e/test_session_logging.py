@@ -371,7 +371,8 @@ def test_full_salle_a_session_in_counted_taps(phone: Watched) -> None:
     assert_targets(page)
     phone.check_clean()
 
-    # a failed ✓: values kept, « Non enregistré, réessayer », the ✓ disabled during the request
+    # a failed ✓: values kept, « Non enregistré, réessayer », the ✓ disabled during the request,
+    # then enabled again with the focus on it (retry in place)
     page.route("**/seances/*/series", lambda route: route.abort())
     taps.tap(page.locator('[id$="-duration-plus"]'))
     expect(page.locator('form.set-form input[name="duration"]')).to_have_value("1:00")
@@ -388,10 +389,11 @@ def test_full_salle_a_session_in_counted_taps(phone: Watched) -> None:
     status = current_block(page).locator(".set-form .form-status")
     expect(status).to_have_text(TEXT("error.not_saved"))
     expect(confirm_button(page)).to_be_enabled()
+    expect(confirm_button(page)).to_be_focused()
     expect(page.locator('form.set-form input[name="duration"]')).to_have_value("1:00")
     assert page.evaluate("() => window.confirmDisabled") is True
     assert_confirm_above_fold(page)  # the message sits under the ✓: the ✓ did not move down
-    expect(status).to_be_in_viewport()
+    expect(status).to_be_in_viewport(ratio=1)
     page.unroute("**/seances/*/series")
     expect(current_block(page).locator(".set-row")).to_have_count(1)
 
@@ -504,12 +506,16 @@ def test_the_open_set_edit_form_takes_the_row_width(browser: Browser, history: L
         page = context.new_page()
         page.goto(f"{history.url}/seances/{session_id}")
         row = page.locator(".set-row").first
-        row.locator(".set-row__edit > summary").click()
+        summary = row.locator(".set-row__edit > summary")
+        text = row.locator(".set-row__text")
+        closed = (summary.bounding_box(), text.bounding_box())
+        summary.click()
         form = row.locator("form.set-edit")
         expect(form).to_be_visible()
         row_width = row.evaluate("(e) => e.getBoundingClientRect().width")
         form_width = form.evaluate("(e) => e.getBoundingClientRect().width")
         assert form_width >= 0.9 * row_width, (form_width, row_width)
+        assert (summary.bounding_box(), text.bounding_box()) == closed  # « Modifier » did not move
         for name in (TEXT("action.save"), TEXT("session.delete_set")):
             box = form.get_by_role("button", name=name).bounding_box()
             assert box is not None and box["width"] >= TARGET_MIN and box["height"] >= TARGET_MIN, (name, box)

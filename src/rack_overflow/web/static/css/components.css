@@ -167,9 +167,11 @@
   }
 }
 
-/* Status slot of an htmx form or scope (D-053): first child, above the first field. */
+/* Status slot of an htmx form or scope (D-053): first child, above the first field (the next-set
+   form's follows its ✓). Shown, it is scrolled into view with a margin, so it is never cut. */
 .form-status {
   padding: var(--space-3);
+  scroll-margin-block: var(--space-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   font-size: var(--text-md);

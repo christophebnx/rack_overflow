@@ -101,9 +101,9 @@ details[open] > .session-settings__summary::before {
 
 .set-row {
   display: grid;
-  grid-template-columns: 2ch minmax(0, 1fr) auto;
+  grid-template-columns: 2ch minmax(0, 1fr) minmax(calc(var(--target-min) * 2 + var(--space-4)), auto);
   gap: var(--space-2);
-  align-items: center;
+  align-items: start;
   min-height: var(--target-min);
   padding-block: var(--space-1);
   font-variant-numeric: tabular-nums;
@@ -115,12 +115,36 @@ details[open] > .session-settings__summary::before {
 
 .set-row--read {
   grid-template-columns: 2ch minmax(0, 1fr);
+  align-items: center;
 }
 
-/* Closed, « Modifier » sits in the third column. Open, the <details> spans the whole row on the
-   grid's next line: « Modifier » stays at the right edge and the form takes the row's full width.
-   No `display: contents` (it does not flatten `::details-content`, which kept the form 20 px wide). */
+/* Every cell sits on the row's first line, top-aligned; the number and the text are padded so
+   their first line is centred on the 48 px « Modifier ». Closed, « Modifier » sits in the third
+   column, at least two targets plus a space wide so the column keeps its width when no cell sizes
+   it. Open, the <details> spans the whole first line over the number and the text: « Modifier »
+   stays where it was (right edge, same line), the text keeps its width and the form takes the
+   row's full width below. No `display: contents` (it does not flatten `::details-content`, which
+   kept the form 20 px wide). */
+.set-row__number,
+.set-row__text {
+  grid-row: 1;
+}
+
+.set-row:not(.set-row--read) > .set-row__number,
+.set-row:not(.set-row--read) > .set-row__text {
+  padding-block: calc((var(--target-min) - 1lh) / 2);
+}
+
+.set-row__number {
+  grid-column: 1;
+}
+
+.set-row__text {
+  grid-column: 2;
+}
+
 .set-row__edit {
+  grid-row: 1;
   grid-column: 3;
   min-width: 0;
 }
