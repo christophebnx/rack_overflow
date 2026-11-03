@@ -38,6 +38,9 @@ select = ["E", "F", "W", "I", "B", "UP", "SIM", "N", "RUF"]
 testpaths = ["tests"]
 markers = [
     "live: calls a real paid or remote service (costs money, needs network); never run by default",
+    "real_home(reason): the isolation guard lets the test use the real home folder (reason required)",
+    "external_network(reason): the isolation guard lets the test reach non-loopback hosts (reason required)",
+    "real_fsync(reason): the test keeps real disk flushes (os.fsync, SQLite synchronous) (reason required)",
 ]
 addopts = "-m 'not live'"
 

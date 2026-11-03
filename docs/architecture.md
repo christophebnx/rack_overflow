@@ -49,6 +49,7 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Check a commit message | `tools/check_commit_message.problems` |
 | Block secrets, protected folders, commits and pushes on `main` (Claude Code) | `.claude/hooks/guard_paths.py` |
 | Format and lint-fix an edited file (Claude Code) | `.claude/hooks/format.py` |
+| Isolate tests from the real home, secret files and the network (D-043) | `tests/isolation.py` (wired in `tests/conftest.py`) |
 
 ## Configuration
 
