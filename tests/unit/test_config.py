@@ -128,16 +128,17 @@ def test_unreadable_settings_path(tmp_path: Path) -> None:
         load_settings(folder)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=UnicodeDecodeError,
-    reason="product bug: config._read_toml does not turn UnicodeDecodeError into ConfigError",
-)
 def test_not_utf8_settings_file(tmp_path: Path) -> None:
     path = tmp_path / "settings.toml"
     path.write_bytes(VALID.replace("rack.example.net", "rack\xe9").encode("latin-1"))
-    with pytest.raises(ConfigError):
+    with pytest.raises(ConfigError, match="not UTF-8 text"):
         load_settings(path)
+
+
+def test_not_utf8_secrets_file(tmp_path: Path) -> None:
+    (tmp_path / SECRETS_FILE_NAME).write_bytes("RACK_A=caf\xe9\n".encode("latin-1"))
+    with pytest.raises(ConfigError, match="not UTF-8 text"):
+        load_settings(write(tmp_path, VALID))
 
 
 def test_port_bounds_are_inclusive(tmp_path: Path) -> None:

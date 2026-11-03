@@ -106,6 +106,8 @@ def _read_toml(config_path: Path) -> dict[str, Any]:
         raise ConfigError(f"settings file not found: {config_path}") from None
     except tomllib.TOMLDecodeError as error:
         raise ConfigError(f"{config_path}: malformed TOML: {error}") from None
+    except UnicodeDecodeError:
+        raise ConfigError(f"{config_path}: not UTF-8 text") from None
     except OSError as error:
         raise ConfigError(f"cannot read settings file {config_path}: {error.strerror}") from None
 
@@ -165,5 +167,10 @@ def _read_secrets(path: Path) -> Mapping[str, str]:
     """The secrets file as a read-only mapping; a missing file is an empty mapping."""
     if not path.is_file():
         return MappingProxyType({})
-    values = dotenv_values(path)
+    try:
+        values = dotenv_values(path)
+    except UnicodeDecodeError:
+        raise ConfigError(f"{path}: not UTF-8 text") from None
+    except OSError as error:
+        raise ConfigError(f"cannot read secrets file {path}: {error.strerror}") from None
     return MappingProxyType({key: value or "" for key, value in values.items()})
