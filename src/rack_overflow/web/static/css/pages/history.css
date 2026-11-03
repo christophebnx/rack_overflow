@@ -103,6 +103,12 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* « Séries : 12 · Volume : 4 500 kg » on one line on the phone, one count per line without the
+   « · » from 40rem; a count never splits from its value. */
+.history-item__count {
+  white-space: nowrap;
+}
+
 .history-more {
   margin-top: var(--space-6);
 }
@@ -146,6 +152,14 @@
   .history-item__counts {
     grid-area: counts;
     text-align: right;
+  }
+
+  .history-item__count {
+    display: block;
+  }
+
+  .history-item__sep {
+    display: none;
   }
 
   .history-item__exercises {

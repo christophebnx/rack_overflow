@@ -521,3 +521,20 @@ textarea.input {
   text-align: right;
   white-space: nowrap;
 }
+
+/* The table's outer edges align with the text around it (no side padding): four columns fit
+   in 328 px at 360. */
+.data-table th:first-child,
+.data-table td:first-child {
+  padding-left: 0;
+}
+
+.data-table th:last-child,
+.data-table td:last-child {
+  padding-right: 0;
+}
+
+/* A header carrying its column's unit may wrap: « 1RM estimé (kg) » on two lines at 360 px. */
+.data-table thead th.num {
+  white-space: normal;
+}

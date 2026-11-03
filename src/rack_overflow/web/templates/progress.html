@@ -37,7 +37,7 @@
       <p class="muted">{{ t("progress.chart_empty") }}</p>
       {% else %}
       {% set main = view.series[0] %}
-      <p class="muted">{{ t(INTRO_KEYS[main.key]) }}</p>
+      <p class="muted chart-note">{{ t(INTRO_KEYS[main.key]) }}</p>
       {% if chart.days >= 2 %}
       {% if view.series | length >= 2 %}
       <ul class="chart-legend">
@@ -50,17 +50,17 @@
         <figcaption id="evolution-resume" class="muted">{{ t("progress.chart_span", count=chart.days, first=show.local_date(chart.first), last=show.local_date(chart.last)) }}{% if view.series | length == 1 %} {{ t("progress.chart_latest", value=show.series_value(main, main.points[-1].value), best=show.series_value(main, main.best)) }}{% endif %}</figcaption>
       </figure>
       {% else %}
-      <p class="muted">{{ t("progress.chart_one_point") }}</p>
+      <p class="muted chart-note">{{ t("progress.chart_one_point") }}</p>
       {% endif %}
       <details class="chart-data">
         <summary class="chart-data__summary">{{ t("progress.data_toggle") }}</summary>
         <div class="data-table__scroll" role="region" tabindex="0" aria-labelledby="donnees-legende">
           <table class="data-table">
             <caption id="donnees-legende" class="visually-hidden">{{ t("progress.data_caption") }}</caption>
-            <thead><tr><th scope="col">{{ t("progress.col.date") }}</th>{% for key, kind in view.table.columns %}<th scope="col" class="num">{{ t(COLUMN_KEYS[key]) }}</th>{% endfor %}</tr></thead>
+            <thead><tr><th scope="col">{{ t("progress.col.date") }}</th>{% for key, kind in view.table.columns %}{% set unit = show.column_unit(kind) %}<th scope="col" class="num">{{ t("progress.col.with_unit", label=t(COLUMN_KEYS[key]), unit=unit) if unit else t(COLUMN_KEYS[key]) }}</th>{% endfor %}</tr></thead>
             <tbody>
               {% for row in view.table.rows %}
-              <tr><th scope="row">{{ show.local_date(row.local_date) }}</th>{% for value in row.values %}<td class="num">{{ show.cell(view.table.columns[loop.index0][1], value) }}</td>{% endfor %}</tr>
+              <tr><th scope="row">{{ show.local_date(row.local_date) }}</th>{% for value in row.values %}<td class="num">{{ show.column_cell(view.table.columns[loop.index0][1], value) }}</td>{% endfor %}</tr>
               {% endfor %}
             </tbody>
           </table>

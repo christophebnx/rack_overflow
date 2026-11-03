@@ -29,14 +29,14 @@ SECTION = "progress"
 TEXT_MAX = 200
 RM_FORM_IDS = {"n": "rm-n", "weight": "rm-weight", "date": "rm-date"}
 FORMULA_ID = "reglages-formule"
-# main series key → (axis key, unit key or None)
+# main series key → (axis key, unit key or None); a duration axis and tooltip read m:ss (D-029)
 AXES = {
     "e1rm": ("progress.axis.weight", "unit.kg"),
     "measured_1rm": ("progress.axis.weight", "unit.kg"),
     "load": ("progress.axis.reps", None),
     "max_reps": ("progress.axis.reps", None),
-    "max_duration": ("progress.axis.minutes", "progress.unit.minutes"),
-    "duration": ("progress.axis.minutes", "progress.unit.minutes"),
+    "max_duration": ("progress.axis.duration", None),
+    "duration": ("progress.axis.duration", None),
     "distance": ("progress.axis.distance", "unit.km"),
     "rounds": ("progress.axis.rounds", None),
 }
@@ -117,10 +117,40 @@ def _aligned(series: tuple[Series, ...]) -> tuple[list[str], list[list[float | N
     return dates, values
 
 
+SCALES = {units.WEIGHT: "decimal", units.DISTANCE: "decimal", units.DURATION: "duration"}
+"""Value kind of the main series → how the chart writes the axis and tooltip numbers: decimals
+with the `fr` locale, whole counts (`count`), or durations m:ss / h:mm:ss (`duration`)."""
+
+
+def _duration_step(series: tuple[Series, ...]) -> int | None:
+    """The tick step of a duration axis in seconds, else None."""
+    if series[0].unit_kind != units.DURATION:
+        return None
+    found = [point.value for item in series for point in item.points]
+    return units.chart_duration_step(min(found), max(found))
+
+
+def _titles(show: Display, dates: list[str]) -> list[str]:
+    """Tooltip titles: the short date, the full date when the chart spans two years or more."""
+    if dates[0][:4] == dates[-1][:4]:
+        return [show.short_date(day) for day in dates]
+    return [show.local_date(day) for day in dates]
+
+
 def chart_json(show: Display, catalog: Any, data: ChartData) -> dict[str, Any]:
-    """The chart's JSON (D-068): labels « 03/11 », values in display units, French texts."""
+    """The chart's JSON (D-068): labels « 03/11 », values in display units (durations in
+    seconds, written m:ss by the script), the axis scale and step, French texts."""
     if not data.series:
-        return {"unit": "", "axis": "", "tooltip": "", "labels": [], "series": []}
+        return {
+            "unit": "",
+            "axis": "",
+            "tooltip": "",
+            "scale": "",
+            "step": None,
+            "titles": [],
+            "labels": [],
+            "series": [],
+        }
     axis_key, unit_key = AXES[data.series[0].key]
     unit = catalog.text(unit_key) if unit_key else ""
     tooltip = catalog.text("progress.chart_tooltip", label="{label}", value="{value}", unit=unit).rstrip()
@@ -129,6 +159,9 @@ def chart_json(show: Display, catalog: Any, data: ChartData) -> dict[str, Any]:
         "unit": unit,
         "axis": catalog.text(axis_key),
         "tooltip": tooltip,
+        "scale": SCALES.get(data.series[0].unit_kind, "count"),
+        "step": _duration_step(data.series),
+        "titles": _titles(show, dates),
         "labels": [show.short_date(day) for day in dates],
         "series": [
             {"label": show.series_label(item, data.formula), "kind": item.kind, "values": item_values}

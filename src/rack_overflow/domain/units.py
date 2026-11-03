@@ -159,17 +159,60 @@ def _one_decimal(value: int, divisor: int) -> str:
     return _decimal_text(tenths, 1, keep_zeros=True)
 
 
+def column_number(kind: str, value: int) -> str:
+    """`value` as a number in its kind's one column unit, the unit left to the column header:
+    kg, km (never m), m:ss per km for a pace; other kinds as `format` writes them."""
+    if kind == DISTANCE:
+        return _decimal_text(value, DISTANCE_DECIMALS)
+    return format(kind, value).number_text
+
+
 CHART_DECIMALS = 3
 
 
 def chart_number(kind: str, value: int) -> float:
     """A canonical integer as a chart axis reads it (L5, D-068): kg for a weight, km for a
-    distance, minutes for a duration, the count otherwise."""
+    distance, the count otherwise; a duration stays in seconds, the chart writes it m:ss /
+    h:mm:ss (D-029)."""
     if kind in (WEIGHT, DISTANCE):
         return round(value / KILO, CHART_DECIMALS)
-    if kind == DURATION:
-        return round(value / 60, CHART_DECIMALS)
     return float(value)
+
+
+CHART_DURATION_STEPS_S: tuple[int, ...] = (
+    1,
+    2,
+    5,
+    10,
+    15,
+    30,
+    60,
+    120,
+    300,
+    600,
+    900,
+    1800,
+    3600,
+    7200,
+    10800,
+    21600,
+    43200,
+    86400,
+)
+"""Clock-round steps between the ticks of a duration axis, in seconds (« 0:15 », « 1:00 »…)."""
+CHART_DURATION_INTERVALS = 6
+"""At most this many intervals between the lowest and highest value of a duration axis."""
+
+
+def chart_duration_step(low_s: int, high_s: int) -> int:
+    """Seconds between the ticks of a duration axis spanning `low_s` to `high_s`: the smallest
+    clock-round step giving at most `CHART_DURATION_INTERVALS` intervals (D-029: ticks read
+    m:ss / h:mm:ss). Equal values span a tenth of the value, as the chart pads a flat line."""
+    span = high_s - low_s or high_s // 10
+    return next(
+        (step for step in CHART_DURATION_STEPS_S if step * CHART_DURATION_INTERVALS >= span),
+        CHART_DURATION_STEPS_S[-1],
+    )
 
 
 def input_text(kind: str, value: int, *, scale: int | None = None) -> str:

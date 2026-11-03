@@ -7,6 +7,7 @@ delete a session and see it leave the history, enter a measured 1RM and change t
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 
@@ -17,6 +18,7 @@ from support.history import build
 
 from rack_overflow.domain.users import SINGLE_USER_ID as USER
 from rack_overflow.services import devices, exercises, history, seed, sessions
+from rack_overflow.services.exercises import ExerciseForm
 from rack_overflow.web.app import CATALOG
 from rack_overflow.web.auth import COOKIE_NAME
 from rack_overflow.web.locale import load_catalog
@@ -143,6 +145,79 @@ def test_chart_falls_back_when_its_json_fails(year_phone: Watched) -> None:
     expect(page.locator(".chart")).to_be_hidden()
     page.get_by_text(TEXT("progress.data_toggle")).click()
     expect(page.locator(".chart-data .data-table tbody tr").first).to_be_visible()
+
+
+CHART_COLOUR = """() => {
+    const chart = Chart.getChart(document.querySelector('canvas[data-chart-src]'));
+    const token = getComputedStyle(document.documentElement).getPropertyValue('--chart-1').trim();
+    return [chart.data.datasets[0].borderColor, token];
+}"""
+
+
+def test_chart_colours_follow_the_colour_scheme(year_phone: Watched) -> None:
+    page = year_phone.page
+    year_phone.goto(f"/progression/{YEAR['squat']}")
+    expect(page.locator("canvas[data-chart-src]")).to_have_attribute("data-chart-state", "ready")
+    light, light_token = page.evaluate(CHART_COLOUR)
+    assert light == light_token
+    page.emulate_media(color_scheme="dark")
+    page.wait_for_function(
+        "(before) => Chart.getChart(document.querySelector('canvas[data-chart-src]'))"
+        ".data.datasets[0].borderColor !== before",
+        arg=light,
+    )
+    dark, dark_token = page.evaluate(CHART_COLOUR)
+    assert dark == dark_token and dark != light
+    year_phone.check_clean()
+
+
+def test_chart_data_tables_fit_the_phone(year_phone: Watched) -> None:
+    page = year_phone.page
+    for key in ("squat", "run"):
+        year_phone.goto(f"/progression/{YEAR[key]}")
+        page.get_by_text(TEXT("progress.data_toggle")).click()
+        scroll = page.locator(".chart-data .data-table__scroll")
+        widths = scroll.evaluate("(e) => [e.scrollWidth, e.clientWidth]")
+        assert widths[0] <= widths[1], f"{key}: the data table scrolls ({widths})"
+
+
+def _hold(engine: object) -> int:
+    """A duration-only bodyweight exercise (« Planche ») held 1:09 then 1:36, a year apart."""
+    plank = exercises.create(engine, USER, ExerciseForm("Planche latérale test", "bodyweight", "home"))  # type: ignore[arg-type]
+    exercises.add_field(engine, USER, plank, core_quantity="duration")  # type: ignore[arg-type]
+    detail = exercises.get_detail(engine, USER, plank)  # type: ignore[arg-type]
+    reps = next(item.id for item in detail.fields if item.core_quantity == "reps")
+    exercises.remove_field(engine, USER, plank, reps)  # type: ignore[arg-type]
+    for days, held in ((400, "1:09"), (1, "1:36")):
+        when = datetime.now(UTC) - timedelta(days=days)
+        session_id = sessions.start(engine, USER, None, "home", when, UTC)  # type: ignore[arg-type]
+        block = sessions.pick(engine, USER, session_id, None, plank).block  # type: ignore[arg-type]
+        assert block is not None
+        values = {"duration": held}
+        sessions.confirm_set(engine, USER, session_id, block.id, "work", values, when)  # type: ignore[arg-type]
+        sessions.close(engine, USER, session_id, when + timedelta(minutes=5))  # type: ignore[arg-type]
+    return plank
+
+
+def test_a_duration_chart_reads_clock_time(flow_phone: Watched, flow_app: LiveApp) -> None:
+    plank = _hold(flow_app.engine)
+    page = flow_phone.page
+    flow_phone.goto(f"/progression/{plank}")
+    expect(page.locator("canvas[data-chart-src]")).to_have_attribute("data-chart-state", "ready")
+    chart = "Chart.getChart(document.querySelector('canvas[data-chart-src]'))"
+    ticks = page.evaluate(f"() => {chart}.scales.y.ticks.map((tick) => tick.label)")
+    assert ticks and all(re.fullmatch(r"\d+:\d\d", label) for label in ticks), ticks
+    assert len(set(ticks)) == len(ticks)
+    tooltip = page.evaluate(
+        f"""() => {{
+            const callbacks = {chart}.options.plugins.tooltip.callbacks;
+            const item = {{dataset: {{label: 'x'}}, parsed: {{y: 96}}, formattedValue: '96', dataIndex: 0}};
+            return [callbacks.label(item), callbacks.title([item])];
+        }}"""
+    )
+    assert tooltip[0] == f"x{NBSP}: 1:36"
+    assert re.fullmatch(r"\d\d/\d\d/\d{4}", tooltip[1])  # the year: the chart spans two years
+    flow_phone.check_clean()
 
 
 @pytest.mark.parametrize("viewport", [PHONE, DESKTOP], ids=["360px", "1280px"])

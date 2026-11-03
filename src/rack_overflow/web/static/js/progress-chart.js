@@ -1,11 +1,13 @@
 /*
  * Progress chart (D-068, docs/ui-spec.md "L5 — Progress of an exercise"): for each
  * canvas[data-chart-src], fetches the chart JSON (same origin) and draws it with the vendored
- * Chart.js. Values, labels, axis title and tooltip text come from the server, already in display
- * units and in French; colours and fonts come from the CSS tokens. On success the canvas gets
- * data-chart-state="ready" and data-chart-ms (time since navigation start); on failure the box
- * is hidden again, the server-rendered [data-chart-error] text is shown and the canvas gets
- * data-chart-state="error". No user-facing text, no business rule, no unit conversion here.
+ * Chart.js. Values, labels, tooltip titles, axis title, scale, tick step and tooltip text come
+ * from the server, already in display units and in French; colours and fonts come from the CSS
+ * tokens. Seconds on a duration axis are written m:ss / h:mm:ss (D-029, formatting only);
+ * counts get whole ticks. On success the canvas gets data-chart-state="ready" and data-chart-ms
+ * (time since navigation start); on failure the box is hidden again, the server-rendered
+ * [data-chart-error] text is shown and the canvas gets data-chart-state="error". No user-facing
+ * text, no business rule, no unit conversion here.
  */
 (function () {
   "use strict";
@@ -15,6 +17,32 @@
 
   function token(name) {
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  function pad(number) {
+    return (number < 10 ? "0" : "") + number;
+  }
+
+  // seconds -> "1:35", "1:02:05"; nothing below zero
+  function clock(value) {
+    var seconds = Math.round(value);
+    if (seconds < 0) {
+      return "";
+    }
+    var hours = Math.floor(seconds / 3600);
+    var rest = seconds % 3600;
+    var tail = pad(rest % 60);
+    if (hours) {
+      return hours + ":" + pad(Math.floor(rest / 60)) + ":" + tail;
+    }
+    return Math.floor(rest / 60) + ":" + tail;
+  }
+
+  function valueTicks(data) {
+    if (data.scale === "duration") {
+      return { stepSize: data.step || undefined, callback: clock };
+    }
+    return data.scale === "count" ? { precision: 0 } : {};
   }
 
   function fail(canvas) {
@@ -87,18 +115,28 @@
           legend: { display: false },
           tooltip: {
             borderWidth: 1,
+            usePointStyle: true,
             callbacks: {
+              title: function (items) {
+                return items.length && data.titles ? data.titles[items[0].dataIndex] : "";
+              },
               label: function (context) {
+                var value =
+                  data.scale === "duration" ? clock(context.parsed.y) : context.formattedValue;
                 return data.tooltip
                   .replace("{label}", context.dataset.label)
-                  .replace("{value}", context.formattedValue);
+                  .replace("{value}", value);
               }
             }
           }
         },
         scales: {
-          x: { ticks: { autoSkip: true, maxRotation: 0 }, grid: {}, title: { display: false } },
-          y: { ticks: {}, grid: {}, title: { display: true, text: data.axis } }
+          x: {
+            ticks: { autoSkip: true, autoSkipPadding: 12, maxRotation: 0 },
+            grid: {},
+            title: { display: false }
+          },
+          y: { ticks: valueTicks(data), grid: {}, title: { display: true, text: data.axis } }
         }
       }
     });

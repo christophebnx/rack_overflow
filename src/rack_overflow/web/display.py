@@ -52,6 +52,8 @@ SERIES_KEYS = {
 }
 """Chart series key → its label (legend, tooltip)."""
 SUM_SERIES = frozenset({"duration"})
+# data-table column kind → the unit key its header carries (cells then hold the number only)
+COLUMN_UNIT_KEYS = {units.WEIGHT: "unit.kg", units.DISTANCE: "unit.km", units.PACE: "progress.col.unit_pace"}
 """Series whose points are a day's sum of durations, shown compact (« 30 min »)."""
 TYPED_UNIT_KEYS = {"weight": units.UNIT_KG, "distance": units.UNIT_KM, "duration": units.UNIT_DURATION}
 
@@ -275,6 +277,19 @@ class Display:
         if kind == units.INT:
             return str(value)
         return self.value(kind, value)
+
+    def column_unit(self, kind: str) -> str | None:
+        """The unit a data-table column header carries (« kg », « km », « min/km »), None when
+        its cells keep their own (counts, m:ss, compact day sums)."""
+        key = COLUMN_UNIT_KEYS.get(kind)
+        return self._catalog.text(key) if key else None
+
+    def column_cell(self, kind: str, value: int | None) -> str:
+        """A data-table value under a header carrying its unit (`column_unit`): the number only,
+        « 117,5 », « 0,4 », « 5:20 »; other kinds as `cell` writes them."""
+        if value is None or kind not in COLUMN_UNIT_KEYS:
+            return self.cell(kind, value)
+        return units.column_number(kind, value)
 
     def series_value(self, series: Series, value: int) -> str:
         """A point of a chart series as the caption reads it."""

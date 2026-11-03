@@ -458,7 +458,7 @@
   "progress.axis.weight": "Charge (kg)",
   "progress.axis.reps": "Répétitions",
   "progress.axis.distance": "Distance (km)",
-  "progress.axis.minutes": "Durée (min)",
+  "progress.axis.duration": "Durée",
   "progress.axis.rounds": "Tours",
   "progress.chart_tooltip": "{label} : {value} {unit}",
   "progress.chart_span": "{count} jours, du {first} au {last}.",
@@ -482,6 +482,8 @@
   "progress.col.pace": "Allure",
   "progress.col.rounds": "Tours",
   "progress.col.work": "Travail",
+  "progress.col.with_unit": "{label} ({unit})",
+  "progress.col.unit_pace": "min/km",
   "progress.records_heading": "Records",
   "progress.records_empty": "Aucun record pour l’instant.",
   "progress.session_of": "séance du",
@@ -543,6 +545,5 @@
   "catalog.error.rm_reps_range": "Entre 1 et 12 répétitions.",
   "catalog.error.bad_date": "Date non valable.",
   "catalog.error.date_in_future": "La date ne peut pas être dans le futur.",
-  "catalog.error.rm_not_strength": "Les RM ne concernent que les exercices de musculation.",
-  "progress.unit.minutes": "min"
+  "catalog.error.rm_not_strength": "Les RM ne concernent que les exercices de musculation."
 }

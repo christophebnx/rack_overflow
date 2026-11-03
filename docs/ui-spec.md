@@ -1581,9 +1581,9 @@ Task: find a session to check or correct it; see whether training is regular. De
 - **List**: one `<section aria-labelledby>` per month, `h2` « Novembre 2026 » (`Display.month`, first letter capitalised by CSS), then `<ul class="rows history-list">`. Each item one `<a class="row history-item" href="/seances/{id}">`:
   - `.row__title`: template name or « Séance libre » (wraps), tag « En cours » for an open session;
   - meta line 1: « lun. 03/11 · 18:42 · Salle » (`history.item_when` + place);
-  - meta line 2: « Séries : 22 · Volume : 8450 kg » (counted sets; volume only when > 0), or « Aucune série » for a session with no live set;
-  - meta line 3: names of the exercises with a live set, joined by « · », wrapping (never an ellipsis); absent when none.
-  - From 40rem: grid `9rem minmax(0, 1fr) 10rem`: when and place | title and exercise names | counts right aligned, tabular.
+  - meta line 2: « Séries : 22 · Volume : 8450 kg » (counted sets; volume only when > 0), or « Aucune série » for a session with no live set; each count is a `.history-item__count` that never wraps inside (« Volume : » stays with its value), the « · » a `.history-item__sep` between them;
+  - meta line 3: names of the exercises with a live set, joined by a no-break space + « · » + space, so a wrapped line never starts with « · » (never an ellipsis); absent when none.
+  - From 40rem: grid `9rem minmax(0, 1fr) 10rem`: when and place | title and exercise names | counts right aligned, tabular, one count per line (`.history-item__sep` hidden).
 - **« Plus anciennes »**: `<div id="historique-suite" data-request-scope>` with the slot, then `<a class="button" href="/historique?avant={id}" hx-get="/historique?avant={id}" hx-target="#historique-suite" hx-swap="outerHTML" hx-disabled-elt="this">` (full width below 40rem). The answer appends the next ≤ 20 items: a month already started on screen continues as a heading-less `.rows` list right under it; a new month gets its `h2`. The first new link has `autofocus`; « Séances chargées : {count} » is announced. Absent on the last page. Without htmx it is a plain link to the next page, which always starts with its month heading.
 
 States:
@@ -1632,7 +1632,7 @@ Task: fix a set or a setting logged wrong; delete a session that should not exis
 +------------------------------+
 ```
 
-- Head and totals as L4 — Session summary; the totals `<dl class="summary-totals" id="seance-totaux">` are re-rendered out of band after each correction (records and volume change).
+- Head and totals as L4 — Session summary; the totals `<dl class="summary-totals" id="seance-totaux">` are re-rendered out of band after each correction (records and volume change). « Exercices » counts the exercises with a live set (`SummaryView.exercise_count`): a section emptied by deleting its last set stays on screen until reload but no longer counts.
 - Per exercise with a live set: `<section class="session-block session-detail" id="exercice-{row}" aria-labelledby="exercice-{row}-titre">` (the correction fragment): h2 name (+ « Archivé »), the L4 meta line, `<a class="inline-link" href="/progression/{exercise_id}">` « Voir la progression », then the L4 settings `<details>` when the exercise has non-archived setting variables (same form, same `PATCH …/reglages`, hint « Corrections enregistrées à chaque changement. »), then the L4 set list with « Modifier » and the edit form (same macro, same ids `serie-{id}-…`, same « Enregistrer » / « Supprimer la série »; keyboard accepted, no steppers). No next-set form, no ✓, no « Changer d’exercice ».
 - Corrections validate against the exercise's current fields; the stars, the meta line and the totals are recomputed in the answer.
 - Last live set of an exercise deleted: the section stays with `.empty` « Plus aucune série pour cet exercice. »; focus on its « Voir la progression ».
@@ -1734,11 +1734,11 @@ Task: see whether the exercise progresses and what the max is now. Decision (str
 - No measure and no estimable set: muted « Aucun RM pour l’instant : saisissez un test, ou enregistrez des séries de travail de 1 à 12 répétitions. » (no rows).
 - Muted line « Formule d’estimation : Epley · » + `<a class="inline-link" href="/reglages">` « Changer » (visually hidden « la formule »).
 - `<details class="rm-add" id="rm-saisie">`, summary `.button` full width below 40rem, id `rm-saisir`, « Saisir un RM mesuré » (`open` when the answer carries a refusal). Inside `<form class="form" id="rm-form" hx-post="/rm/{exercise_id}" hx-target="#rm" hx-swap="outerHTML" hx-disabled-elt="#rm-form button">`: slot; `fieldset.chips.chips--grid6` legend « Nombre de répétitions », radios `name="n"` 1 … 12, « 1 » checked; field « Charge (kg) » (`session.field_unit`), `input.input` `name="weight"` `inputmode="decimal"`, hint `unit.hint.weight`, empty; field « Date du test », `<input class="input" type="date" name="date" value="{today}" max="{today}">`; primary « Enregistrer la mesure ». Saved → section re-rendered, `<details>` closed, focus on `#rm-saisir`, « 1RM mesuré enregistré : 105 kg. ». Refused → `200`, messages under the inputs (`rm_reps_range` under the chips' legend, `required` / unit codes / `must_be_positive` under the weight, `bad_date` / `date_in_future` under the date).
-- « Mesures saisies » (h3, only when a manual entry exists): `<ul class="rows">` newest first, each `<li>` a flex row: « 1RM · 100 kg · 12/10/2026 » (tabular) and a danger `.button` « Supprimer » (visually hidden « la mesure 1RM du 12/10/2026 »; `hx-delete="/rm/mesures/{id}" hx-target="#rm" hx-swap="outerHTML" hx-disabled-elt="this"`; no confirmation: re-entering takes three fields, like a set delete in L4). Deleted → section re-rendered, focus on the next measure's « Supprimer », else `#rm-saisir`, « Mesure supprimée. ». RM-test sets are not listed here: they are corrected in their session.
+- « Mesures saisies » (h3 `.rm-measures__heading`, `margin-top: var(--space-6)`, only when a manual entry exists): `<ul class="rows">` newest first, each `<li>` a flex row: « 1RM · 100 kg · 12/10/2026 » (tabular) and a danger `.button` « Supprimer » (visually hidden « la mesure 1RM du 12/10/2026 »; `hx-delete="/rm/mesures/{id}" hx-target="#rm" hx-swap="outerHTML" hx-disabled-elt="this"`; no confirmation: re-entering takes three fields, like a set delete in L4). Deleted → section re-rendered, focus on the next measure's « Supprimer », else `#rm-saisir`, « Mesure supprimée. ». RM-test sets are not listed here: they are corrected in their session.
 
 **Évolution** (`section`, h2 « Évolution »):
 
-1. Muted intro by main series (`progress.chart_intro.*`).
+1. Muted intro by main series (`progress.chart_intro.*`), `.chart-note` (`--text-sm`, as the caption; the one-day text `progress.chart_one_point` uses the same class).
 2. Legend `<ul class="chart-legend">` only with ≥ 2 series: per series `<li class="chart-legend__item chart-legend__item--{i}">` with the label; the glyph (● ◆ ■ ▲ ✕ ★ by index) in `--chart-{i}` through `::before` (alt text empty). Flex wrap, gap `--space-3`, `--text-sm`.
 3. `<figure class="chart-figure">`: `<div class="chart" hidden>` `<canvas data-chart-src="/api/progression/{id}" role="img" aria-labelledby="evolution-titre evolution-resume"></canvas></div>`, `<p class="chart__error" data-chart-error hidden>` « Graphique indisponible. Les données restent consultables ci-dessous. », `<figcaption id="evolution-resume" class="muted">` « 48 jours, du 05/11/2025 au 03/11/2026. » + (single main series) « Dernière valeur : 102,5 kg ; meilleure : 107,5 kg. ». `.chart` height `15rem` below 64rem, `20rem` from 64rem, width 100 %, `font-size: var(--text-sm)`; the script removes `hidden` before drawing.
 4. `<details class="chart-data">` summary (chevron, as the L4 settings summary, 48 px) « Voir les données », then the data table, caption visually hidden « Valeurs par jour, de la plus récente à la plus ancienne », newest first:
@@ -1751,9 +1751,9 @@ Task: see whether the exercise progresses and what the max is now. Decision (str
 | `cardio` | Date · Distance (when the exercise has one) · Durée · Allure (when both) |
 | `intervals` | Date · Tours · Travail |
 
-Dates `Display.local_date` (« 03/11/2026 »); empty cell « — ». Per-set values (max reps, max duration) as `m:ss` / numbers; per-day sums (durations of a day) compact (« 30 min », L4 summary rule).
+Dates `Display.local_date` (« 03/11/2026 »); empty cell « — ». A column of weights, distances or paces carries its unit in the header (`progress.col.with_unit`: « 1RM estimé (kg) », « Distance (km) », « Allure (min/km) »; `Display.column_unit`) and its cells hold the number only (`Display.column_cell`, `units.column_number`: « 117,5 », a distance in km even under 1 km « 0,4 », « 5:20 »); headers may wrap. Per-set values (max reps, max duration) as `m:ss` / numbers; per-day sums (durations of a day) compact (« 30 min », L4 summary rule). The table has no side padding on its outer cells, so every table fits 328 px at 360 (strength with « 1RM mesuré », cardio with distance and pace).
 
-Chart drawing (`progress-chart.js`, Chart.js): type line; series *i*: colour `--chart-{i}`, `pointStyle` *i*, line 2 px, point radius 4; a `kind: "points"` series (1RM mesuré) `showLine: false`, radius 5; `spanGaps: true`; `animation: false`; `responsive: true`, `maintainAspectRatio: false`; `locale` from `<html lang>`; `plugins.legend.display: false`; `interaction: {mode: "index", intersect: false}`; x category labels « 03/11 » (`autoSkip`), y title from `axis`; ticks and titles `--color-muted`, grid `--color-divider`, tooltip background `--color-surface`, text `--color-text`, border 1 px `--color-border`; tooltip line from the JSON `tooltip` (« {label} : {value} kg »). Font family and size read from `.chart`'s computed style. Tokens re-read on `prefers-color-scheme` change.
+Chart drawing (`progress-chart.js`, Chart.js): type line; series *i*: colour `--chart-{i}`, `pointStyle` *i*, line 2 px, point radius 4; a `kind: "points"` series (1RM mesuré) `showLine: false`, radius 5; `spanGaps: true`; `animation: false`; `responsive: true`, `maintainAspectRatio: false`; `locale` from `<html lang>`; `plugins.legend.display: false`; `interaction: {mode: "index", intersect: false}`; x category labels « 03/11 » (`autoSkip`, `autoSkipPadding: 12`: no overlap at 360 with ~100 days), y title from `axis`; y ticks by the JSON `scale`: `decimal` (Chart.js `fr` numbers), `count` (`precision: 0`, never « 6,0 »), `duration` (values in seconds, ticks every JSON `step` seconds, a clock-round step from `units.chart_duration_step`, written `m:ss` / `h:mm:ss` like every duration, D-029); ticks and titles `--color-muted`, grid `--color-divider`, tooltip background `--color-surface`, text `--color-text`, border 1 px `--color-border`; tooltip line from the JSON `tooltip` (« {label} : {value} kg »; a duration value `m:ss` / `h:mm:ss`, « Durée max : 1:35 »), `usePointStyle: true` (the series' shape), title from the JSON `titles` (« 03/11 », the full « 03/11/2026 » when the chart spans two calendar years). Font family and size read from `.chart`'s computed style. Tokens re-read on `prefers-color-scheme` change.
 
 Chart states:
 
@@ -1793,7 +1793,7 @@ States of the page:
 
 Tab order: header, « Fiche de l’exercice », last-performance link, (strength) « Changer », « Saisir un RM mesuré » and its form, each « Supprimer »; « Voir les données »; record date links. The canvas takes no tab stop.
 
-Implementation notes (L5 developer): the chart is drawn (canvas, legend, scripts) when the series hold at least two distinct days in all (a kettlebell chart counts the days of every load); the caption counts those days. The tooltip key reads « {label} : {value} {unit} » (no-break space before the colon only); a unit-less series (reps, rounds) drops the unit. Minutes on a duration axis use the new key `progress.unit.minutes` (« min »). `Display.pace`, `speed` and `density` are one helper, `Display.rate(kind, value)`, and table / record values go through `Display.cell`. Chart.js 4.6.1 was checked in Chromium under the unchanged CSP: no `<style>` element, no violation; it sizes the canvas through the CSSOM only. The RM-test measurements are read from `record_history` (no separate `rm_test_sets` query).
+Implementation notes (L5 developer): the chart is drawn (canvas, legend, scripts) when the series hold at least two distinct days in all (a kettlebell chart counts the days of every load); the caption counts those days. The tooltip key reads « {label} : {value} {unit} » (no-break space before the colon only); a unit-less series (reps, rounds, durations) drops the unit. Fix loop 1: duration axes read `m:ss` / `h:mm:ss` (axis title `progress.axis.duration` « Durée »; `progress.unit.minutes` removed); records `dd` is a flex row with a `--space-3` gap between value and date link (a grid with the same gap from 40rem). `Display.pace`, `speed` and `density` are one helper, `Display.rate(kind, value)`, and table / record values go through `Display.cell`. Chart.js 4.6.1 was checked in Chromium under the unchanged CSP: no `<style>` element, no violation; it sizes the canvas through the CSSOM only. The RM-test measurements are read from `record_history` (no separate `rm_test_sets` query).
 
 ### L5 — Settings (`GET /reglages`, `templates/settings.html`)
 
@@ -1836,7 +1836,7 @@ The page head gains a secondary link-button « Voir la progression » → `/prog
 | speed (m/h) | « 11,3 km/h » (one decimal) | `unit.speed` |
 | density | « 12,5 rép./min » (one decimal) | `unit.density` |
 | weekly average | « 2,8 » (one decimal) | — |
-| chart values | numbers in kg, km, minutes or counts (`units.chart_number`), formatted by Chart.js with the `fr` locale | — |
+| chart values | numbers in kg, km or counts formatted by Chart.js with the `fr` locale; durations in seconds written `m:ss` / `h:mm:ss` by the chart script (`units.chart_number`) | — |
 | per-session sums of durations | compact, « 4 min », « 1 h 15 » | `duration.compact.*` |
 | per-set durations | `m:ss` / `h:mm:ss` | — |
 
@@ -1911,7 +1911,7 @@ Typography as L4: typographic apostrophes; no-break space (U+00A0) before « : �
 | `progress.axis.weight` | Charge (kg) |
 | `progress.axis.reps` | Répétitions |
 | `progress.axis.distance` | Distance (km) |
-| `progress.axis.minutes` | Durée (min) |
+| `progress.axis.duration` | Durée |
 | `progress.axis.rounds` | Tours |
 | `progress.chart_tooltip` | {label} : {value} {unit} |
 | `progress.chart_span` | {count} jours, du {first} au {last}. |
@@ -1935,6 +1935,8 @@ Typography as L4: typographic apostrophes; no-break space (U+00A0) before « : �
 | `progress.col.pace` | Allure |
 | `progress.col.rounds` | Tours |
 | `progress.col.work` | Travail |
+| `progress.col.with_unit` | {label} ({unit}) |
+| `progress.col.unit_pace` | min/km |
 | `progress.records_heading` | Records |
 | `progress.records_empty` | Aucun record pour l’instant. |
 | `progress.session_of` | séance du |
@@ -1997,6 +1999,5 @@ Typography as L4: typographic apostrophes; no-break space (U+00A0) before « : �
 | `catalog.error.bad_date` | Date non valable. |
 | `catalog.error.date_in_future` | La date ne peut pas être dans le futur. |
 | `catalog.error.rm_not_strength` | Les RM ne concernent que les exercices de musculation. |
-| `progress.unit.minutes` | min |
 
 « × », « − » (U+2212) and « ^ » in formula texts take no-break spaces on both sides. Reused: `session.summary.sets`, `session.summary.volume`, `session.summary_title`, `session.settings_saved`, `session.announce_set_updated`, `session.announce_set_deleted`, `session.delete_set`, `session.record`, `session.set_type.*`, `session.field_unit`, `home.free_session`, `home.start_title` (link « Nouvelle séance »), `exercise.location.*`, `exercise.category.*`, `tag.archived_m`, `action.cancel`, `action.home`, `action.save`, `unit.hint.weight`, `unit.with_value`, `date.numeric`, `duration.compact.*`, `quantity.weight`, `unit.kg`, `catalog.error.required`, `catalog.error.must_be_positive`, `catalog.error.invalid_choice`, the `domain/units` codes, `error.not_saved`. The design note's `Display.week` « sem. du 27/10 » is replaced by `date.short` « 27/10 » plus `history.week_item` (accessible text).

@@ -108,11 +108,13 @@ def test_history_lists_sessions_with_consistency(client: TestClient, migrated_en
     assert ">novembre 2026</h2>" in html and ">septembre 2026</h2>" in html
     assert TEXT("history.open_tag") in html and TEXT("history.no_sets") in html
     assert TEXT("history.item_when", weekday="mar.", date="03/11", time="13:04") in html
+    sets = TEXT("session.summary.sets", count=2)
+    volume = TEXT("session.summary.volume", value=f"900{NBSP}kg")
     assert (
-        TEXT("session.summary.sets", count=2) + " · " + TEXT("session.summary.volume", value=f"900{NBSP}kg")
-        in html
-    )
-    assert "Squat · Bench" in html
+        f'<span class="history-item__count">{sets}</span><span class="history-item__sep"> · </span>'
+        f'<span class="history-item__count">{volume}</span>'
+    ) in html
+    assert f"Squat{NBSP}· Bench" in html
     assert TEXT("history.more") not in html
 
 
@@ -229,6 +231,8 @@ def test_deleting_closed_sets_moves_the_focus(client: TestClient, closed: dict[s
     last = client.request("DELETE", f"/series/{closed['t0']}", json={}, headers=HTMX)
     assert TEXT("session.exercise_no_sets") in last.text
     assert autofocused(last.text) == [f"exercice-{closed['r']}-progression"]
+    exercises_tile = f"<dt>{TEXT('session.total_exercises')}</dt><dd>0</dd>"
+    assert exercises_tile in last.text  # the emptied section no longer counts (out-of-band totals)
     assert client.request("DELETE", f"/series/{closed['t0']}", json={}, headers=HTMX).status_code == 404
 
 

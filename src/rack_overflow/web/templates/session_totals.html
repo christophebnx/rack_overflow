@@ -1,7 +1,7 @@
 {# Totals of a closed session (docs/ui-spec.md "L4 — Session summary"); re-rendered out of band
    after each correction of the L5 detail (`totals_oob`). #}
 <dl class="summary-totals" id="seance-totaux"{% if totals_oob is defined and totals_oob %} hx-swap-oob="true"{% endif %}>
-  <div class="summary-totals__tile"><dt>{{ t("session.total_exercises") }}</dt><dd>{{ summary.rows | length }}</dd></div>
+  <div class="summary-totals__tile"><dt>{{ t("session.total_exercises") }}</dt><dd>{{ summary.exercise_count }}</dd></div>
   <div class="summary-totals__tile"><dt>{{ t("session.total_sets") }}</dt><dd>{{ summary.total_sets }}</dd></div>
   {% if summary.total_load_g %}<div class="summary-totals__tile"><dt>{{ t("session.total_volume") }}</dt><dd>{{ show.value("weight", summary.total_load_g) }}</dd></div>{% endif %}
   <div class="summary-totals__tile"><dt>{{ t("session.total_records") }}</dt><dd>{{ summary.total_records }}</dd></div>

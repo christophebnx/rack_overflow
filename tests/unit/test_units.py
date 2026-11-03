@@ -319,7 +319,37 @@ def test_format_computed_values(kind: str, value: int, shown: Display) -> None:
 
 @pytest.mark.parametrize(
     ("kind", "value", "number"),
-    [("weight", 102500, 102.5), ("distance", 5230, 5.23), ("duration", 90, 1.5), ("int", 12, 12.0)],
+    [("weight", 102500, 102.5), ("distance", 5230, 5.23), ("duration", 90, 90.0), ("int", 12, 12.0)],
 )
 def test_chart_number(kind: str, value: int, number: float) -> None:
     assert units.chart_number(kind, value) == number
+
+
+@pytest.mark.parametrize(
+    ("low", "high", "step"),
+    [
+        (69, 96, 5),  # « Planche » 1:09 to 1:36: ticks every 0:05
+        (95, 95, 2),  # a flat line spans a tenth of the value
+        (0, 0, 1),
+        (1200, 1800, 120),
+        (1500, 2700, 300),
+        (3600, 9000, 900),
+        (0, 10**9, 86400),
+    ],
+)
+def test_chart_duration_step(low: int, high: int, step: int) -> None:
+    assert units.chart_duration_step(low, high) == step
+    assert step in units.CHART_DURATION_STEPS_S
+
+
+@pytest.mark.parametrize(
+    ("kind", "value", "text"),
+    [
+        ("weight", 117500, "117,5"),
+        ("distance", 400, "0,4"),
+        ("distance", 5230, "5,23"),
+        ("pace", 320, "5:20"),
+    ],
+)
+def test_column_number_keeps_one_unit_per_column(kind: str, value: int, text: str) -> None:
+    assert units.column_number(kind, value) == text

@@ -69,7 +69,7 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Device, pairing code and token rules | `domain/devices` |
 | Text normalisation (search, aliases, name uniqueness, codes) | `domain/text` |
 | Text read as a non-negative integer (ASCII digits only, before `int()`) | `domain/text.is_digits` |
-| Canonical integers ↔ display and input text (kg, km / m, m:ss; compact target durations; pace, speed, density and chart numbers, L5) | `domain/units` |
+| Canonical integers ↔ display and input text (kg, km / m, m:ss; compact target durations; pace, speed, density and chart numbers, duration tick steps, data-table column numbers, L5) | `domain/units` |
 | Catalog rules (variables, exercises, fields, aliases) | `domain/catalog` |
 | Movement pattern and equipment of an exercise in their first-seen spelling | `domain/catalog.with_known_spellings` |
 | At least one measure per exercise (field removal, variable delete or scope change) | `domain/catalog.check_measures`, `check_linked_measures` |

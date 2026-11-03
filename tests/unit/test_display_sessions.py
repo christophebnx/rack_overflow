@@ -107,3 +107,18 @@ def test_l5_dates_and_decimal() -> None:
     assert SHOW.month("2027-01") == "janvier 2027"
     assert SHOW.decimal1(28) == "2,8"
     assert SHOW.decimal1(0) == "0,0"
+
+
+def test_data_table_columns_carry_the_unit_and_cells_the_number() -> None:
+    assert [SHOW.column_unit(kind) for kind in ("weight", "distance", "pace", "int", "duration")] == [
+        "kg",
+        "km",
+        "min/km",
+        None,
+        None,
+    ]
+    assert SHOW.column_cell("weight", 117500) == "117,5"
+    assert SHOW.column_cell("distance", 400) == "0,4"
+    assert SHOW.column_cell("pace", 320) == "5:20"
+    assert SHOW.column_cell("duration", 95) == "1:35"
+    assert SHOW.column_cell("weight", None) == SHOW.cell("weight", None)

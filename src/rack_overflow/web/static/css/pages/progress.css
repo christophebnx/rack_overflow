@@ -199,6 +199,15 @@
   font-size: var(--text-sm);
 }
 
+/* The chart's intro and its one-day text: the caption's muted small size. */
+.chart-note {
+  font-size: var(--text-sm);
+}
+
+.rm-measures__heading {
+  margin-top: var(--space-6);
+}
+
 .chart-data {
   margin-top: var(--space-3);
 }
@@ -240,6 +249,10 @@
 }
 
 .records__item > dd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-3);
+  align-items: center;
   margin: 0;
 }
 
@@ -259,6 +272,7 @@
   .records__item > dd {
     display: grid;
     grid-template-columns: 8rem 8rem;
+    gap: var(--space-3);
     align-items: center;
   }
 }

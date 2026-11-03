@@ -272,6 +272,12 @@ class SummaryView:
         return next((item for item in self.rows if item.id == row_id), None)
 
     @property
+    def exercise_count(self) -> int:
+        """Exercises with at least one live set (a corrected row emptied of its sets is kept in
+        `rows` until the next page load, D-067, but no longer counts)."""
+        return sum(1 for row in self.rows if row.sets)
+
+    @property
     def total_sets(self) -> int:
         """Counted (work and RM-test) sets."""
         return sum(row.volume.sets for row in self.rows)

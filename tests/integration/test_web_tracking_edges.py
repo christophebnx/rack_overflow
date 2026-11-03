@@ -516,7 +516,7 @@ def chart(client: TestClient, exercise_id: int) -> dict[str, object]:
     assert response.status_code == 200 and response.headers["cache-control"] == "no-store"
     assert response.headers["content-type"].startswith("application/json")
     data: dict[str, object] = response.json()
-    assert set(data) == {"unit", "axis", "tooltip", "labels", "series"}
+    assert set(data) == {"unit", "axis", "tooltip", "scale", "step", "titles", "labels", "series"}
     labels = data["labels"]
     assert isinstance(labels, list)
     for item in data["series"]:  # type: ignore[attr-defined]
@@ -528,7 +528,16 @@ def chart(client: TestClient, exercise_id: int) -> dict[str, object]:
 def test_chart_json_empty_shapes(client: TestClient, migrated_engine: Engine) -> None:
     squat = make(migrated_engine)
     logged(migrated_engine, NOW - timedelta(days=1), squat, [lift(5, "60", "warmup")])
-    assert chart(client, squat) == {"unit": "", "axis": "", "tooltip": "", "labels": [], "series": []}
+    assert chart(client, squat) == {
+        "unit": "",
+        "axis": "",
+        "tooltip": "",
+        "scale": "",
+        "step": None,
+        "titles": [],
+        "labels": [],
+        "series": [],
+    }
     run = make(migrated_engine, "Run", "cardio")
     assert chart(client, run)["series"] == []
 
@@ -542,17 +551,40 @@ def test_chart_json_one_day(client: TestClient, migrated_engine: Engine) -> None
     assert data["series"] == [{"label": "1RM estimé (Epley)", "kind": "line", "values": [120.0]}]
 
 
-def test_chart_json_cardio_without_distance_is_minutes(client: TestClient, migrated_engine: Engine) -> None:
+def test_chart_json_cardio_without_distance_is_seconds(client: TestClient, migrated_engine: Engine) -> None:
     run = make(migrated_engine, "Run", "cardio")
     logged(migrated_engine, NOW - timedelta(days=3), run, [{"duration": "30:00"}])
     logged(migrated_engine, NOW - timedelta(days=1), run, [{"duration": "20:00"}, {"duration": "25:30"}])
     data = chart(client, run)
-    assert data["axis"] == TEXT("progress.axis.minutes") and data["labels"] == ["31/10", "02/11"]
+    assert data["axis"] == TEXT("progress.axis.duration") and data["labels"] == ["31/10", "02/11"]
     assert data["series"] == [
-        {"label": TEXT("progress.series.duration"), "kind": "line", "values": [30.0, 45.5]}
+        {"label": TEXT("progress.series.duration"), "kind": "line", "values": [1800.0, 2730.0]}
     ]
     page = client.get(f"/progression/{run}", headers=PAGE).text
     assert TEXT("progress.record.best_pace") not in page and TEXT("progress.record.best_speed") not in page
+
+
+def test_chart_json_scale_step_and_titles(client: TestClient, migrated_engine: Engine) -> None:
+    plank = exercises.create(migrated_engine, USER, ExerciseForm("Planche", "bodyweight", "home"))
+    exercises.add_field(migrated_engine, USER, plank, core_quantity="duration")
+    detail = exercises.get_detail(migrated_engine, USER, plank)
+    reps = next(item.id for item in detail.fields if item.core_quantity == "reps")
+    exercises.remove_field(migrated_engine, USER, plank, reps)
+    logged(migrated_engine, NOW - timedelta(days=400), plank, [{"duration": "1:09"}])
+    logged(migrated_engine, NOW - timedelta(days=1), plank, [{"duration": "1:36"}])
+    data = chart(client, plank)
+    assert data["scale"] == "duration" and data["step"] == 5  # ticks every 0:05
+    assert data["tooltip"] == f"{{label}}{NBSP}: {{value}}" and data["unit"] == ""
+    assert data["titles"] == ["29/09/2025", "02/11/2026"] and data["labels"] == ["29/09", "02/11"]
+    squat = make(migrated_engine)
+    logged(migrated_engine, NOW - timedelta(days=3), squat, [lift(5, "100")])
+    logged(migrated_engine, NOW - timedelta(days=1), squat, [lift(5, "105")])
+    data = chart(client, squat)
+    assert data["scale"] == "decimal" and data["step"] is None and data["titles"] == data["labels"]
+    tabata = make(migrated_engine, "Tabata", "intervals")
+    logged(migrated_engine, NOW - timedelta(days=3), tabata, [{"duration": "0:20"}] * 6)
+    logged(migrated_engine, NOW - timedelta(days=1), tabata, [{"duration": "0:20"}] * 8)
+    assert chart(client, tabata)["scale"] == "count"
 
 
 def test_chart_json_cardio_distance_on_some_days(client: TestClient, migrated_engine: Engine) -> None:
