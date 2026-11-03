@@ -19,7 +19,14 @@ from rack_overflow.domain.catalog import CatalogError
 from rack_overflow.domain.sessions import Item, SessionError
 from rack_overflow.domain.text import is_digits
 from rack_overflow.services import sessions
-from rack_overflow.services.sessions import FieldInfo, SessionView, SetRef, SummaryRow, SummaryView
+from rack_overflow.services.sessions import (
+    SESSION_CLOSED,
+    FieldInfo,
+    SessionView,
+    SetRef,
+    SummaryRow,
+    SummaryView,
+)
 from rack_overflow.web.auth import device_user
 from rack_overflow.web.display import Display
 from rack_overflow.web.forms import NO_ERRORS, FormErrors, RowId, form_errors, in_id_range, select_id
@@ -138,11 +145,14 @@ def _context(view: SessionView, **extra: Any) -> dict[str, Any]:
     return context
 
 
+def _input_ids(fields: tuple[FieldInfo, ...], prefix: str) -> dict[str, str]:
+    """Problem field → input id `<prefix>-<field>` (a set form's values, a settings form)."""
+    return {item.name: f"{prefix}-{item.name}" for item in fields}
+
+
 def _field_ids(fields: tuple[FieldInfo, ...], prefix: str) -> dict[str, str]:
     """Problem field → input id of a set form (`<prefix>-<field>`, the type chips, the form)."""
-    ids = {item.name: f"{prefix}-{item.name}" for item in fields}
-    ids.update({"type": f"{prefix}-type", "set": f"{prefix}-serie"})
-    return ids
+    return {**_input_ids(fields, prefix), "type": f"{prefix}-type", "set": f"{prefix}-serie"}
 
 
 def _block_fields(view: SessionView) -> tuple[FieldInfo, ...]:
@@ -469,9 +479,7 @@ def _save_closed_settings(
         summary = sessions.detail(_engine(request), user, session_id, row_id)
         row = _detail_row(summary, row_id)
         prefix = f"exercice-{row_id}-reglages"
-        errors = _errors(
-            request, error, {item.name: f"{prefix}-{item.name}" for item in row.setting_fields}, prefix
-        )
+        errors = _errors(request, error, _input_ids(row.setting_fields, prefix), prefix)
         context = detail_context(
             summary,
             settings_row=row,
@@ -500,14 +508,15 @@ def save_settings(request: Request, session_id: RowId, row_id: RowId, body: Valu
     values = body.values()
     try:
         view = sessions.save_settings(_engine(request), user, session_id, row_id, values)
-    except SessionError:
+    except SessionError as error:
+        if error.code != SESSION_CLOSED:
+            raise
         return _save_closed_settings(request, session_id, row_id, values)
     except CatalogError as error:
         view = sessions.block(_engine(request), user, session_id, row_id)
         prefix = f"exercice-{row_id}-reglages"
         assert view.block is not None
-        ids = {item.name: f"{prefix}-{item.name}" for item in view.block.setting_fields}
-        errors = _errors(request, error, ids, prefix)
+        errors = _errors(request, error, _input_ids(view.block.setting_fields, prefix), prefix)
         context = _context(view, settings_errors=errors, settings_texts=values, announce=errors.first_message)
         return render(request, "session_settings.html", {**context, "settings_oob": True})
     assert isinstance(view, SessionView)

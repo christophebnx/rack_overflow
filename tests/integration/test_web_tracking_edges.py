@@ -9,6 +9,7 @@ from __future__ import annotations
 import re
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -473,6 +474,21 @@ def test_corrections_of_a_deleted_closed_session_are_404(
     path = f"/seances/{closed['s']}/exercices/{closed['r']}/reglages"
     assert client.patch(path, json={}, headers=HTMX).status_code == 404
     assert facts(migrated_engine) == before
+
+
+def test_settings_take_the_closed_path_only_for_a_closed_session(
+    client: TestClient, migrated_engine: Engine, closed: dict[str, int], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real = sessions.save_settings
+
+    def refuse(*args: Any, require_open: bool = True) -> object:
+        if require_open:
+            raise sessions.SessionError("another_reason")  # not `session_closed`: no correction path
+        return real(*args, require_open=False)
+
+    monkeypatch.setattr(sessions, "save_settings", refuse)
+    path = f"/seances/{closed['s']}/exercices/{closed['r']}/reglages"
+    assert client.patch(path, json={}, headers=HTMX).status_code == 500
 
 
 def test_a_correction_cannot_empty_a_set_or_change_its_exercise(
