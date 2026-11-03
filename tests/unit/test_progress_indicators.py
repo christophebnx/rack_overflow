@@ -3,12 +3,17 @@ records by category, chart series, pace / speed / density and sessions per week.
 
 from __future__ import annotations
 
+import itertools
+import math
+from datetime import date
+
 import pytest
 
 from rack_overflow.domain.indicators import (
     DEFAULT_FORMULA,
     ESTIMATE_STEP_G,
     MANUAL,
+    MAX_ESTIMATION_REPS,
     REPS_13_PLUS,
     RM_FORMULAS,
     Best,
@@ -392,3 +397,252 @@ def test_bodyweight_cardio_intervals_day_tables() -> None:
         2,
         70,
     )
+
+
+# --- edge cases (tester, L5)
+
+EXACT_RATIOS = {
+    "epley": lambda r: 1 + r / 30,
+    "brzycki": lambda r: 36 / (37 - r),
+    "lombardi": lambda r: r**0.10,
+    "oconner": lambda r: 1 + r / 40,
+    "wathan": lambda r: 100 / (48.8 + 53.8 * math.exp(-0.075 * r)),
+}
+
+
+@pytest.mark.parametrize("formula", RM_FORMULAS)
+@pytest.mark.parametrize("weight_g", [1000, 2500, 47500, 92500, 100000, 182500, 300000])
+def test_every_formula_from_2_to_12_reps_is_the_formula_rounded_to_100_g(formula: str, weight_g: int) -> None:
+    for reps in range(2, 13):
+        found = estimate_1rm(formula, reps, weight_g)
+        assert found % ESTIMATE_STEP_G == 0
+        assert abs(found - weight_g * EXACT_RATIOS[formula](reps)) <= ESTIMATE_STEP_G / 2
+
+
+@pytest.mark.parametrize("formula", RM_FORMULAS)
+def test_every_formula_grows_with_reps_and_never_shrinks_a_load(formula: str) -> None:
+    values = [estimate_1rm(formula, reps, 100000) for reps in range(1, 13)]
+    assert values == sorted(values) and values[0] == 100000
+    assert len(set(values)) == 12  # each extra rep raises the estimate
+
+
+@pytest.mark.parametrize(
+    ("formula", "at_12"),
+    [("epley", 140000), ("brzycki", 144000), ("lombardi", 128200), ("oconner", 130000), ("wathan", 141500)],
+)
+def test_twelve_reps_the_upper_boundary(formula: str, at_12: int) -> None:
+    assert estimate_1rm(formula, MAX_ESTIMATION_REPS, 100000) == at_12
+    assert load_for_reps(formula, at_12, MAX_ESTIMATION_REPS) == 100000
+
+
+def test_brzycki_pole_is_never_reached_by_history() -> None:
+    sets = [lift(reps, 100) for reps in (13, 36, 37, 38, 50)] + [lift(37, 100, kind="rm_test")]
+    assert best_estimate("brzycki", sets) is None
+    assert rm_table("brzycki", rm_test_measures(sets), sets) == ()
+    assert main_series("strength", sets, "brzycki", {"reps", "weight"}) == ()
+    table = day_table("strength", sets, "brzycki", {"reps", "weight"})
+    assert [row.values[0] for row in table.rows] == [None]
+
+
+@pytest.mark.parametrize("formula", RM_FORMULAS)
+def test_unknown_formula_falls_back_to_epley_in_every_function(formula: str) -> None:
+    assert estimate_1rm("magic", 5, 100000) == estimate_1rm(DEFAULT_FORMULA, 5, 100000)
+    assert load_for_reps("magic", 116700, 5) == load_for_reps(DEFAULT_FORMULA, 116700, 5)
+    assert formula_of(formula) == formula and formula_of("") == DEFAULT_FORMULA
+
+
+def test_rounding_is_half_up_on_integer_grams() -> None:
+    assert load_for_reps("epley", 100050, 1) == 100100
+    assert load_for_reps("epley", 100049, 1) == 100000
+    assert estimate_1rm("epley", 1, 100050) == 100100
+    assert estimate_1rm("epley", 1, 149) == 100 and estimate_1rm("epley", 1, 150) == 200
+
+
+@pytest.mark.parametrize(
+    ("item", "expected"),
+    [
+        (lift(12, 100), True),
+        (lift(13, 100), False),
+        (lift(0, 100), False),
+        (LoggedSet("work", reps=None, weight_g=100000), False),
+        (LoggedSet("work", reps=5, weight_g=None), False),
+        (LoggedSet("work", reps=5, weight_g=0), False),
+        (lift(1, 100, kind="warmup"), False),
+        (lift(1, 100, kind="rm_test"), False),
+    ],
+)
+def test_estimable_boundaries(item: LoggedSet, expected: bool) -> None:
+    assert estimable(item) is expected
+
+
+def test_warm_ups_and_sets_above_12_reps_never_feed_the_estimate() -> None:
+    sets = [
+        lift(1, 200, kind="warmup"),
+        lift(20, 120),
+        lift(13, 110),
+        lift(5, 100, set_id=7),
+        lift(1, 250, kind="rm_test"),
+    ]
+    found = best_estimate("epley", sets)
+    assert found is not None and found.value_g == 116700 and found.source.set_id == 7
+    e1rm = main_series("strength", sets, "epley", {"reps", "weight"})[0]
+    assert e1rm.key == "e1rm" and [p.value for p in e1rm.points] == [116700]
+
+
+def test_best_estimate_keeps_the_latest_set_on_a_tie() -> None:
+    sets = [lift(5, 100, day="2026-10-01", set_id=1), lift(5, 100, day="2026-10-08", set_id=2)]
+    found = best_estimate("epley", sets)
+    assert found is not None and found.source.set_id == 2
+
+
+def test_rm_test_measures_bounds() -> None:
+    sets = [
+        lift(1, 100, kind="rm_test", set_id=1),
+        lift(12, 70, kind="rm_test", set_id=2),
+        lift(13, 60, kind="rm_test", set_id=3),
+        LoggedSet("rm_test", reps=3, weight_g=0, set_id=4),
+        LoggedSet("rm_test", reps=None, weight_g=50000, set_id=5),
+        lift(1, 300, kind="work", set_id=6),
+    ]
+    assert [(m.n, m.measured_id) for m in rm_test_measures(sets)] == [(1, 1), (12, 2)]
+
+
+def test_same_day_manual_and_test_the_heavier_wins_whatever_the_origin() -> None:
+    test = RmMeasure(1, 100000, "2026-10-05", "rm_test", 9)
+    heavier = RmMeasure(1, 102500, "2026-10-05", MANUAL, 1)
+    assert latest_measures([heavier, test])[1] == heavier
+    assert latest_measures([test, heavier])[1] == heavier
+    older_heavier = RmMeasure(1, 120000, "2026-09-01", MANUAL, 2)
+    assert latest_measures([test, older_heavier])[1] == test  # the latest test, not the all-time max
+
+
+def test_flag_needs_a_strictly_higher_estimate_from_a_later_set() -> None:
+    equal = [lift(5, 100, day="2026-10-10")]  # e1RM 116,7 kg
+    measured = RmMeasure(1, 116700, "2026-10-01", MANUAL, 1)
+    assert not rm_table("epley", [measured], equal)[0].flagged
+    above = RmMeasure(1, 116600, "2026-10-01", MANUAL, 1)
+    row = rm_table("epley", [above], equal)[0]
+    assert row.flagged and row.shown_g == 116600 and row.estimate_g == 116700
+
+
+def test_flag_and_estimate_on_an_n_rm_row() -> None:
+    sets = [lift(5, 100, day="2026-10-10")]
+    three = RmMeasure(3, 100000, "2026-10-01", "rm_test", 4)
+    rows = rm_table("epley", [three], sets)
+    assert [row.n for row in rows] == [1, 3]
+    assert rows[0].measured is None and rows[0].shown_g == 116700 and not rows[0].flagged
+    assert rows[1].estimate_g == load_for_reps("epley", 116700, 3) == 106100
+    assert rows[1].shown_g == 100000 and rows[1].flagged
+
+
+@pytest.mark.parametrize("formula", RM_FORMULAS)
+def test_every_formula_leaves_measured_values_untouched(formula: str) -> None:
+    sets = [lift(8, 90, day="2026-10-10"), lift(3, 110, day="2026-10-02", kind="rm_test", set_id=5)]
+    manual = RmMeasure(1, 125000, "2026-10-01", MANUAL, 1)
+    rows = rm_table(formula, [manual, *rm_test_measures(sets)], sets)
+    assert [(row.n, row.shown_g) for row in rows] == [(1, 125000), (3, 110000)]
+    assert rows[0].estimate_g == estimate_1rm(formula, 8, 90000)
+
+
+def test_strength_series_one_point_per_day_max_over_sessions() -> None:
+    sets = [
+        lift(5, 100, day="2026-10-01", session=1),
+        lift(5, 110, day="2026-10-01", session=2),
+        lift(5, 90, day="2026-10-02", session=3),
+    ]
+    measures = [
+        RmMeasure(1, 130000, "2026-10-01", MANUAL, 1),
+        RmMeasure(1, 135000, "2026-10-01", "rm_test", 2),
+        RmMeasure(3, 120000, "2026-10-02", MANUAL, 3),  # not a 1RM: not a point
+    ]
+    e1rm, measured = main_series("strength", sets, "epley", {"reps", "weight"}, measures)
+    assert [(p.local_date, p.value) for p in e1rm.points] == [("2026-10-01", 128300), ("2026-10-02", 105000)]
+    assert [(p.local_date, p.value) for p in measured.points] == [("2026-10-01", 135000)]
+    assert measured.kind == "points"
+
+
+def test_cardio_series_sums_a_day_and_falls_back_to_duration() -> None:
+    day = [run(1500, 5000, session=1), run(600, 2000, session=2), run(300, None, session=2)]
+    series = main_series("cardio", day, "epley", {"duration", "distance"})
+    assert [(s.key, [p.value for p in s.points]) for s in series] == [("distance", [7000])]
+    no_distance = [run(1500, None), run(600, None)]
+    series = main_series("cardio", no_distance, "epley", {"duration", "distance"})
+    assert [(s.key, [p.value for p in s.points]) for s in series] == [("duration", [2100])]
+
+
+def test_cardio_pace_and_speed_need_both_quantities() -> None:
+    assert pace_s_per_km(0, 1500) is None and pace_s_per_km(5000, 0) is None
+    assert pace_s_per_km(None, 1500) is None and speed_m_per_h(5000, None) is None
+    assert pace_s_per_km(3, 1) == 333  # rounded half up
+    only = bests("cardio", [run(1500, None), LoggedSet("work", distance_m=8000, session_id=2)])
+    assert "best_pace" not in only.singles and "best_speed" not in only.singles
+    assert only.singles["max_distance"].value == 8000 and only.singles["max_duration"].value == 1500
+    table = day_table("cardio", [run(1500, 5000), run(600, None)], "epley", {"duration", "distance"})
+    assert table.rows[0].values == (5000, 2100, 300)  # pace over the sets holding both
+
+
+def test_intervals_rounds_and_work_per_session_without_warm_ups() -> None:
+    rounds = [LoggedSet("work", duration_s=30, session_id=1, local_date="2026-10-01") for _ in range(8)]
+    rounds += [LoggedSet("warmup", duration_s=60, session_id=1, local_date="2026-10-01")]
+    rounds += [LoggedSet("work", duration_s=45, session_id=2, local_date="2026-10-03") for _ in range(6)]
+    found = bests("intervals", rounds)
+    assert found.singles["session_rounds"].value == 8 and found.singles["session_rounds"].session_id == 1
+    assert found.singles["session_work"].value == 270 and found.singles["session_work"].session_id == 2
+    series = main_series("intervals", rounds, "epley", {"duration"})
+    assert [p.value for p in series[0].points] == [8, 6]
+
+
+def test_bodyweight_with_added_load() -> None:
+    sets = [
+        LoggedSet("work", reps=12, session_id=1, local_date="2026-10-01"),
+        LoggedSet("work", reps=6, weight_g=10000, session_id=2, local_date="2026-10-02"),
+        LoggedSet("warmup", reps=30, weight_g=40000, session_id=2, local_date="2026-10-02"),
+    ]
+    found = bests("bodyweight", sets)
+    assert found.singles["max_reps"].value == 12 and found.singles["max_added_load"].value == 10000
+    assert found.by_reps == ()  # no strength table for bodyweight
+    series = main_series("bodyweight", sets, "epley", {"reps", "weight"})
+    assert [p.value for p in series[0].points] == [12, 6]
+
+
+def test_kettlebell_reps_at_a_given_load() -> None:
+    sets = [
+        lift(15, 16, session=1),
+        lift(20, 16, session=2, day="2026-10-02"),
+        lift(10, 24, session=2, day="2026-10-02"),
+        lift(30, 24, kind="warmup", session=2, day="2026-10-02"),
+    ]
+    assert [(load, best.value) for load, best in max_reps_by_load(sets)] == [(16000, 20), (24000, 10)]
+    series = main_series("kettlebell", sets, "epley", {"reps", "weight"})
+    assert [(s.load_g, [p.value for p in s.points]) for s in series] == [(16000, [15, 20]), (24000, [10])]
+
+
+def test_sessions_per_week_across_a_year_boundary() -> None:
+    dates = ["2026-12-27", "2026-12-28", "2026-12-31", "2027-01-01", "2027-01-03", "2027-01-04"]
+    weeks = sessions_per_week(dates, "2027-01-02")
+    assert weeks[-1] == WeekCount("2026-12-28", 4)  # ISO week 53 of 2026 holds 1 to 3 January 2027
+    assert weeks[-2] == WeekCount("2026-12-21", 1)
+    assert sum(week.count for week in weeks) == 5  # the next week's session is not shown
+    starts = [date.fromisoformat(week.start) for week in weeks]
+    assert all(start.weekday() == 0 for start in starts)
+    assert all((b - a).days == 7 for a, b in itertools.pairwise(starts))
+
+
+def test_sessions_per_week_on_a_monday_and_a_sunday() -> None:
+    assert sessions_per_week(["2026-11-02"], "2026-11-02")[-1] == WeekCount("2026-11-02", 1)
+    assert sessions_per_week(["2026-11-08"], "2026-11-08")[-1] == WeekCount("2026-11-02", 1)
+    old = sessions_per_week(["2026-08-16"], "2026-11-02")  # the Sunday before the 12-week window
+    assert sum(week.count for week in old) == 0 and old[0].start == "2026-08-17"
+
+
+def test_average_tenths_rounds_half_up() -> None:
+    weeks = [WeekCount("2026-01-05", 0)] * 11 + [WeekCount("2026-03-23", 3)]
+    assert average_tenths(weeks) == 3  # 0,25 → 0,3
+    assert average_tenths([WeekCount("2026-01-05", 7)] * 12) == 70
+    assert average_tenths([]) == 0
+
+
+def test_max_load_by_reps_boundary_12_and_13_plus() -> None:
+    sets = [lift(12, 80), lift(13, 70), lift(25, 60), lift(12, 70, kind="warmup")]
+    found = dict(max_load_by_reps(sets))
+    assert found[12].value == 80000 and found[REPS_13_PLUS].value == 70000 and 25 not in found
