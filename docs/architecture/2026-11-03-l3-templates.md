@@ -262,3 +262,14 @@ Rendered in Chromium at 360 and 1280 px, light and dark, on a migrated database 
 4. **SUGGESTION** `session_template_slots.html:32-36`: at 1280 px « Modifier » sits on its own line under Monter / Descendre (≈ 56 px per slot); put it on the same line from 40rem as in the wireframe.
 5. **SUGGESTION** `session_template_slot_form.html:64`: add `hx-disabled-elt="this"` on « Retirer ce bloc » (a double tap shows « Non enregistré, réessayer » over a removal that succeeded).
 6. **SUGGESTION** `session_template_slots.html:53,55`: give the muted lines a dedicated id (e.g. `bloc-ajout-etat`).
+
+## Fix loop 1
+
+- Reviewer 1: `storage/positions.next_position(connection, column, *where)` is the one "position after the last row" computation (templates, slots, options, exercise fields); responsibility map updated.
+- Reviewer 2 / UI 1: a muted add-option line takes the focus after a refusal and references the message (`aria-describedby`); strict xfail removed.
+- Reviewer 3: `web/forms.RowId` (every path id) and `row_id` (every body id) bound ids to `1..2**63-1`, else 404; the `?exercice=` hint ignores such an id. Strict xfail removed; `tests/integration/test_web_ids.py` covers every id route.
+- Reviewer 4: `storage/templates.get_slot` removed.
+- Reviewer 5 / UI 2: `move_focus` with a lone row returns the row's « Modifier » (fields, slots), the add-option control (options) or the new row link id `seance-type-{id}-lien` (template list).
+- Reviewer 7, 8: `MoveBody` / `move_focus` use `domain.ordering` constants; `catalog.check_name` takes the error code and `check_template_name` delegates to it.
+- UI 3: the add select's hint is reworded for both kinds and always shown. UI 4: from 40rem the move buttons float and « Modifier » sits beside them (checked in Chromium at 360 and 1280 px; WebKit not installed here). UI 5: « Retirer ce bloc » has `hx-disabled-elt="this"`. UI 6: the add-slot muted lines have the id `bloc-ajout-etat`.
+- Changed test: `test_removing_the_last_slot_with_no_exercise_left_focuses_the_muted_line` now expects `bloc-ajout-etat` (UI 6 renames the line).
