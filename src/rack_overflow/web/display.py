@@ -52,9 +52,9 @@ SERIES_KEYS = {
 }
 """Chart series key → its label (legend, tooltip)."""
 SUM_SERIES = frozenset({"duration"})
+"""Series whose points are a day's sum of durations, shown compact (« 30 min »)."""
 # data-table column kind → the unit key its header carries (cells then hold the number only)
 COLUMN_UNIT_KEYS = {units.WEIGHT: "unit.kg", units.DISTANCE: "unit.km", units.PACE: "progress.col.unit_pace"}
-"""Series whose points are a day's sum of durations, shown compact (« 30 min »)."""
 TYPED_UNIT_KEYS = {"weight": units.UNIT_KG, "distance": units.UNIT_KM, "duration": units.UNIT_DURATION}
 
 

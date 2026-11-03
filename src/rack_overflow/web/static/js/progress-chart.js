@@ -1,10 +1,10 @@
 /*
  * Progress chart (D-068, docs/ui-spec.md "L5 — Progress of an exercise"): for each
  * canvas[data-chart-src], fetches the chart JSON (same origin) and draws it with the vendored
- * Chart.js. Values, labels, tooltip titles, axis title, scale, tick step and tooltip text come
- * from the server, already in display units and in French; colours and fonts come from the CSS
- * tokens. Seconds on a duration axis are written m:ss / h:mm:ss (D-029, formatting only);
- * counts get whole ticks. On success the canvas gets data-chart-state="ready" and data-chart-ms
+ * Chart.js. Values, labels, tooltip titles and values, axis title, scale, tick step and tooltip
+ * text come from the server, already in display units and in French; colours and fonts come
+ * from the CSS tokens. Only the ticks of a duration axis are written here, m:ss / h:mm:ss
+ * (D-029, formatting only); counts get whole ticks. On success the canvas gets data-chart-state="ready" and data-chart-ms
  * (time since navigation start); on failure the box is hidden again, the server-rendered
  * [data-chart-error] text is shown and the canvas gets data-chart-state="error". No user-facing
  * text, no business rule, no unit conversion here.
@@ -23,7 +23,7 @@
     return (number < 10 ? "0" : "") + number;
   }
 
-  // seconds -> "1:35", "1:02:05"; nothing below zero
+  // axis tick: seconds -> "1:35", "1:02:05"; nothing below zero
   function clock(value) {
     var seconds = Math.round(value);
     if (seconds < 0) {
@@ -68,6 +68,7 @@
         pointRadius: points ? 5 : 4,
         pointHoverRadius: points ? 6 : 5,
         borderWidth: 2,
+        texts: item.texts,
         showLine: !points,
         spanGaps: true,
         colourIndex: (index % SHAPES.length) + 1
@@ -121,11 +122,9 @@
                 return items.length && data.titles ? data.titles[items[0].dataIndex] : "";
               },
               label: function (context) {
-                var value =
-                  data.scale === "duration" ? clock(context.parsed.y) : context.formattedValue;
                 return data.tooltip
                   .replace("{label}", context.dataset.label)
-                  .replace("{value}", value);
+                  .replace("{value}", context.dataset.texts[context.dataIndex]);
               }
             }
           }

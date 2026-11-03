@@ -520,8 +520,8 @@ def chart(client: TestClient, exercise_id: int) -> dict[str, object]:
     labels = data["labels"]
     assert isinstance(labels, list)
     for item in data["series"]:  # type: ignore[attr-defined]
-        assert set(item) == {"label", "kind", "values"} and item["kind"] in ("line", "points")
-        assert len(item["values"]) == len(labels)
+        assert set(item) == {"label", "kind", "values", "texts"} and item["kind"] in ("line", "points")
+        assert len(item["values"]) == len(labels) == len(item["texts"])
     return data
 
 
@@ -548,7 +548,9 @@ def test_chart_json_one_day(client: TestClient, migrated_engine: Engine) -> None
     logged(migrated_engine, NOW - timedelta(hours=20), squat, [lift(1, "120")])  # same local day
     data = chart(client, squat)
     assert data["labels"] == ["02/11"]
-    assert data["series"] == [{"label": "1RM estimé (Epley)", "kind": "line", "values": [120.0]}]
+    assert data["series"] == [
+        {"label": "1RM estimé (Epley)", "kind": "line", "values": [120.0], "texts": ["120"]}
+    ]
 
 
 def test_chart_json_cardio_without_distance_is_seconds(client: TestClient, migrated_engine: Engine) -> None:
@@ -558,7 +560,12 @@ def test_chart_json_cardio_without_distance_is_seconds(client: TestClient, migra
     data = chart(client, run)
     assert data["axis"] == TEXT("progress.axis.duration") and data["labels"] == ["31/10", "02/11"]
     assert data["series"] == [
-        {"label": TEXT("progress.series.duration"), "kind": "line", "values": [1800.0, 2730.0]}
+        {
+            "label": TEXT("progress.series.duration"),
+            "kind": "line",
+            "values": [1800.0, 2730.0],
+            "texts": ["30:00", "45:30"],
+        }
     ]
     page = client.get(f"/progression/{run}", headers=PAGE).text
     assert TEXT("progress.record.best_pace") not in page and TEXT("progress.record.best_speed") not in page
@@ -576,6 +583,7 @@ def test_chart_json_scale_step_and_titles(client: TestClient, migrated_engine: E
     assert data["scale"] == "duration" and data["step"] == 5  # ticks every 0:05
     assert data["tooltip"] == f"{{label}}{NBSP}: {{value}}" and data["unit"] == ""
     assert data["titles"] == ["29/09/2025", "02/11/2026"] and data["labels"] == ["29/09", "02/11"]
+    assert data["series"][0]["texts"] == ["1:09", "1:36"]  # type: ignore[index]
     squat = make(migrated_engine)
     logged(migrated_engine, NOW - timedelta(days=3), squat, [lift(5, "100")])
     logged(migrated_engine, NOW - timedelta(days=1), squat, [lift(5, "105")])
@@ -607,7 +615,9 @@ def test_chart_json_intervals_rounds(client: TestClient, migrated_engine: Engine
     logged(migrated_engine, NOW - timedelta(days=1), tabata, [{"duration": "0:20"}] * 6)
     data = chart(client, tabata)
     assert data["axis"] == TEXT("progress.axis.rounds")
-    assert data["series"] == [{"label": TEXT("progress.series.rounds"), "kind": "line", "values": [8.0, 6.0]}]
+    assert data["series"] == [
+        {"label": TEXT("progress.series.rounds"), "kind": "line", "values": [8.0, 6.0], "texts": ["8", "6"]}
+    ]
     page = client.get(f"/progression/{tabata}", headers=PAGE).text
     assert TEXT("progress.record.session_rounds") in page and TEXT("progress.record.session_work") in page
     assert 'id="rm"' not in page
@@ -620,7 +630,12 @@ def test_chart_json_bodyweight_with_added_load(client: TestClient, migrated_engi
     logged(migrated_engine, NOW - timedelta(days=1), dips, [{"reps": "6", "weight": "10"}])
     data = chart(client, dips)
     assert data["series"] == [
-        {"label": TEXT("progress.series.max_reps"), "kind": "line", "values": [12.0, 6.0]}
+        {
+            "label": TEXT("progress.series.max_reps"),
+            "kind": "line",
+            "values": [12.0, 6.0],
+            "texts": ["12", "6"],
+        }
     ]
     page = client.get(f"/progression/{dips}", headers=PAGE).text
     assert TEXT("progress.record.max_added_load") in page and f"10{NBSP}kg" in page
@@ -633,8 +648,8 @@ def test_chart_json_kettlebell_aligns_loads_with_nulls(client: TestClient, migra
     logged(migrated_engine, NOW - timedelta(days=1), swing, [lift(20, "16"), lift(12, "24")])
     data = chart(client, swing)
     assert data["series"] == [
-        {"label": f"16{NBSP}kg", "kind": "line", "values": [15.0, None, 20.0]},
-        {"label": f"24{NBSP}kg", "kind": "line", "values": [None, 10.0, 12.0]},
+        {"label": f"16{NBSP}kg", "kind": "line", "values": [15.0, None, 20.0], "texts": ["15", None, "20"]},
+        {"label": f"24{NBSP}kg", "kind": "line", "values": [None, 10.0, 12.0], "texts": [None, "10", "12"]},
     ]
 
 

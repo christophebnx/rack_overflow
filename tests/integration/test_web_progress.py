@@ -161,8 +161,13 @@ def test_chart_json(client: TestClient, squat: int) -> None:
     assert data["axis"] == TEXT("progress.axis.weight") and data["unit"] == "kg"
     assert data["tooltip"] == f"{{label}}{NBSP}: {{value}}{NBSP}kg"
     assert data["series"] == [
-        {"label": "1RM estimé (Epley)", "kind": "line", "values": [116.7, 122.5]},
-        {"label": "1RM mesuré", "kind": "points", "values": [None, 120.0]},
+        {
+            "label": "1RM estimé (Epley)",
+            "kind": "line",
+            "values": [116.7, 122.5],
+            "texts": ["116,7", "122,5"],
+        },
+        {"label": "1RM mesuré", "kind": "points", "values": [None, 120.0], "texts": [None, "120"]},
     ]
     foreign = client.get(f"/api/progression/{squat}", headers={"origin": "http://evil.example"})
     assert foreign.status_code == 403

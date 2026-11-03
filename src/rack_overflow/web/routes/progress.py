@@ -107,19 +107,30 @@ def exercise_progress(request: Request, exercise_id: RowId) -> HTMLResponse:
 # --- chart JSON
 
 
-def _aligned(series: tuple[Series, ...]) -> tuple[list[str], list[list[float | None]]]:
-    """The dates of every series (ascending) and each series' chart numbers on them."""
+def _aligned(series: tuple[Series, ...]) -> tuple[list[str], list[list[int | None]]]:
+    """The dates of every series (ascending) and each series' canonical values on them."""
     dates = sorted({point.local_date for item in series for point in item.points})
     values = []
     for item in series:
-        by_date = {point.local_date: units.chart_number(item.unit_kind, point.value) for point in item.points}
+        by_date = {point.local_date: point.value for point in item.points}
         values.append([by_date.get(day) for day in dates])
     return dates, values
 
 
+def _series_json(show: Display, item: Series, formula: str, values: list[int | None]) -> dict[str, Any]:
+    """One chart series: its label, line or points, the axis numbers and the tooltip texts
+    (« 102,5 », « 1:35 »: the unit stays in the JSON `tooltip`)."""
+    return {
+        "label": show.series_label(item, formula),
+        "kind": item.kind,
+        "values": [None if value is None else units.chart_number(item.unit_kind, value) for value in values],
+        "texts": [None if value is None else units.column_number(item.unit_kind, value) for value in values],
+    }
+
+
 SCALES = {units.WEIGHT: "decimal", units.DISTANCE: "decimal", units.DURATION: "duration"}
-"""Value kind of the main series → how the chart writes the axis and tooltip numbers: decimals
-with the `fr` locale, whole counts (`count`), or durations m:ss / h:mm:ss (`duration`)."""
+"""Value kind of the main series → how the chart writes the axis ticks: decimals with the `fr`
+locale, whole counts (`count`), or durations m:ss / h:mm:ss (`duration`)."""
 
 
 def _duration_step(series: tuple[Series, ...]) -> int | None:
@@ -139,7 +150,8 @@ def _titles(show: Display, dates: list[str]) -> list[str]:
 
 def chart_json(show: Display, catalog: Any, data: ChartData) -> dict[str, Any]:
     """The chart's JSON (D-068): labels « 03/11 », values in display units (durations in
-    seconds, written m:ss by the script), the axis scale and step, French texts."""
+    seconds, ticks written m:ss by the script), tooltip texts ready, the axis scale and step,
+    French texts."""
     if not data.series:
         return {
             "unit": "",
@@ -164,7 +176,7 @@ def chart_json(show: Display, catalog: Any, data: ChartData) -> dict[str, Any]:
         "titles": _titles(show, dates),
         "labels": [show.short_date(day) for day in dates],
         "series": [
-            {"label": show.series_label(item, data.formula), "kind": item.kind, "values": item_values}
+            _series_json(show, item, data.formula, item_values)
             for item, item_values in zip(data.series, values, strict=True)
         ],
     }

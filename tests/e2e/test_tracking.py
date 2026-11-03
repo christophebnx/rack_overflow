@@ -211,7 +211,8 @@ def test_a_duration_chart_reads_clock_time(flow_phone: Watched, flow_app: LiveAp
     tooltip = page.evaluate(
         f"""() => {{
             const callbacks = {chart}.options.plugins.tooltip.callbacks;
-            const item = {{dataset: {{label: 'x'}}, parsed: {{y: 96}}, formattedValue: '96', dataIndex: 0}};
+            const dataset = {{...{chart}.data.datasets[0], label: 'x'}};
+            const item = {{dataset: dataset, parsed: {{y: 96}}, formattedValue: '96', dataIndex: 1}};
             return [callbacks.label(item), callbacks.title([item])];
         }}"""
     )
