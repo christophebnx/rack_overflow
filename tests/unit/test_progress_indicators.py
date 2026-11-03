@@ -18,6 +18,7 @@ from rack_overflow.domain.indicators import (
     average_tenths,
     best_estimate,
     bests,
+    day_table,
     density_reps_per_h,
     estimable,
     estimate_1rm,
@@ -351,3 +352,43 @@ def test_sessions_per_week_monday_weeks_oldest_first() -> None:
 def test_sessions_per_week_empty() -> None:
     weeks = sessions_per_week([], "2026-11-02", weeks=3)
     assert weeks == (WeekCount("2026-10-19", 0), WeekCount("2026-10-26", 0), WeekCount("2026-11-02", 0))
+
+
+# --- data table
+
+
+def test_strength_day_table_newest_first_with_measured_column() -> None:
+    sets = [lift(5, 100, "2026-10-01"), lift(5, 100, "2026-10-01"), lift(5, 60, "2026-10-01", kind="warmup")]
+    table = day_table("strength", sets, "epley", {"reps", "weight"}, [manual(1, 110, "2026-10-05")])
+    assert table.columns == (("e1rm", "weight"), ("measured", "weight"), ("volume", "weight"))
+    assert [(row.local_date, row.values) for row in table.rows] == [
+        ("2026-10-05", (None, 110000, None)),
+        ("2026-10-01", (116700, None, 1000000)),
+    ]
+    assert day_table("strength", sets, "epley", {"reps"}).columns == (
+        ("e1rm", "weight"),
+        ("volume", "weight"),
+    )
+
+
+def test_kettlebell_day_table_per_load() -> None:
+    table = day_table("kettlebell", [lift(10, 16), lift(12, 16), lift(8, 24)], "epley", {"reps", "weight"})
+    assert [row.values for row in table.rows] == [(16000, 12), (24000, 8)]
+
+
+def test_bodyweight_cardio_intervals_day_tables() -> None:
+    reps = [
+        LoggedSet("work", reps=10, local_date="2026-10-01"),
+        LoggedSet("work", reps=8, local_date="2026-10-01"),
+    ]
+    assert day_table("bodyweight", reps, "epley", {"reps"}).rows[0].values == (10, 18)
+    holds = [LoggedSet("work", duration_s=45, local_date="2026-10-01")]
+    assert day_table("bodyweight", holds, "epley", {"duration"}).columns == (("max_duration", "duration"),)
+    runs = [run(1500, 5000), run(600, None)]
+    table = day_table("cardio", runs, "epley", {"duration", "distance"})
+    assert table.rows[0].values == (5000, 2100, 300)
+    assert day_table("cardio", runs, "epley", {"duration"}).rows[0].values == (2100,)
+    assert day_table("intervals", [run(30, None), run(40, None)], "epley", {"duration"}).rows[0].values == (
+        2,
+        70,
+    )

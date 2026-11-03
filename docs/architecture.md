@@ -91,7 +91,10 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Template operations (templates, slots, menus, targets) | `services/templates` |
 | Session, row, set and setting queries; last performance, last settings, record history, recent exercises; history pages, session dates, exercises with history, session soft delete (L5) | `storage/sessions` |
 | Measured RM queries (`rm_measured`) | `storage/rm` |
-| Session logging operations (start, plan, pick, sets, settings, close, summary) | `services/sessions` |
+| Session logging operations (start, plan, pick, sets, settings, close, summary); closed-session corrections and session delete (L5) | `services/sessions` |
+| History operations (pages by month, sessions per week) | `services/history` |
+| Progress operations (progress page, chart data, RM entries, 1RM formula setting) | `services/progress` |
+| One year of simulated history for performance tests | `tests/support/history.py` |
 | Live slots of a template (template pages and sessions) | `services/templates.slots_for_session` |
 | Fields of an exercise with kind and parameters (exercise page and session forms) | `services/exercises.field_views` |
 | Exercises grouped by movement pattern for selects | `services/templates.exercise_groups` |

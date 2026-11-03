@@ -562,6 +562,133 @@ def main_series(
     return tuple(series for series in found if series.points)
 
 
+# --- data table of the chart, per day (D-068)
+
+DURATION_TOTAL = "duration_total"
+"""Column kind of a day's sum of durations (shown compact, « 30 min »), beside per-set kinds."""
+
+
+@dataclass(frozen=True)
+class DayRow:
+    """One row of the chart's data table: the local date and one value per column (None: « — »)."""
+
+    local_date: str
+    values: tuple[int | None, ...]
+
+
+@dataclass(frozen=True)
+class DayTable:
+    """The chart's data table: columns `(key, value kind)` after the date, rows newest first."""
+
+    columns: tuple[tuple[str, str], ...]
+    rows: tuple[DayRow, ...]
+
+
+def _by_day(sets: Iterable[LoggedSet]) -> dict[str, list[LoggedSet]]:
+    days: dict[str, list[LoggedSet]] = {}
+    for item in sets:
+        days.setdefault(item.local_date, []).append(item)
+    return days
+
+
+def _max_of(values: Iterable[int | None]) -> int | None:
+    return max((value for value in values if value), default=None)
+
+
+def _sum_of(values: Iterable[int | None]) -> int | None:
+    return sum(value for value in values if value) or None
+
+
+def _strength_rows(days: dict[str, list[LoggedSet]], formula: str, measures: Sequence[RmMeasure]) -> DayTable:
+    measured = _by_day(LoggedSet(RM_TEST, weight_g=m.weight_g, local_date=m.local_date) for m in measures)
+    columns = [("e1rm", "weight")] + ([("measured", "weight")] if measured else []) + [("volume", "weight")]
+    rows = []
+    for day in sorted(set(days) | set(measured), reverse=True):
+        group = days.get(day, [])
+        e1rm = _max_of(
+            estimate_1rm(formula, item.reps or 0, item.weight_g or 0) for item in group if estimable(item)
+        )
+        values = [e1rm] + ([_max_of(i.weight_g for i in measured.get(day, []))] if measured else [])
+        rows.append(DayRow(day, (*values, _session_load(group) or None)))
+    return DayTable(tuple(columns), tuple(rows))
+
+
+def _kettlebell_rows(days: dict[str, list[LoggedSet]]) -> DayTable:
+    rows = []
+    for day in sorted(days, reverse=True):
+        loads = sorted({item.weight_g for item in days[day] if item.weight_g and item.reps})
+        for load in loads:
+            reps = _max_of(item.reps for item in days[day] if item.weight_g == load)
+            rows.append(DayRow(day, (load, reps)))
+    return DayTable((("load", "weight"), ("max_reps", "int")), tuple(rows))
+
+
+def _cardio_columns(quantities: Collection[str]) -> tuple[tuple[str, str], ...]:
+    if "distance" in quantities:
+        return (("distance", "distance"), ("duration", DURATION_TOTAL), ("pace", "pace"))
+    return (("duration", DURATION_TOTAL),)
+
+
+def _cardio_values(group: list[LoggedSet], quantities: Collection[str]) -> tuple[int | None, ...]:
+    duration = _sum_of(item.duration_s for item in group)
+    if "distance" not in quantities:
+        return (duration,)
+    both = [item for item in group if item.distance_m and item.duration_s]
+    pace = pace_s_per_km(
+        sum(item.distance_m or 0 for item in both), sum(item.duration_s or 0 for item in both)
+    )
+    return (_sum_of(item.distance_m for item in group), duration, pace)
+
+
+def day_table(
+    category: str,
+    sets: Iterable[LoggedSet],
+    formula: str,
+    quantities: Collection[str],
+    measures: Sequence[RmMeasure] = (),
+) -> DayTable:
+    """The data table under the chart (docs/ui-spec.md "L5 — Progress of an exercise"), counted
+    sets only: strength e1RM, measured 1RM (when any), volume; kettlebell max reps per day and
+    load; bodyweight max and total reps (holds: max duration); cardio distance, duration and pace
+    (distance field) or duration; intervals rounds and work."""
+    days = _by_day(_counted(sets))
+    if category == STRENGTH:
+        return _strength_rows(days, formula, measures)
+    if category == KETTLEBELL:
+        return _kettlebell_rows(days)
+    columns, values = _plain_columns(category, quantities)
+    rows = (DayRow(day, values(days[day])) for day in sorted(days, reverse=True))
+    return DayTable(columns, tuple(rows))
+
+
+type _DayValues = Callable[[list[LoggedSet]], tuple[int | None, ...]]
+
+
+def _reps_values(group: list[LoggedSet]) -> tuple[int | None, ...]:
+    return (_max_of(item.reps for item in group), _sum_of(item.reps for item in group))
+
+
+def _hold_values(group: list[LoggedSet]) -> tuple[int | None, ...]:
+    return (_max_of(item.duration_s for item in group),)
+
+
+def _interval_values(group: list[LoggedSet]) -> tuple[int | None, ...]:
+    return (len(group), _sum_of(item.duration_s for item in group))
+
+
+def _plain_columns(
+    category: str, quantities: Collection[str]
+) -> tuple[tuple[tuple[str, str], ...], _DayValues]:
+    """Columns and per-day values of bodyweight, cardio and intervals."""
+    if category == BODYWEIGHT and "reps" in quantities:
+        return (("max_reps", "int"), ("total_reps", "int")), _reps_values
+    if category == BODYWEIGHT:
+        return (("max_duration", "duration"),), _hold_values
+    if category == CARDIO:
+        return _cardio_columns(quantities), lambda group: _cardio_values(group, quantities)
+    return (("rounds", "int"), ("work", DURATION_TOTAL)), _interval_values
+
+
 # --- consistency (D-070)
 
 CONSISTENCY_WEEKS = 12

@@ -113,8 +113,36 @@ class RowCard:
     record_count: int
 
 
+class RowFacts:
+    """What the set edit and settings forms read from a row, shared by an open session's block
+    (`RowView`) and a closed session's exercise (`SummaryRow`, the L5 detail)."""
+
+    fields: tuple[FieldInfo, ...]
+    setting_fields: tuple[FieldInfo, ...]
+    settings: Mapping[int, FieldValue]
+    sets: tuple[SetView, ...]
+
+    @property
+    def settings_texts(self) -> dict[str, str]:
+        """The settings as their inputs show them (display units, keys)."""
+        values = {
+            item.name: self.settings[item.field.variable_id]
+            for item in self.setting_fields
+            if item.field.variable_id in self.settings
+        }
+        return rules.raw_texts([item.field for item in self.setting_fields], values)
+
+    def set_texts(self, item: SetView) -> dict[str, str]:
+        """A set's values as its edit form shows them."""
+        return rules.raw_texts([field.field for field in self.fields], item.facts.values)
+
+    def set(self, set_id: int) -> SetView | None:
+        """The row's live set `set_id`, None when absent."""
+        return next((item for item in self.sets if item.id == set_id), None)
+
+
 @dataclass(frozen=True)
-class RowView:
+class RowView(RowFacts):
     """The current row expanded: fields, settings, today's sets with records, the next-set form
     and what a pick change can offer."""
 
@@ -148,24 +176,6 @@ class RowView:
     def more_fields(self) -> tuple[FieldInfo, ...]:
         """Optional variables folded under « Autres valeurs »."""
         return tuple(item for item in self.fields if not item.visible)
-
-    @property
-    def settings_texts(self) -> dict[str, str]:
-        """The settings as their inputs show them (display units, keys)."""
-        values = {
-            item.name: self.settings[item.field.variable_id]
-            for item in self.setting_fields
-            if item.field.variable_id in self.settings
-        }
-        return rules.raw_texts([item.field for item in self.setting_fields], values)
-
-    def set_texts(self, item: SetView) -> dict[str, str]:
-        """A set's values as its edit form shows them."""
-        return rules.raw_texts([field.field for field in self.fields], item.facts.values)
-
-    def set(self, set_id: int) -> SetView | None:
-        """Today's set `set_id`, None when absent."""
-        return next((item for item in self.sets if item.id == set_id), None)
 
 
 @dataclass(frozen=True)
@@ -225,13 +235,19 @@ class SessionView:
 
 
 @dataclass(frozen=True)
-class SummaryRow:
-    """One exercise of a closed session with at least one live set."""
+class SummaryRow(RowFacts):
+    """One exercise of a closed session with at least one live set (or the row just corrected,
+    L5): its live sets with ⭐, stored settings, fields and volume; the detail's correction forms
+    read it like an open block (`RowFacts`)."""
 
+    id: int
     exercise: ExerciseInfo
     fields: tuple[FieldInfo, ...]
+    setting_fields: tuple[FieldInfo, ...]
+    settings: Mapping[int, FieldValue]
     sets: tuple[SetView, ...]
     volume: Volume
+    types: tuple[str, ...]
 
     @property
     def warmups(self) -> int:
@@ -250,6 +266,10 @@ class SummaryView:
 
     session: SessionInfo
     rows: tuple[SummaryRow, ...]
+
+    def row(self, row_id: int) -> SummaryRow | None:
+        """The exercise of row `row_id`, None when absent."""
+        return next((item for item in self.rows if item.id == row_id), None)
 
     @property
     def total_sets(self) -> int:
@@ -339,7 +359,8 @@ class _Context:
 # --- reading helpers
 
 
-def _info(connection: sa.Connection, row: sa.Row) -> SessionInfo:
+def session_info(connection: sa.Connection, row: sa.Row) -> SessionInfo:
+    """A session row's own attributes, with its template's name as title (None: free session)."""
     title = None
     if row.template_id is not None:
         template = template_queries.get(connection, row.user_id, row.template_id)
@@ -381,7 +402,7 @@ def _context(connection: sa.Connection, row: sa.Row) -> _Context:
     refs = [rules.RowRef(r.id, r.template_slot_id, r.position) for r in rows]
     items = tuple(rules.display_sequence([_plan_slot(slot) for slot in slots], refs))
     return _Context(
-        _info(connection, row),
+        session_info(connection, row),
         row.template_id,
         slots,
         rows,
@@ -404,7 +425,7 @@ def _menu_view(connection: sa.Connection, user_id: int, slot: SlotView) -> MenuV
     return MenuView(slot.id, slot.label or "", slot.target, tuple(options))
 
 
-def _fields(
+def exercise_fields(
     connection: sa.Connection, exercise_id: int
 ) -> tuple[tuple[FieldInfo, ...], tuple[FieldInfo, ...]]:
     """The exercise's live measure fields and setting fields (archived variables left out)."""
@@ -435,8 +456,11 @@ def _facts(row: sa.Row, values: Mapping[int, FieldValue]) -> SetFacts:
     return SetFacts(row.type, found)
 
 
-def _logged(row: sa.Row, session_id: int) -> LoggedSet:
-    return LoggedSet(row.type, row.reps, row.weight_g, row.duration_s, row.distance_m, session_id)
+def logged_set(row: sa.Row, session_id: int, local_date: str = "") -> LoggedSet:
+    """A stored set as the indicators read it (`domain.indicators.LoggedSet`)."""
+    return LoggedSet(
+        row.type, row.reps, row.weight_g, row.duration_s, row.distance_m, session_id, local_date, row.id
+    )
 
 
 def _starred(
@@ -448,13 +472,15 @@ def _starred(
     history = queries.record_history(connection, user_id, exercise.id)
     index = {row.id: position for position, row in enumerate(history)}
     wanted = {index[set_id] for set_id in set_ids if set_id in index}
-    found = records(exercise.category, [_logged(row, row.session_id) for row in history], wanted)
+    found = records(exercise.category, [logged_set(row, row.session_id) for row in history], wanted)
     return {history[position].id for position in found}
 
 
-def _set_views(
+def set_views(
     connection: sa.Connection, user_id: int, exercise: ExerciseInfo, rows: Sequence[sa.Row]
 ) -> tuple[SetView, ...]:
+    """Live sets of one row (or one session's sets of an exercise) numbered, with ⭐ from the
+    exercise's whole history."""
     values = queries.values_of(connection, [row.id for row in rows])
     stars = _starred(connection, user_id, exercise, [row.id for row in rows])
     return tuple(
@@ -518,8 +544,8 @@ def _row_view(
 ) -> RowView:
     exercise = _exercise(row)
     slot = _slot(context, row.template_slot_id)
-    fields, setting_fields = _fields(connection, exercise.id)
-    sets = _set_views(connection, user_id, exercise, context.sets.get(row.id, ()))
+    fields, setting_fields = exercise_fields(connection, exercise.id)
+    sets = set_views(connection, user_id, exercise, context.sets.get(row.id, ()))
     target = slot.target if slot is not None else None
     has_facts = queries.has_facts(connection, row.id)
     card = RowCard(row.id, exercise, row.template_slot_id, target, len(sets), sum(s.record for s in sets))
@@ -669,20 +695,45 @@ def show(
         return _view(connection, user_id, _context(connection, row), requested)
 
 
-def _summary(connection: sa.Connection, user_id: int, session_row: sa.Row) -> SummaryView:
+def _summary_row(connection: sa.Connection, user_id: int, context: _Context, row: sa.Row) -> SummaryRow:
+    exercise = _exercise(row)
+    stored = context.sets.get(row.id, ())
+    fields, setting_fields = exercise_fields(connection, exercise.id)
+    logged = [logged_set(entry, context.session.id) for entry in stored]
+    return SummaryRow(
+        fields=fields,
+        setting_fields=setting_fields,
+        settings=queries.settings_of(connection, row.id),
+        sets=set_views(connection, user_id, exercise, stored),
+        id=row.id,
+        exercise=exercise,
+        volume=volume(exercise.category, logged),
+        types=rules.set_types(exercise.category),
+    )
+
+
+def _summary(
+    connection: sa.Connection, user_id: int, session_row: sa.Row, keep_row: int | None = None
+) -> SummaryView:
+    """The closed session's exercises with a live set, plan order; `keep_row` stays even when its
+    last set was just deleted (the detail keeps the section the user worked in, L5)."""
     context = _context(connection, session_row)
-    rows: list[SummaryRow] = []
-    for item in context.items:
-        if item.row_id is None or not context.sets.get(item.row_id):
-            continue
-        row = _row(context, item.row_id)
-        exercise = _exercise(row)
-        sets = _set_views(connection, user_id, exercise, context.sets[row.id])
-        logged = [_logged(entry, context.session.id) for entry in context.sets[row.id]]
-        rows.append(
-            SummaryRow(exercise, _fields(connection, exercise.id)[0], sets, volume(exercise.category, logged))
-        )
+    rows = [
+        _summary_row(connection, user_id, context, _row(context, item.row_id))
+        for item in context.items
+        if item.row_id is not None and (context.sets.get(item.row_id) or item.row_id == keep_row)
+    ]
     return SummaryView(context.session, tuple(rows))
+
+
+def _answer(
+    connection: sa.Connection, user_id: int, session_row: sa.Row, row_id: int
+) -> SessionView | SummaryView:
+    """The answer to a correction of row `row_id`: its block while the session is open, the
+    closed session's detail otherwise (D-067)."""
+    if session_row.status == "open":
+        return _block(connection, user_id, session_row, row_id)
+    return _summary(connection, user_id, session_row, keep_row=row_id)
 
 
 # --- plan changes
@@ -786,7 +837,7 @@ def set_form(
     with engine.begin() as connection:
         session_row = _session_row(connection, user_id, session_id, writable=True)
         context = _context(connection, session_row)
-        fields, _ = _fields(connection, _row(context, row_id).exercise_id)
+        fields, _ = exercise_fields(connection, _row(context, row_id).exercise_id)
         texts = rules.step_values([item.field for item in fields], raw_values, step)
         stepped_name = (step or "").partition(":")[0]
         open_more = any(
@@ -836,7 +887,7 @@ def confirm_set(
         session_row = _session_row(connection, user_id, session_id, writable=True)
         context = _context(connection, session_row)
         row = _row(context, row_id)
-        fields, setting_fields = _fields(connection, row.exercise_id)
+        fields, setting_fields = exercise_fields(connection, row.exercise_id)
         facts = rules.set_draft(row.category, [item.field for item in fields], raw_type, raw_values)
         core, variables = _split(facts, fields)
         set_id = queries.insert_set(
@@ -888,46 +939,53 @@ def update_set(
     raw_values: Mapping[str, str | None],
     *,
     require_open: bool = True,
-) -> SessionView:
+) -> SessionView | SummaryView:
     """Correct a live set of a non-deleted session (L4 while open; L5 history passes
-    `require_open=False`, D-066); the block of its row."""
+    `require_open=False`, D-066, D-067); the block of its row, or the closed session's detail."""
     with engine.begin() as connection:
         found = _located(connection, user_id, set_id, require_open=require_open)
         session_row = _session_row(connection, user_id, found.session_id, writable=False)
         category = exercise_queries.get(connection, user_id, found.exercise_id).category
-        fields, _ = _fields(connection, found.exercise_id)
+        fields, _ = exercise_fields(connection, found.exercise_id)
         facts = rules.set_draft(category, [item.field for item in fields], raw_type, raw_values)
         core, variables = _split(facts, fields)
         queries.update_set(connection, set_id, set_type=facts.type, core=core)
         current = [item.field.variable_id for item in fields if item.field.variable_id is not None]
         queries.replace_set_values(connection, set_id, variables, current)
-        return _block(connection, user_id, session_row, found.session_exercise_id)
+        return _answer(connection, user_id, session_row, found.session_exercise_id)
 
 
 def delete_set(
     engine: Engine, user_id: int, set_id: int, now: datetime, *, require_open: bool = True
-) -> SessionView:
-    """Soft delete a live set (D-021, D-066); the block of its row."""
+) -> SessionView | SummaryView:
+    """Soft delete a live set (D-021, D-066); the block of its row, or the closed session's
+    detail (D-067)."""
     with engine.begin() as connection:
         found = _located(connection, user_id, set_id, require_open=require_open)
         session_row = _session_row(connection, user_id, found.session_id, writable=False)
         queries.soft_delete_set(connection, set_id, to_text(now))
-        return _block(connection, user_id, session_row, found.session_exercise_id)
+        return _answer(connection, user_id, session_row, found.session_exercise_id)
 
 
 def save_settings(
-    engine: Engine, user_id: int, session_id: int, row_id: int, raw_values: Mapping[str, str | None]
-) -> SessionView:
+    engine: Engine,
+    user_id: int,
+    session_id: int,
+    row_id: int,
+    raw_values: Mapping[str, str | None],
+    *,
+    require_open: bool = True,
+) -> SessionView | SummaryView:
     """Write the row's settings (one fact per row and variable, a cleared one removed); the
-    block of the row."""
+    block of the row, or the closed session's detail (`require_open=False`, L5 history, D-067)."""
     with engine.begin() as connection:
-        session_row = _session_row(connection, user_id, session_id, writable=True)
+        session_row = _session_row(connection, user_id, session_id, writable=require_open)
         context = _context(connection, session_row)
         row = _row(context, row_id)
-        _, setting_fields = _fields(connection, row.exercise_id)
+        _, setting_fields = exercise_fields(connection, row.exercise_id)
         values = rules.setting_draft([item.field for item in setting_fields], raw_values)
         queries.upsert_settings(connection, row_id, values)
-        return _block(connection, user_id, session_row, row_id)
+        return _answer(connection, user_id, session_row, row_id)
 
 
 def block(engine: Engine, user_id: int, session_id: int, row_id: int) -> SessionView:
@@ -935,6 +993,26 @@ def block(engine: Engine, user_id: int, session_id: int, row_id: int) -> Session
     with engine.begin() as connection:
         session_row = _session_row(connection, user_id, session_id, writable=True)
         return _block(connection, user_id, session_row, row_id)
+
+
+def detail(engine: Engine, user_id: int, session_id: int, row_id: int | None = None) -> SummaryView:
+    """A closed session's detail as stored (`row_id` kept even without a live set): the re-render
+    after a refused correction (L5)."""
+    with engine.begin() as connection:
+        session_row = _session_row(connection, user_id, session_id, writable=False)
+        if session_row.status == "open":
+            raise SessionError("session_open")
+        if row_id is not None:
+            _row(_context(connection, session_row), row_id)
+        return _summary(connection, user_id, session_row, keep_row=row_id)
+
+
+def delete_session(engine: Engine, user_id: int, session_id: int, now: datetime) -> None:
+    """Soft delete a session, open or closed (D-067): only `session.deleted_at` is written; every
+    reader ignores it from now on (history, indicators, prefill, the one open session)."""
+    with engine.begin() as connection:
+        _session_row(connection, user_id, session_id, writable=False)
+        queries.soft_delete_session(connection, session_id, to_text(now))
 
 
 # --- close
