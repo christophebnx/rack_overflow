@@ -173,4 +173,68 @@ Same conventions as L2: pages on navigation, fragments for htmx, refusals `200` 
 6. `feat(web): add the session template pages` — `routes/session_templates.py`, templates, `Display.target`, `_nav.html`, `pages/templates.css`, `fr.json`, TestClient + e2e tests, `docs/ui-spec.md` L3 sections, `web/CLAUDE.md`.
 7. `docs(docs): close milestone L3` — `docs/architecture.md`, root `CLAUDE.md`, `CHANGELOG.md`, `docs/progress.md`.
 
-<!-- ui-designer adds a "UI design" section here. -->
+## UI design
+
+Status: APPROVED FOR AUTONOMOUS MODE. Every choice below follows the brief (§6 L3, §6.1 notation), D-023, D-053 to D-055, D-058, D-059 and the L2 patterns; nothing new needs the user. Full wireframes, states and the string table (French text and key for each string) are in `docs/ui-spec.md`, sections "L3 — …"; this section records the choices and what the developer must know.
+
+### Task and decisions
+
+- **List** (`/seances-types`): open a template, create one, set the order in which the L4 start screen offers them. Information: name, location, number of slots. The intro says why the order matters.
+- **Template page**: shape what a session from it offers: which exercises and menus, in which order, with which indicative target. Slots come **first** in the DOM and on the phone (name and location are set once at creation), Informations and Archivage after; from 64rem slots on the left (3fr), Informations + Archivage on the right (2fr).
+- **UI word for a slot: « bloc »** (matches the `blocs` path): « Blocs », « Ajouter un bloc », « Retirer ce bloc », list meta « Blocs : 6 ». A menu is the user's name + the tag « Menu ».
+
+### Layout (summary; wireframes in `docs/ui-spec.md`)
+
+```
+360 px, template page                 1280 px
++------------------------------+      +--------------------------------------------------------------+
+| Rack Overflow                |      |  Rack Overflow           Exercices  Variables  Séances types |
+| Exercices Variables Séances t|      +--------------------------------------------------------------+
++------------------------------+      |  Salle A — Squat & poussée horizontale                       |
+| Salle A — Squat & poussée... |      |  Salle                                                       |
+| Salle                        |      |  Blocs                                  | Informations       |
+| Blocs                        |      |  1 Squat au rack (barre)                | Nom / Lieu         |
+| 1 Squat au rack (barre)      |      |    4 × 6–8                              | [ Enregistrer ]    |
+|   4 × 6–8                    |      |    [Monter][Descendre] [Modifier]       | Archivage          |
+|   [Monter] [Descendre]       |      |  3 Tirage horizontal [Menu]             | [ Archiver ]       |
+|   [Modifier]                 |      |    Rowing barre au rack · Rowing assis… |                    |
+| 3 Tirage horizontal [Menu]   |      |    3 × 8–10                             |                    |
+|   Rowing barre au rack · ... |      |  Ajouter un bloc                        |                    |
+|   3 × 8–10                   |      |  Type (o) Exercice ( ) Menu             |                    |
+| Ajouter un bloc ...          |      |  Exercice [ Choisir… v ] [Ajouter le b.]|                    |
+| Informations / Archivage     |      |                                         |                    |
++------------------------------+      +--------------------------------------------------------------+
+```
+
+- A slot row reads at a glance: position, exercise name or menu name + « Menu », the menu's options as one muted line joined by « · », the target, then « Monter » / « Descendre » and `<details>` « Modifier » (the L2 field-row pattern). Editing (exercise or menu name, target, the menu's options, removal) lives inside « Modifier », so the overview stays a readable outline of the session.
+- **Exercise picker: native `<select>` grouped by movement pattern** (`<optgroup>`), as the architect's routes expect, not a search box. For a menu's add-option select, the group matching the menu name (normalised) comes first, so « Tirage horizontal » lists its rows on top. Why not reuse the L2 fuzzy search here: the catalog is about 45 exercises, management is on the desktop where a select has type-ahead, and a search picker needs a new results route and fragment for a choice made a few times a month; L4 builds the search picker for « add an exercise outside the template », which can replace these selects later if the catalog grows.
+
+### Open points settled
+
+1. **Header at 360 px**: below 40rem the nav always takes its own 48 px row under the brand, links left aligned, gap `--space-4` (302 of 328 px); unchanged single row from 40rem. Header ≈ 97 px on the phone, top only, not sticky; the bottom of the screen stays free for L4. Rejected: a `<details>` menu (a tap on every navigation), shortened labels (« Séances » will mean history in L5), a scrolling nav. `.main--message` is untouched (its pages have no nav); L4 must account for the second row if it uses a full-height layout with the nav.
+2. **Target text**: `sets × parts · note`, parts in the order duration / distance / reps joined by « / »: « 4 × 6–8 », « 3 × 30 s / 12 », « 1 × 30 min », « 3 × 30 s / 3 · par côté »; sets alone « Séries : 4 »; empty target → no line. **Durations in targets are compact** (« 45 s », « 30 min », « 1 min 30 », « 1 h », « 1 h 15 »; D-055 form only with seconds above an hour), because the brief writes them so and « 30:00 » is ambiguous at a glance. Inputs stay `m:ss` / seconds (one parser). This is a display refinement of D-055 limited to targets: the documentation step should add a "Refinement (L3 UI design)" line under D-055.
+
+### Components and reuse
+
+`.page-head`, `.rows` / `.row`, `.tag`, `.choices`, `.form`, `.field`, `.input`, `.actions--inline`, `.button--danger`, `.form-status` + `_form_status.form_status`, `_fields` macros (`described`, `field_error`, `field_hint`, `optional`, `oob_announce`), `_labels.LOCATION_KEYS` (location words reused from exercises), `.toggle-link`, `.empty`, `.add-field` (catalog.css), the L2 `:has()` switch (add-slot kind), the L2 move-button focus rule (stable ids `seance-type-{id}-monter`, `bloc-{id}-monter`, `option-{id}-monter`…), `Display.input_text` for prefilled durations / distances. New: `Display.target`, `domain/units.compact_duration`, `pages/templates.css` (rows with buttons, slots, target grid, options, add-slot).
+
+### States (details per screen in `docs/ui-spec.md`)
+
+List: loaded, empty, archived shown, moving, move failed (focus kept on the button). New: empty form, refused (per field, focus on first invalid), created (`HX-Redirect`), failed (slot). Detail: loaded, no slot, archived, archived exercises (tags « Archivé », options « (archivé) », warning « Ignoré en séance : … » when a slot would be skipped in L4), 30 slots / 12 options / nothing left to add (forms replaced by a muted line: prevented rather than refused), last option (no « Retirer », explanatory line; `last_option` stays a server backstop), saved, refused, failed (D-053), 404.
+
+### Keyboard and focus
+
+Tab order follows the DOM (skip link, brand, nav, then the page as listed). After an htmx swap `autofocus` marks the next step: new exercise slot → its « Séries »; new menu → its add-option select; option added → the same select (options come in threes); save → the row's « Modifier »; move → the same button (other one at an end); removal → the next row's control, else the previous one's, else the add form. Each result is announced once in `#annonce` (texts in the ui-spec table).
+
+### Developer notes (consequences of the UI choices)
+
+- Taken template name: problem code **`template_name_taken`** (its own message; `name_taken`'s text names an exercise), raised by the service in both the check and the `NameTakenError` race branch.
+- `update_slot` must accept the slot's **current** exercise even when archived (the select shows it selected as « {name} (archivé) » so a target can be saved); only a newly chosen archived exercise is `exercise_unavailable`.
+- The target note's length uses the existing `too_long` (`max` = 40), not a new `text_too_long`.
+- Exercise selects need the exercises grouped by movement pattern (and, for a menu, the matching group first): the service or route builds the groups with `domain.catalog.normalise`, the template only renders them.
+- Each fragment renders one `<datalist id="mouvements">`; the add-slot route passes `label` only when `kind` is `menu`; the slot route passes `exercise_id` for an exercise slot and `label` for a menu.
+- Every move / add / remove / save answer re-renders `#blocs` with the touched menu's `<details>` open when the action was inside it (option actions) and the focus target above.
+
+### Style changes
+
+`base.css` / `components.css`: nav row below 40rem (`.site-nav { flex-basis: 100% }`, list gap `--space-4`). New `pages/templates.css` as specified in `docs/ui-spec.md` "L3 — Style". No new token, no new breakpoint, no script.

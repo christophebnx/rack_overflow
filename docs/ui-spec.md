@@ -40,7 +40,7 @@ Global rules first, then one section per screen. The `ui-designer` agent adds ea
 ### Language and units
 
 - French only (D-027), from `locales/fr.json`; no French text in templates or code.
-- Units shown: kg, km, m, durations as `m:ss` or `h:mm:ss` (D-029). Decimal separator: comma.
+- Units shown: kg, km, m, durations as `m:ss` or `h:mm:ss` (D-029). Decimal separator: comma. Exception from L3: indicative targets show durations in a compact form (« 30 s », « 30 min », L3 — Target text); inputs stay `m:ss`.
 
 ## Screens
 
@@ -295,10 +295,10 @@ Task: reach the two catalog sections from any page, and know where one is. Decis
 ```
 
 - `<header class="site-header">` keeps its full-width surface and divider; its content moves into `<div class="site-header__inner">` with `max-width: var(--content-max)`, `margin-inline: auto` and `padding-inline: var(--page-padding)` (the header itself loses its padding), so brand and `<main>` content share the same left edge at every width (browser check: equal `left` at 1280 px).
-- The `nav` block is filled on every protected page by one include `_nav.html` (home included: pairing lands on `/`, which must reach the catalog; on home no link is current, the brand carries `aria-current`); pairing and error pages leave it empty (no `<nav>` rendered). Two links in a `<ul class="site-nav__list">` (flex, gap `--target-gap`): « Exercices » → `/exercices`, « Variables » → `/variables`. The page passes `section` (`exercises` / `variables`); the matching link gets `aria-current="page"` on its list page **and** its detail / form pages.
+- The `nav` block is filled on every protected page by one include `_nav.html` (home included: pairing lands on `/`, which must reach the catalog; on home no link is current, the brand carries `aria-current`); pairing and error pages leave it empty (no `<nav>` rendered). Two links (three from L3: L3 — Header and navigation) in a `<ul class="site-nav__list">` (flex, gap `--target-gap`): « Exercices » → `/exercices`, « Variables » → `/variables`. The page passes `section` (`exercises` / `variables`); the matching link gets `aria-current="page"` on its list page **and** its detail / form pages.
 - Link look: `--text-md` weight 600, text colour, no underline, `min-height: var(--target-min)`, `display: inline-flex; align-items: center`; padding-inline 0 below 40rem (the text is wider than 48 px; this keeps brand + two links within 360 px), `--space-2` from 40rem. Current link: `--color-accent` text and a 3 px `--color-accent` bottom border (inset `box-shadow`, no layout shift): colour plus bar, never colour alone. Hover: underline.
-- Fit at 360 px: brand ≈ 150 px + 8 + « Exercices » ≈ 80 + 8 + « Variables » ≈ 75 = 321 px of the 328 px available. `.site-header__inner` is `flex-wrap: wrap` with `justify-content: space-between`, so a wider system font drops the nav to a second 48 px row, left aligned, instead of scrolling horizontally.
-- Tab order: skip link, brand, « Exercices », « Variables », main.
+- Fit at 360 px (L2; replaced from L3 by the two-row phone header, L3 — Header and navigation): brand ≈ 150 px + 8 + « Exercices » ≈ 80 + 8 + « Variables » ≈ 75 = 321 px of the 328 px available. `.site-header__inner` is `flex-wrap: wrap` with `justify-content: space-between`, so a wider system font drops the nav to a second 48 px row, left aligned, instead of scrolling horizontally.
+- Tab order: skip link, brand, « Exercices », « Variables » (« Séances types » from L3), main.
 
 ### L2 — Form status and request errors (D-053, `templates/_form_status.html`, `static/js/request-errors.js`)
 
@@ -798,3 +798,343 @@ Typographic apostrophes (’); a no-break space (U+00A0) before « : », « ? »
 | `catalog.error.variable_in_use` | Des valeurs sont enregistrées : la variable ne peut être qu’archivée. |
 
 Problem codes are the domain's (`domain/catalog`, `domain/units`): the developer uses exactly these codes; a code without a key renders the key (D-036), and the "every `t()` key exists" test covers templates. Tab titles: `exercises.title`, `exercise.new_title`, `variables.title`, `variable.new_title`; detail pages use the exercise name / variable label as `{page}` (base template accepts a ready text as well as a key).
+
+### L3 — Header and navigation (`templates/_nav.html`, `base.css`, `components.css`)
+
+Task: reach the three management sections from any page. A third link « Séances types » → `/seances-types` (`section = "templates"`, `aria-current` on the list, new, and detail pages) does not fit beside the brand at 360 px: brand ≈ 150 + « Exercices » ≈ 80 + « Variables » ≈ 75 + « Séances types » ≈ 115 + 3 × 8 = 444 px for 328 px.
+
+```
+360 px (below 40rem: two rows)        1280 px (one row, unchanged)
++------------------------------+      +--------------------------------------------------------------+
+| Rack Overflow                | 48   |    Rack Overflow          Exercices  Variables  Séances types |
+| Exercices  Variables  Séances| 48   |                                                ~~~~~~~~~~~~~ |
+| types  (one line, see below) |      +--------------------------------------------------------------+
+|                      ~~~~~~~ |
++------------------------------+
+| main                         |
+```
+
+- Below 40rem the nav always takes its own row under the brand (`.site-nav { flex-basis: 100% }`), links left aligned on the page edge with a gap of `--space-4` (80 + 75 + 115 + 2 × 16 = 302 px of 328): a deterministic layout instead of L2's wrap fallback, so the header does not jump between pages. `.site-nav__list` keeps `flex-wrap: wrap` as the last fallback for a very wide system font (a third 48 px row, never a horizontal scroll). Every link stays ≥ 48 px high; the 16 px gap exceeds `--target-gap`.
+- Cost: the header is 97 px high on the phone (two 48 px rows and the divider), at the top of the page only (not sticky). The bottom of the screen stays free for the L4 session screen. `.main--message` (pages without nav: pairing, errors) keeps `--header-height`; a page with nav that later needs the full-height layout (L4) must account for the second row.
+- Rejected: a menu button with `<details>` (one more tap on every navigation and a widget to make accessible), shortened labels (« Séances » will mean history in L5; « S. types » is unreadable), a horizontally scrolling nav (hides a section, breaks the no-scroll rule in spirit).
+- From 40rem: one row as in L2 (brand left, links right, `--space-2` padding): 150 + 96 + 91 + 131 + 24 ≈ 492 px, fits from 640 px.
+- Tab order: skip link, brand, « Exercices », « Variables », « Séances types », main.
+
+### L3 — Target text (`web/display.Display.target`, `domain/units.compact_duration`)
+
+One formatter for every indicative target (D-059), reused by L4. Built from the parts present, in this order:
+
+| Target (canonical) | Shown |
+|---|---|
+| sets 4, reps 6–8 | « 4 × 6–8 » |
+| sets 3, reps 10 | « 3 × 10 » |
+| sets 3, duration 30 s, reps 12 | « 3 × 30 s / 12 » |
+| sets 1, duration 1800 s | « 1 × 30 min » |
+| sets 3, reps 10, note « par côté » | « 3 × 10 · par côté » |
+| sets 3, duration 30 s, reps 3, note « par côté » | « 3 × 30 s / 3 · par côté » |
+| sets 5, distance 400 m | « 5 × 400 m » |
+| reps 8–10, no sets | « 8–10 » |
+| sets 4 only | « Séries : 4 » |
+| note only | « par côté » |
+| empty | nothing (no line at all) |
+
+- Parts: duration, distance, reps, joined by « / » (brief notation); reps « {min}–{max} » with an en dash, or one number when min = max. `×` only when sets and at least one part are present; between number and `×` a no-break space on both sides, so « 4 × 6–8 » never breaks.
+- **Compact durations in targets** (decided for L3): a target is a plan read at a glance, and the brief writes « 30 s » and « 30 min »; « 30:00 » reads as thirty hours as easily as thirty minutes. `domain/units.compact_duration(seconds)` returns the text key and numbers, `Display.target` joins them; every other duration (inputs, logged values, L4 steppers) stays `m:ss` / `h:mm:ss` (D-055).
+
+| Seconds | Shown | Key |
+|---|---|---|
+| < 60 | « 45 s » | `duration.compact.seconds` |
+| < 3600, whole minutes | « 30 min » | `duration.compact.minutes` |
+| < 3600, otherwise | « 1 min 30 » (seconds on two digits) | `duration.compact.minutes_seconds` |
+| ≥ 3600, whole hours | « 1 h » | `duration.compact.hours` |
+| ≥ 3600, whole minutes | « 1 h 15 » (minutes on two digits) | `duration.compact.hours_minutes` |
+| ≥ 3600, with seconds | « 1:15:30 » (D-055 form, rare) | — |
+
+- Inputs keep D-055: the duration input of a target is prefilled `0:30` / `30:00` and accepts `m:ss`, `h:mm:ss` or seconds; its hint says so. Reading « 30 min » and editing `30:00` is the accepted cost of one parser.
+- Distances use `Display.value` (« 400 m », « 5 km »).
+
+### L3 — Template list (`GET /seances-types`, `templates/session_templates.html`)
+
+Task: see the templates in the order the session start (L4) will offer them, open one, create one, change the order. Decision: which to open, or which to move. Information: name, location, size (number of slots).
+
+```
+360 px                                1280 px
++------------------------------+      +--------------------------------------------------------------+
+| Rack Overflow                |      |    Rack Overflow          Exercices  Variables  Séances types |
+| Exercices Variables Séances t|      +--------------------------------------------------------------+
++------------------------------+      |    Séances types                     [ Nouvelle séance type ] |
+| Séances types                |      |    Proposées dans cet ordre au démarrage d’une séance.       |
+| [  Nouvelle séance type    ] |      |    Afficher les archivées                                    |
+| Proposées dans cet ordre au  |      |                                                              |
+| démarrage d’une séance.      |      |    Salle A — Squat & poussée…   Salle   Blocs : 6  [Monter][Descendre]
+| Afficher les archivées       |      |    Salle B — Charnière & pou…   Salle   Blocs : 6  [Monter][Descendre]
+|                              |      |    Maison — Kettlebell, barr…   Maison  Blocs : 6  [Monter][Descendre]
+| Salle A — Squat & poussée    |      |    Cardio — Course 30 min   Salle et m. Blocs : 1  [Monter][Descendre]
+| horizontale                  |      |                                                              |
+| Salle · Blocs : 6            |      |    Archivées  (only with the toggle on)                      |
+| [ Monter ] [ Descendre ]     |      |    Salle 1  [Archivée]          Salle   Blocs : 2            |
+| ---------------------------- |      +--------------------------------------------------------------+
+| Salle B — Charnière & ...    |
+| Salle · Blocs : 6            |
+| [ Monter ] [ Descendre ]     |
++------------------------------+
+```
+
+- Page head: h1 « Séances types », primary link-button « Nouvelle séance type » → `/seances-types/nouvelle`. Muted intro « Proposées dans cet ordre au démarrage d’une séance. » (it explains why the order matters).
+- Toggle: link « Afficher les archivées » → `/seances-types?archivees=1`, « Masquer les archivées » → `/seances-types` (as variables).
+- Active list `<section id="seances-types-liste" data-request-scope>` (the swappable fragment of `POST …/deplacement`), status slot first, then `<ul class="rows">` in stored order. Each `<li class="template-row" id="seance-type-{id}">`: `<a class="row row--template" href="/seances-types/{id}">` name (weight 600), meta location (`LOCATION_KEYS`, the exercise location words) · « Blocs : {count} » (tabular); then `.actions--inline` « Monter » / « Descendre » (`hx-post …/deplacement`, `{"direction": "up"|"down"}`, `hx-target="#seances-types-liste"`, `hx-swap="outerHTML"`, `hx-disabled-elt="this"`, `aria-label` « Monter {name} » / « Descendre {name} », ids `seance-type-{id}-monter` / `-descendre`; first « Monter » and last « Descendre » `disabled`; one template: no move buttons). The buttons are siblings of the link, never inside it.
+- From 40rem the `<li>` is a grid `minmax(0, 1fr) auto` (link | buttons, centred vertically) and the link a grid `minmax(0, 3fr) minmax(0, 1fr) minmax(0, 1fr)` (name, location, count right aligned), fixed tracks so rows align. Below 40rem the buttons sit under the link (the link keeps its full width and 48 px).
+- Archived (toggle on): a second section, h2 « Archivées », rows with the « Archivée » tag, no move buttons (their order is set when restored: last), in name order.
+- After a move: fragment re-rendered, `autofocus` on the same button of the moved row, or on its other button when the same one is now disabled (L2 rule); `#annonce` « {name} : position {position} sur {total}. ».
+
+States:
+
+| State | What the user sees | Focus / announcement |
+|---|---|---|
+| Loaded | rows in order | — |
+| Empty (no active template) | « Aucune séance type. » and muted « Une séance type liste les exercices et les menus proposés au démarrage d’une séance. »; the page-head button stays | — |
+| Only archived ones, toggle off | the empty state, and the toggle link shown | — |
+| Archived shown | second section | — |
+| Moving | the clicked button disabled until the answer | — |
+| Move failed | order unchanged, « Non enregistré, réessayer » in the list's slot | focus kept on the clicked button (D-053, trigger outside a form) |
+| Unknown id in a move (deleted meanwhile) | 404 → same slot message | same |
+| Page failure | L1a 500 page | — |
+
+Tab order: skip link, brand, nav, « Nouvelle séance type », toggle, then per row: link, « Monter », « Descendre ».
+
+### L3 — New template (`GET /seances-types/nouvelle`, `templates/session_template_new.html` including `templates/session_template_form.html` in create mode)
+
+Task: name a new template and say where it is done. Decision: name and location (the location filters the L4 start screen, so it is a choice, not a default).
+
+```
+360 px                                1280 px
++------------------------------+      +--------------------------------------------------------------+
+| Nouvelle séance type         |      |    Nouvelle séance type                                      |
+| Nom                          |      |    Nom                                                       |
+| [                          ] |      |    [                                ]  form max 40rem        |
+| Par ex. Salle A ou Haut du   |      |    Par ex. Salle A ou Haut du corps.                         |
+| corps.                       |      |    Lieu                                                      |
+| Lieu                         |      |    ( ) Salle   ( ) Maison   ( ) Salle et maison              |
+| ( ) Salle                    |      |    Le démarrage d’une séance propose les séances types du    |
+| ( ) Maison                   |      |    lieu choisi.                                              |
+| ( ) Salle et maison          |      |    [ Créer la séance type ]  [ Annuler ]                     |
+| Le démarrage d’une séance... |      |                                                              |
+| [  Créer la séance type    ] |      |                                                              |
+| [         Annuler          ] |      |                                                              |
++------------------------------+      +--------------------------------------------------------------+
+```
+
+- `<form class="form" hx-post="/seances-types" hx-target="this" hx-swap="outerHTML" hx-disabled-elt="find button">`, status slot first.
+- « Nom »: `<input class="input" id="seance-nom" name="name" maxlength="60" required autocomplete="off" autocapitalize="sentences" autofocus aria-describedby="seance-nom-aide">`, hint « Par ex. Salle A ou Haut du corps. ».
+- « Lieu »: `fieldset.choices.choices--row` (id `seance-lieu`), radios `name="location"` « Salle » / « Maison » / « Salle et maison » (values `gym` / `home` / `both`), `required`, **no preselection** (design note §1); hint « Le démarrage d’une séance propose les séances types du lieu choisi. ».
+- Actions (`.actions`, stacked full width below 40rem): primary « Créer la séance type », link-button « Annuler » → `/seances-types`.
+- Refused → form re-rendered `200`, values kept, messages under fields, `autofocus` on the first invalid one, first message in `#annonce` (D-050): « À renseigner. » (`required`), « 60 caractères au plus. » (`too_long`), « Une séance type porte déjà ce nom (archivées comprises). » (`template_name_taken`), « Choix non valable. » (`invalid_choice`). Created → `HX-Redirect: /seances-types/{id}` (the empty template page is the confirmation). Failure → slot (D-053).
+
+### L3 — Template detail (`GET /seances-types/{id}`, `templates/session_template.html`)
+
+Task: shape what a session from this template offers: which exercises and menus, in which order, with which indicative target; rename it, set its place, retire it. The slots are the heart of the page.
+
+```
+360 px                                1280 px (from 64rem: Blocs | Informations + Archivage)
++------------------------------+      +--------------------------------------------------------------+
+| Salle A — Squat & poussée    |      |    Salle A — Squat & poussée horizontale                     |
+| horizontale                  |      |    Salle                                                     |
+| Salle                        |      |    Blocs                               | Informations         |
+|                              |      |    Dans l’ordre de la séance. ...      | Nom [ Salle A — … ]  |
+| Blocs                        |      |    1 Squat au rack (barre)             | Lieu (o) Salle ...   |
+| Dans l’ordre de la séance.   |      |      4 × 6–8                           | [ Enregistrer ]      |
+| Un bloc est un exercice ou   |      |      [Monter][Descendre] [Modifier]    |                      |
+| un menu d’exercices au choix.|      |    2 Développé couché (barre)          | Archivage            |
+| 1 Squat au rack (barre)      |      |      4 × 6–8                           | Une séance type      |
+|   4 × 6–8                    |      |      [Monter][Descendre] [Modifier]    | archivée n’est plus  |
+|   [Monter] [Descendre]       |      |    3 Tirage horizontal  [Menu]         | proposée ...         |
+|   [Modifier]                 |      |      Rowing barre au rack · Rowing     | [ Archiver ]         |
+| 3 Tirage horizontal  [Menu]  |      |      assis machine · Tirage horiz. p.  |                      |
+|   Rowing barre au rack ·     |      |      3 × 8–10                          |                      |
+|   Rowing assis machine ·     |      |      [Monter][Descendre] [Modifier]    |                      |
+|   Tirage horizontal poulie   |      |    ...                                 |                      |
+|   3 × 8–10                   |      |    Ajouter un bloc                     |                      |
+|   [Monter] [Descendre]       |      |    Type (o) Exercice ( ) Menu          |                      |
+|   [Modifier]                 |      |    Exercice [ Choisir…          v ]    |                      |
+| ...                          |      |    [ Ajouter le bloc ]                 |                      |
+| Ajouter un bloc              |      |                                        |                      |
+| Informations ...             |      |                                        |                      |
+| Archivage ...                |      |                                        |                      |
++------------------------------+      +--------------------------------------------------------------+
+```
+
+Order in the DOM (and on the phone): h1, location line, Blocs, Informations, Archivage. From 64rem: grid `minmax(0, 3fr) minmax(0, 2fr)`, areas `"slots info" "slots archive"`; focus order follows the DOM. The slots come first because they are what the user comes to change; name and location are set once at creation.
+
+**Header.** h1 `<span id="seance-type-titre">{name}</span><span id="seance-type-etat">` (« Archivée » tag when archived, updated out of band). Under it, muted `<p id="seance-type-lieu">` the location word (updated out of band after a save).
+
+**Blocs** (`templates/session_template_slots.html`, `<section id="blocs" class="section" data-request-scope>`, the fragment of every slot and option route; status slot first): h2 « Blocs », muted intro « Dans l’ordre de la séance. Un bloc est un exercice précis ou un menu d’exercices au choix. ». One `<datalist id="mouvements">` (movement patterns, D-054) for every menu-name input of the fragment. Then `<ol class="slots">`; each `<li class="slot" id="bloc-{id}">`:
+
+- Line 1 `.slot__head`: position (muted, tabular), then
+  - exercise slot: the exercise name (weight 600), « Archivé » tag when archived;
+  - menu slot: the menu name (weight 600) then the tag « Menu ».
+- Menu only, line 2 `.slot__options` (muted `--text-sm`): the options in order joined by « · », each archived option followed by « (archivé) ». It is a reading summary; options are edited inside « Modifier ».
+- Target line `.slot__target` (text colour, tabular figures): `Display.target`; absent when the target is empty.
+- Skipped warning (muted `--text-sm`, only when it applies, D-058): exercise slot with an archived exercise « Ignoré en séance : l’exercice est archivé. »; menu whose options are all archived « Ignoré en séance : tous ses exercices sont archivés. ».
+- `.actions--inline` « Monter » / « Descendre » (as the list: `hx-post …/blocs/{slot_id}/deplacement`, `hx-target="#blocs"`, `aria-label` « Monter {name} » / « Descendre {name} », ids `bloc-{id}-monter` / `-descendre`, ends disabled), then `<details class="slot__edit">` with `<summary class="button" id="bloc-{id}-modifier">` « Modifier » + visually hidden « {name} ». `{name}` is the exercise name or the menu name.
+
+Inside « Modifier » (`templates/session_template_slot_form.html`):
+
+1. Slot form `hx-patch="/seances-types/{id}/blocs/{slot_id}"` (`class="slot-form"`, status slot first):
+   - Exercise slot: « Exercice » `<select class="input" id="bloc-{id}-exercice" name="exercise_id" required>`: non-archived exercises grouped by movement pattern (`<optgroup>` per pattern in name order, then « Sans mouvement »), current one selected. When the current exercise is archived it is the first option, selected, labelled « {name} (archivé) », so a target can be saved without changing it (the service accepts an unchanged archived exercise; it refuses only a newly chosen one, `exercise_unavailable`).
+   - Menu slot: « Nom du menu » `<input class="input" id="bloc-{id}-menu" name="label" maxlength="40" required list="mouvements" autocomplete="off" autocapitalize="sentences">`, hint « Par ex. Tirage horizontal ou Bras. ».
+   - `<fieldset class="target">` legend « Objectif indicatif » + optional mark, muted intro « Proposé quand l’exercice n’a pas encore d’historique. » (L4 prefill rule). Inputs, all optional, `autocomplete="off"`, `spellcheck="false"`, `enterkeyhint="done"`:
+     - « Séries » `id="bloc-{id}-series" name="sets" inputmode="numeric" maxlength="2"`;
+     - « Répétitions » `id="bloc-{id}-reps" name="reps" inputmode="text" maxlength="12"` (the iOS number pad has no dash), hint « Un nombre ou une plage : 10 ou 8-10. »;
+     - « Durée (m:ss) » `id="bloc-{id}-duree" name="duration" inputmode="text"`, hint `unit.hint.duration`;
+     - « Distance (km) » `id="bloc-{id}-distance" name="distance" inputmode="text"`, hint `unit.hint.distance`;
+     - « Note » `id="bloc-{id}-note" name="note" maxlength="40"`, hint « Par ex. par côté. ».
+     Prefilled with `reps_text` and `Display.input_text` (`0:30`, `400 m`). Layout: one column below 40rem; from 40rem a two-column grid (Séries | Répétitions, Durée | Distance, Note full width), `align-items: start` so hints do not misalign rows. Emptying every input clears the target.
+   - `.actions--inline`: primary « Enregistrer », danger « Retirer ce bloc » (`hx-delete`, `hx-target="#blocs"`, no confirmation: the slot is soft deleted, sessions already done keep their exercises, and the slot can be added again), hint under it « Les séances déjà faites ne changent pas. ».
+2. Menu only, options editor `<div class="menu-options" data-request-scope>` (slot first): h3 « Exercices proposés », muted « Dans l’ordre où ils sont proposés pendant la séance. ». `<ol class="options">`; each `<li class="option" id="option-{option_id}">`: name (+ « Archivé » tag), then `.actions--inline` « Monter » / « Descendre » / « Retirer » (`aria-label` « Monter {exercise} », « Descendre {exercise} », « Retirer {exercise} du menu »; ids `option-{id}-monter` / `-descendre` / `-retirer`; ends disabled). With a single option there is no « Retirer » and a muted line « Un menu garde au moins un exercice : retirez le bloc pour le supprimer. » (the `last_option` refusal is prevented, the server keeps it as a backstop shown under the list).
+3. Menu only, add-option form `hx-post="…/blocs/{slot_id}/options"` (`class="add-field"`, the L2 add pattern, slot first): label « Ajouter un exercice au menu », `<select class="input" id="bloc-{id}-option-ajout" name="exercise_id" required>` « Choisir… » then non-archived exercises not yet in this menu, grouped by movement pattern, **the group whose pattern matches the menu name (after normalisation) first**, so « Tirage horizontal » lists its rowing variants on top; button « Ajouter ». At 12 options, or when no exercise is left, the select is replaced by muted « 12 exercices au plus dans un menu. » / « Tous les exercices disponibles sont déjà dans ce menu. ».
+
+**Ajouter un bloc** (form `class="add-slot"`, `hx-post="/seances-types/{id}/blocs"`, `hx-target="#blocs"`, slot first; h3 « Ajouter un bloc »):
+
+- `fieldset.choices.choices--row` legend « Type »: radios `name="kind"` « Exercice » (`exercise`, checked by default: the cheap, frequent case) / « Menu » (`menu`), ids `bloc-ajout-exercice-type` / `bloc-ajout-menu-type`.
+- « Nom du menu » (`id="bloc-ajout-menu"`, `list="mouvements"`, `maxlength="40"`), shown only when « Menu » is checked (`.add-slot:has(input[name="kind"][value="menu"]:checked) .only-menu`, hidden by default, as the L2 `:has()` switches; the route passes `label` only for a menu).
+- « Exercice » `<select id="bloc-ajout-exercice" name="exercise_id" required>`: « Choisir… », non-archived exercises grouped by movement pattern; hint, shown only for a menu: « Le premier exercice du menu ; les autres s’ajoutent ensuite. ».
+- Button « Ajouter le bloc » (primary; below 40rem full width).
+- At 30 slots the form content is replaced by muted « 30 blocs au plus : retirez-en un pour en ajouter. »; with no non-archived exercise at all: muted « Aucun exercice disponible. » and a link « Créer un exercice » → `/exercices/nouveau`.
+
+**Results and focus in Blocs** (the fragment marks the target with `autofocus`; announcements out of band in `#annonce`):
+
+| Action | Result | Focus | Announcement |
+|---|---|---|---|
+| Add an exercise slot | new last row, its « Modifier » open | « Séries » of the new slot (next step: its target) | « Bloc ajouté : {name}. » |
+| Add a menu | new last row, « Modifier » open | the menu's « Ajouter un exercice au menu » select (next step: more options) | same |
+| Save a slot | row summary updated, `<details>` closed | its « Modifier » summary | « Modifications enregistrées. » |
+| Refused slot input | row `<details open>`, values kept, messages under inputs | first invalid input | first message |
+| Refused add | add form values kept, messages under inputs | first invalid input | first message |
+| Move a slot | rows reordered | same button of the moved row (other one at an end) | « {name} : position {position} sur {total}. » |
+| Remove a slot | row gone, positions renumbered | next row's « Modifier », else the previous row's, else the « Exercice » radio of the add form | « Bloc retiré : {name}. » |
+| Add an option | option last in the list, menu stays open | the add-option select again (options come in threes) | « Ajouté au menu : {exercise}. » |
+| Move an option | menu stays open | same button of the moved option | « {exercise} : position {position} sur {total}. » |
+| Remove an option | menu stays open | next option's « Retirer », else the previous one's, else the add-option select | « Retiré du menu : {exercise}. » |
+| Request failed | nothing changed, « Non enregistré, réessayer » in the nearest slot | D-053 (row buttons keep focus; forms: first visible field) | same text |
+
+Empty template: instead of the list, « Aucun bloc pour l’instant. » and muted « Ajoutez un exercice ou un menu ci-dessous. »; the add form follows.
+
+**Informations** (`templates/session_template_form.html`, edit mode, `hx-patch="/seances-types/{id}"`): h2 « Informations », same Nom and Lieu as creation, prefilled, no autofocus, button « Enregistrer ». Saved → slot « Modifications enregistrées. » (`kind="ok"`), announced; `#seance-type-titre` and `#seance-type-lieu` updated out of band. Refusals as at creation.
+
+**Archivage** (`templates/session_template_archive.html`, `<section id="seance-type-archivage" data-request-scope>`, slot first): h2 « Archivage »; active → « Une séance type archivée n’est plus proposée au démarrage d’une séance ; les séances déjà faites sont conservées. » and secondary « Archiver » (no confirmation: reversible); archived → « Séance type archivée : elle n’est plus proposée au démarrage d’une séance. La restaurer la place en dernier. » and primary « Restaurer ». The answer swaps the block, updates `#seance-type-etat` out of band, puts `autofocus` on the new button, announces « Séance type archivée. » / « Séance type restaurée. ». An archived template stays fully editable. No delete (invariant 8).
+
+States of the page: loaded; empty (no slot); archived (tag + block); slots with archived exercises (tags, skipped warnings); 30 slots (add form replaced); unknown, foreign → L1a 404 page; each action's failure → its scope's slot (D-053).
+
+Keyboard and focus order: skip link, brand, nav; per slot « Monter », « Descendre », « Modifier » (and, when open, the slot form, the options and the add-option form); the add-slot form; Informations; Archivage. Enter in a text input submits its own form. Tab titles: `templates.title`, `template.new_title`; the detail page uses the template name as `{page}`.
+
+### L3 — Style (`static/css/pages/templates.css`, `base.css`, `components.css`)
+
+No new token, no new breakpoint.
+
+- `base.css` / `components.css`: below 40rem `.site-nav { flex-basis: 100% }` and `.site-nav__list { gap: var(--space-4) }`; unchanged from 40rem.
+- `pages/templates.css` (each template page also links `pages/catalog.css` for `.toggle-link`, `.empty`, `.catalog-intro`, `.add-field`):
+  - `.template-row`: column, gap `--space-2`, padding-bottom `--space-3` below 40rem; from 40rem grid `minmax(0, 1fr) auto`, `align-items: center`, gap `--space-4`. `.row--template` from 40rem grid `minmax(0, 3fr) minmax(0, 1fr) minmax(0, 1fr)`, metas at `--text-md`, count `tabular-nums`, right aligned.
+  - `.slots`, `.slot`: the L2 `.fields` / `.field-row` look (column, gap `--space-2`, padding `--space-3` 0, divider between rows), with `.slot__head` position muted tabular and name weight 600; `.slot__options` and the skipped warning muted `--text-sm`; `.slot__target` `tabular-nums`. `.slot__edit > summary` as `.field-row__edit > summary`. Long names and option lists wrap (`overflow-wrap: anywhere` on `.slot__options` and option names); never an ellipsis.
+  - `.slot-form`: column, gap `--space-3`, margin-top `--space-3`. `.target`: `fieldset` without border, `min-width: 0`; its inputs in one column, from 40rem `display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-3); align-items: start`, the note field `grid-column: 1 / -1`.
+  - `.menu-options`: margin-top `--space-4`, top `--color-divider` line, padding-top `--space-3`; `h3` at `--text-md` weight 600. `.options` / `.option`: list without bullets; option name then its `.actions--inline` (from 40rem on one line: `display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between`).
+  - `.add-slot`: like `.form` (column, gap `--space-4`, max `--text-max`), margin-top `--space-6`; `.only-menu { display: none }`, `.add-slot:has(input[name="kind"][value="menu"]:checked) .only-menu { display: flex }`; below 40rem its button full width.
+  - From 64rem `.template-detail` grid `minmax(0, 3fr) minmax(0, 2fr)`, areas `"slots info" "slots archive"`, gap 0 `--space-8`, `align-items: start`.
+- 360 px check: a menu with 12 options, the longest seed template name (« Salle B — Charnière & poussée verticale ») and a slot whose « Modifier » is open fit without horizontal scroll; selects carry `min-width: 0`.
+
+### L3 — Strings (`web/locales/fr.json`)
+
+Same typography as L2: typographic apostrophes; a no-break space (U+00A0) before « : », « ? », inside « » guillemets, between a number and its unit, and on both sides of « × » in `target.sets_times`.
+
+| Key | Text |
+|---|---|
+| `nav.templates` | Séances types |
+| `templates.title` | Séances types |
+| `templates.intro` | Proposées dans cet ordre au démarrage d’une séance. |
+| `templates.new` | Nouvelle séance type |
+| `templates.show_archived` | Afficher les archivées |
+| `templates.hide_archived` | Masquer les archivées |
+| `templates.archived_heading` | Archivées |
+| `templates.slot_count` | Blocs : {count} |
+| `templates.empty_title` | Aucune séance type. |
+| `templates.empty_text` | Une séance type liste les exercices et les menus proposés au démarrage d’une séance. |
+| `template.new_title` | Nouvelle séance type |
+| `template.name_label` | Nom |
+| `template.name_hint` | Par ex. Salle A ou Haut du corps. |
+| `template.location_label` | Lieu |
+| `template.location_hint` | Le démarrage d’une séance propose les séances types du lieu choisi. |
+| `template.create` | Créer la séance type |
+| `template.section_info` | Informations |
+| `template.section_slots` | Blocs |
+| `template.slots_intro` | Dans l’ordre de la séance. Un bloc est un exercice précis ou un menu d’exercices au choix. |
+| `template.no_slot_title` | Aucun bloc pour l’instant. |
+| `template.no_slot_text` | Ajoutez un exercice ou un menu ci-dessous. |
+| `template.tag_menu` | Menu |
+| `template.option_archived` | {name} (archivé) |
+| `template.slot_skipped_exercise` | Ignoré en séance : l’exercice est archivé. |
+| `template.slot_skipped_menu` | Ignoré en séance : tous ses exercices sont archivés. |
+| `template.move_up_named` | Monter {name} |
+| `template.move_down_named` | Descendre {name} |
+| `template.exercise_label` | Exercice |
+| `template.no_pattern_group` | Sans mouvement |
+| `template.menu_label` | Nom du menu |
+| `template.menu_hint` | Par ex. Tirage horizontal ou Bras. |
+| `template.target_legend` | Objectif indicatif |
+| `template.target_intro` | Proposé quand l’exercice n’a pas encore d’historique. |
+| `template.sets_label` | Séries |
+| `template.reps_label` | Répétitions |
+| `template.reps_hint` | Un nombre ou une plage : 10 ou 8-10. |
+| `template.duration_label` | Durée (m:ss) |
+| `template.distance_label` | Distance (km) |
+| `template.note_label` | Note |
+| `template.note_hint` | Par ex. par côté. |
+| `template.remove_slot` | Retirer ce bloc |
+| `template.remove_slot_hint` | Les séances déjà faites ne changent pas. |
+| `template.options_heading` | Exercices proposés |
+| `template.options_intro` | Dans l’ordre où ils sont proposés pendant la séance. |
+| `template.option_remove_named` | Retirer {name} du menu |
+| `template.last_option_hint` | Un menu garde au moins un exercice : retirez le bloc pour le supprimer. |
+| `template.add_option_label` | Ajouter un exercice au menu |
+| `template.options_full` | 12 exercices au plus dans un menu. |
+| `template.options_none_left` | Tous les exercices disponibles sont déjà dans ce menu. |
+| `template.add_slot_heading` | Ajouter un bloc |
+| `template.kind_legend` | Type |
+| `template.kind_exercise` | Exercice |
+| `template.kind_menu` | Menu |
+| `template.first_option_hint` | Le premier exercice du menu ; les autres s’ajoutent ensuite. |
+| `template.add_slot` | Ajouter le bloc |
+| `template.slots_full` | 30 blocs au plus : retirez-en un pour en ajouter. |
+| `template.no_exercise` | Aucun exercice disponible. |
+| `template.create_exercise` | Créer un exercice |
+| `template.section_archive` | Archivage |
+| `template.archive_text` | Une séance type archivée n’est plus proposée au démarrage d’une séance ; les séances déjà faites sont conservées. |
+| `template.archived_text` | Séance type archivée : elle n’est plus proposée au démarrage d’une séance. La restaurer la place en dernier. |
+| `template.announce_archived` | Séance type archivée. |
+| `template.announce_restored` | Séance type restaurée. |
+| `template.announce_moved` | {name} : position {position} sur {total}. |
+| `template.announce_slot_added` | Bloc ajouté : {name}. |
+| `template.announce_slot_removed` | Bloc retiré : {name}. |
+| `template.announce_option_added` | Ajouté au menu : {name}. |
+| `template.announce_option_removed` | Retiré du menu : {name}. |
+| `target.sets_times` | {sets} × {parts} |
+| `target.sets_only` | Séries : {sets} |
+| `target.reps_range` | {min}–{max} |
+| `target.with_note` | {target} · {note} |
+| `duration.compact.seconds` | {seconds} s |
+| `duration.compact.minutes` | {minutes} min |
+| `duration.compact.minutes_seconds` | {minutes} min {seconds} |
+| `duration.compact.hours` | {hours} h |
+| `duration.compact.hours_minutes` | {hours} h {minutes} |
+| `catalog.error.template_name_taken` | Une séance type porte déjà ce nom (archivées comprises). |
+| `catalog.error.too_many_slots` | 30 blocs au plus par séance type. |
+| `catalog.error.too_many_options` | 12 exercices au plus dans un menu. |
+| `catalog.error.option_taken` | Cet exercice est déjà dans ce menu. |
+| `catalog.error.last_option` | Un menu garde au moins un exercice : retirez le bloc pour le supprimer. |
+| `catalog.error.exercise_unavailable` | Exercice archivé ou introuvable : choisissez-en un autre. |
+| `catalog.error.target_sets_range` | Entre 1 et 20 séries. |
+| `catalog.error.target_reps_format` | Un nombre ou une plage, par ex. 10 ou 8-10. |
+| `catalog.error.target_reps_range` | Entre 1 et 100 répétitions. |
+| `catalog.error.target_reps_order` | Le premier nombre doit être le plus petit. |
+
+Reused keys: `action.save`, `action.cancel`, `action.add`, `action.remove`, `action.archive`, `action.restore`, `action.move_up`, `action.move_down`, `action.edit`, `form.optional`, `form.choose`, `status.saved`, `tag.archived_m` (exercises), `tag.archived_f` (templates), `exercise.location.*` (location words), `unit.hint.duration`, `unit.hint.distance`, `catalog.error.required`, `catalog.error.too_long` (name 60, menu name 40, note 40), `catalog.error.invalid_choice`, the `domain/units` codes (`bad_duration`, `not_a_number`, `too_many_decimals`, `negative`, `too_large`, `must_be_positive`).
+
+Problem code for a taken template name: `template_name_taken` (not `name_taken`, whose text names an exercise); the template service raises it, including from the `NameTakenError` race branch. The target note's length refusal uses the existing `too_long` (`{max}` = 40), not a new `text_too_long`.
