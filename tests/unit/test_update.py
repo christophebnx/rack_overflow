@@ -166,3 +166,131 @@ def test_cli_update_maps_errors_to_exit_1(
     [(repo, data_dir)] = seen
     assert (repo / "src" / "rack_overflow" / "cli.py").is_file()
     assert data_dir == settings_file.parent / "data"
+
+
+# --- edge cases -------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "answers",
+    [
+        {"git rev-parse --abbrev-ref HEAD": (0, "HEAD\n")},  # detached HEAD
+        {"git rev-parse --abbrev-ref HEAD": (0, "main-old\n")},
+        {"git status --porcelain": (0, "?? stray.txt\n")},  # untracked file
+    ],
+)
+def test_refused_on_detached_head_similar_branch_or_untracked_file(
+    repo: Path, answers: dict[str, tuple[int, str]]
+) -> None:
+    run = Run(FakeRunner(answers))
+    with pytest.raises(OpsError, match="must be on main"):
+        run(repo)
+    assert run.runner.calls[-1] == ["git", "status", "--porcelain"]
+
+
+def test_pyproject_missing_is_not_a_clone(repo: Path) -> None:
+    (repo / "pyproject.toml").unlink()
+    run = Run(FakeRunner())
+    with pytest.raises(OpsError, match="is not a clone"):
+        run(repo)
+    assert run.runner.calls == []
+
+
+def test_failing_head_query_before_the_pull_stops_everything(repo: Path) -> None:
+    class Broken(FakeRunner):
+        def __call__(self, argv: Sequence[str], cwd: Path) -> subprocess.CompletedProcess[str]:
+            if list(argv) == ["git", "rev-parse", "HEAD"]:
+                self.calls.append(list(argv))
+                return subprocess.CompletedProcess(argv, 128, "", "fatal: bad\n")
+            return super().__call__(argv, cwd)
+
+    run = Run(Broken())
+    with pytest.raises(OpsError, match=r"git rev-parse HEAD \(exit 128\): fatal: bad"):
+        run(repo)
+    assert ["git", "pull", "--ff-only"] not in run.runner.calls
+    assert run.signals == []
+
+
+def test_failing_head_query_after_the_pull_stops_before_sync(repo: Path) -> None:
+    class Broken(FakeRunner):
+        def __call__(self, argv: Sequence[str], cwd: Path) -> subprocess.CompletedProcess[str]:
+            if list(argv) == ["git", "rev-parse", "HEAD"] and ["git", "pull", "--ff-only"] in self.calls:
+                self.calls.append(list(argv))
+                return subprocess.CompletedProcess(argv, 1, "", "")
+            return super().__call__(argv, cwd)
+
+    run = Run(Broken())
+    with pytest.raises(OpsError, match="exit 1"):
+        run(repo)
+    assert [UV, "sync", "--frozen"] not in run.runner.calls
+    assert run.signals == []
+
+
+def test_successful_step_output_is_echoed_and_queries_are_not(repo: Path) -> None:
+    run = Run(FakeRunner({"git pull --ff-only": (0, "Fast-forward\n"), f"{UV} sync --frozen": (0, "")}))
+    run(repo)
+    assert run.lines == ["Fast-forward", "restart requested (supervisor pid 77)"]
+
+
+def test_cli_update_runs_the_sequence_and_reports_no_supervisor(
+    settings_file: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    runner = FakeRunner()
+    monkeypatch.setattr(cli.update, "run_command", runner)
+    monkeypatch.setattr(cli.shutil, "which", lambda name: UV if name == "uv" else None)
+    monkeypatch.setattr(cli.os, "kill", lambda *args: pytest.fail("signal sent"))
+    assert cli.main(["update", "--config", str(settings_file)]) == 0
+    assert capsys.readouterr().out == "no rack supervise running; restart the server yourself\n"
+    assert runner.calls[-1] == [
+        sys.executable,
+        "-m",
+        "rack_overflow",
+        "migrate",
+        "--config",
+        str(settings_file.resolve()),
+    ]
+
+
+def test_cli_update_without_uv_exits_1_before_pulling(
+    settings_file: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    runner = FakeRunner()
+    monkeypatch.setattr(cli.update, "run_command", runner)
+    monkeypatch.setattr(cli.shutil, "which", lambda name: None)
+    assert cli.main(["update", "--config", str(settings_file)]) == 1
+    assert capsys.readouterr().err == "rack: error: uv not found on PATH\n"
+    assert ["git", "pull", "--ff-only"] not in runner.calls
+
+
+def test_cli_update_signals_the_running_supervisor(
+    settings_file: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    sent: list[tuple[int, int]] = []
+    monkeypatch.setattr(cli.update, "run_command", FakeRunner())
+    monkeypatch.setattr(cli.shutil, "which", lambda name: UV)
+    monkeypatch.setattr(cli.supervise, "running_supervisor_pid", lambda data_dir: 4242)
+    monkeypatch.setattr(cli.os, "kill", lambda pid, signum: sent.append((pid, signum)))
+    assert cli.main(["update", "--config", str(settings_file)]) == 0
+    assert sent == [(4242, signal.SIGHUP)]
+    assert capsys.readouterr().out.endswith("restart requested (supervisor pid 4242)\n")
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="bug: a SIGHUP that cannot be delivered (supervisor of another user, or gone) escapes as a "
+    "traceback instead of `rack: error: ...` and exit 1 (ops/update.py, tools.send_signal)",
+)
+@pytest.mark.parametrize(
+    "error", [PermissionError(1, "Operation not permitted"), ProcessLookupError(3, "No such process")]
+)
+def test_cli_update_signal_failure_is_a_clean_error(
+    settings_file: Path, monkeypatch: pytest.MonkeyPatch, error: OSError
+) -> None:
+    def refuse(pid: int, signum: int) -> None:
+        raise error
+
+    monkeypatch.setattr(cli.update, "run_command", FakeRunner())
+    monkeypatch.setattr(cli.shutil, "which", lambda name: UV)
+    monkeypatch.setattr(cli.supervise, "running_supervisor_pid", lambda data_dir: 4242)
+    monkeypatch.setattr(cli.os, "kill", refuse)
+    assert cli.main(["update", "--config", str(settings_file)]) == 1
