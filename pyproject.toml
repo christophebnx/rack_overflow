@@ -27,6 +27,7 @@ dev = [
     "pylint>=3.2",
     "pre-commit>=3.8",
     "httpx>=0.27",
+    "playwright==1.63.0",
 ]
 
 [build-system]
@@ -49,6 +50,7 @@ markers = [
     "live: calls a real paid or remote service (costs money, needs network); never run by default",
     "real_home(reason): the isolation guard lets the test use the real home folder (reason required)",
     "external_network(reason): the isolation guard lets the test reach non-loopback hosts (reason required)",
+    "browser: drives Chromium and WebKit through Playwright; skipped per engine when not installed (RACK_REQUIRE_BROWSER=1 makes it fail)",
     "real_fsync(reason): the test keeps real disk flushes (os.fsync, SQLite synchronous) (reason required)",
 ]
 addopts = "-m 'not live'"
