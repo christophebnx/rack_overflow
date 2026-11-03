@@ -230,7 +230,7 @@ Layout:
 
 Form (`templates/pairing_form.html`, the swappable fragment, included by `pairing.html`):
 
-- `<form class="pairing-form" hx-post="/appairage" hx-target="this" hx-swap="outerHTML" hx-disabled-elt="find button">` (JSON through `json-enc`, set on `<body>`).
+- `<form class="pairing-form" id="appairage-formulaire" hx-post="/appairage" hx-target="this" hx-swap="outerHTML" hx-disabled-elt="#appairage-formulaire button">` (JSON through `json-enc`, set on `<body>`).
 - `<label for="code">` « Code d’appairage ».
 - `<input id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" enterkeyhint="go" maxlength="9" required autofocus spellcheck="false" autocapitalize="off" autocorrect="off" aria-describedby="…">`: `aria-describedby` is `code-aide`, or `code-erreur code-aide` when a message is shown; then also `aria-invalid="true"`. No `pattern`: a malformed entry gets the server's « Code incorrect » message and is not charged (D-049), one rule in one place. `required` uses the browser's native message for an empty submit (no request).
 - Error: `<p id="code-erreur" class="field__error">`, between the input and the hint, so it is read right after the field and seen above the keypad.
@@ -443,7 +443,7 @@ Task: add an exercise the catalog lacks. Decision: name, category (it sets the s
 +------------------------------+      +--------------------------------------------------------------+
 ```
 
-- `<form class="form" hx-post="/exercices" hx-disabled-elt="find button" hx-target="this" hx-swap="outerHTML">`; status slot first.
+- `<form class="form" id="exercice-formulaire" hx-post="/exercices" hx-disabled-elt="#exercice-formulaire button" hx-target="this" hx-swap="outerHTML">`; status slot first.
 - Nom: `.input`, `maxlength="80"`, `required`, `autocomplete="off"`, `autocapitalize="sentences"`, `autofocus` (the user came here to type it).
 - Catégorie: `fieldset.choices` of five radios, `required`, **no preselection** (it decides the starting fields, so it must be a choice, not a default). From 40rem the choices flow in a wrapping row. Hint « Elle fixe les champs de départ, modifiables ensuite. »
 - Lieu: three radios, « Salle et maison » preselected (most exercises of the seed fit it; fewer taps).
@@ -924,7 +924,7 @@ Task: name a new template and say where it is done. Decision: name and location 
 +------------------------------+      +--------------------------------------------------------------+
 ```
 
-- `<form class="form" hx-post="/seances-types" hx-target="this" hx-swap="outerHTML" hx-disabled-elt="find button">`, status slot first.
+- `<form class="form" id="seance-type-formulaire" hx-post="/seances-types" hx-target="this" hx-swap="outerHTML" hx-disabled-elt="#seance-type-formulaire button">`, status slot first.
 - « Nom »: `<input class="input" id="seance-nom" name="name" maxlength="60" required autocomplete="off" autocapitalize="sentences" autofocus aria-describedby="seance-nom-aide">`, hint « Par ex. Salle A ou Haut du corps. ».
 - « Lieu »: `fieldset.choices.choices--row` (id `seance-lieu`), radios `name="location"` « Salle » / « Maison » / « Salle et maison » (values `gym` / `home` / `both`), `required`, **no preselection** (design note §1); hint « Le démarrage d’une séance propose les séances types du lieu choisi. ».
 - Actions (`.actions`, stacked full width below 40rem): primary « Créer la séance type », link-button « Annuler » → `/seances-types`.
@@ -1497,7 +1497,7 @@ Same typography as L2 / L3: typographic apostrophes; a no-break space (U+00A0) b
 | `catalog.error.slot_already_picked` | Un exercice est déjà choisi pour ce menu. |
 | `catalog.error.exercise_has_sets` | Des séries ou réglages sont enregistrés : l’exercice ne peut plus être changé. |
 
-Removed: `home.empty_title`, `home.empty_text` (L1a placeholder). Implementation notes (L4 developer): the chip list of a discrete, `bool` or `enum` field is built by `Display.choices` (an optional field gets a « — » chip first, a value off the list is appended last); the change-exercise search of an added row loads on the first opening of its `<details>` (`hx-trigger="toggle once"`, no script); the « Exercices » tile counts exercises with a live set; « Récents » includes the exercises of the current session. The L4 forms disable every button of the form through an id selector (`#exercice-{row}-serie button`, `#demarrer button`, `#serie-{id}-form button`, `#menu-{slot}-choix button`, `#fin-de-seance button`), never `find button`: htmx's `find` takes the first match only, which on the set form is the « − » stepper, not the ✓. Older forms (L1b to L3) still written with `find button` above are a follow-up (`docs/progress.md`). Reused: `home.title`, `exercise.location.gym` / `.home` (place words), `template.tag_menu`, `tag.archived_m`, `action.edit`, `action.save`, `action.cancel`, `action.home`, `templates.new`, `exercises.search_label`, `exercises.search_hint`, `exercises.no_match`, `exercises.no_match_hint`, `exercises.empty_title`, `exercises.new`, `exercises.results`, `error.search_failed`, `error.not_saved`, `quantity.*`, `unit.*`, `field.yes` / `field.no`, `duration.compact.*`, `catalog.error.required`, `catalog.error.too_long`, `catalog.error.invalid_choice`, `catalog.error.exercise_unavailable`, the `domain/units` codes. Problem codes of L4 use the one `catalog.error.<code>` prefix of `web/forms.form_errors` (the design note's `session.error.*` placeholder is not used). `date.numeric` takes two-digit `{day}` and `{month}`. `session_closed` has no message: it is a redirect, and the summary shows `session.closed_notice`.
+Removed: `home.empty_title`, `home.empty_text` (L1a placeholder). Implementation notes (L4 developer): the chip list of a discrete, `bool` or `enum` field is built by `Display.choices` (an optional field gets a « — » chip first, a value off the list is appended last); the change-exercise search of an added row loads on the first opening of its `<details>` (`hx-trigger="toggle once"`, no script); the « Exercices » tile counts exercises with a live set; « Récents » includes the exercises of the current session. The L4 forms disable every button of the form through an id selector (`#exercice-{row}-serie button`, `#demarrer button`, `#serie-{id}-form button`, `#menu-{slot}-choix button`, `#fin-de-seance button`), never `find button`: htmx's `find` takes the first match only, which on the set form is the « − » stepper, not the ✓. The older forms (L1b to L3) follow the same rule from L6 (L6 — Forms disable every button). Reused: `home.title`, `exercise.location.gym` / `.home` (place words), `template.tag_menu`, `tag.archived_m`, `action.edit`, `action.save`, `action.cancel`, `action.home`, `templates.new`, `exercises.search_label`, `exercises.search_hint`, `exercises.no_match`, `exercises.no_match_hint`, `exercises.empty_title`, `exercises.new`, `exercises.results`, `error.search_failed`, `error.not_saved`, `quantity.*`, `unit.*`, `field.yes` / `field.no`, `duration.compact.*`, `catalog.error.required`, `catalog.error.too_long`, `catalog.error.invalid_choice`, `catalog.error.exercise_unavailable`, the `domain/units` codes. Problem codes of L4 use the one `catalog.error.<code>` prefix of `web/forms.form_errors` (the design note's `session.error.*` placeholder is not used). `date.numeric` takes two-digit `{day}` and `{month}`. `session_closed` has no message: it is a redirect, and the summary shows `session.closed_notice`.
 
 ### L5 — Tokens, components and header (`tokens.css`, `components.css`, `_nav.html`)
 
@@ -2001,3 +2001,96 @@ Typography as L4: typographic apostrophes; no-break space (U+00A0) before « : �
 | `catalog.error.rm_not_strength` | Les RM ne concernent que les exercices de musculation. |
 
 « × », « − » (U+2212) and « ^ » in formula texts take no-break spaces on both sides. Reused: `session.summary.sets`, `session.summary.volume`, `session.summary_title`, `session.settings_saved`, `session.announce_set_updated`, `session.announce_set_deleted`, `session.delete_set`, `session.record`, `session.set_type.*`, `session.field_unit`, `home.free_session`, `home.start_title` (link « Nouvelle séance »), `exercise.location.*`, `exercise.category.*`, `tag.archived_m`, `action.cancel`, `action.home`, `action.save`, `unit.hint.weight`, `unit.with_value`, `date.numeric`, `duration.compact.*`, `quantity.weight`, `unit.kg`, `catalog.error.required`, `catalog.error.must_be_positive`, `catalog.error.invalid_choice`, the `domain/units` codes, `error.not_saved`. The design note's `Display.week` « sem. du 27/10 » is replaced by `date.short` « 27/10 » plus `history.week_item` (accessible text).
+
+### L6 — Settings: export (`GET /reglages`, `templates/settings.html`; `GET /api/export?format=json|csv`, D-074)
+
+Task: take a complete copy of the data out of the app, to keep it or to open it in another tool. Decision: which format (a spreadsheet, or one complete file for a program). Information: what each format is for, that everything is included, that the numbers are in canonical units, and that this is not the way to restore the app. Rare task, done on the desktop more often than on the phone; nothing is written, so no confirmation.
+
+```
+360 px                                  1280 px (column max 40rem)
++------------------------------+        +---------------------------------------------------+
+| Réglages                     |  h1    |  Réglages                                         |
+| Estimation du 1RM            |  h2    |  Estimation du 1RM                                |
+| ... (L5 formula form)        |        |  ... (L5 formula form)                            |
+| Données                      |  h2    |  Données                                          |
+| Une copie complète de vos    |        |  Une copie complète de vos données, à garder ou à |
+| données, … archivés et       |        |  ouvrir dans un autre logiciel, …                 |
+| supprimés compris.           |        |                                                   |
+| [    Exporter en JSON      ] |  48    |  [ Exporter en JSON ]  Un seul fichier, complet et|
+| Un seul fichier, complet et  |        |                        sans perte, …              |
+| sans perte, …                |        |  [ Exporter en CSV  ]  Un fichier zip avec un     |
+| [    Exporter en CSV       ] |  48    |                        tableau par type …         |
+| Un fichier zip avec un       |        |  Les poids sont en grammes, les durées en …       |
+| tableau par type …           |        |  Cet export ne sert pas à restaurer …             |
+| Les poids sont en grammes, … |        |                                                   |
+| Cet export ne sert pas à …   |        |  [ Voir la progression ]                          |
+| [   Voir la progression    ] |        |                                                   |
++------------------------------+        +---------------------------------------------------+
+```
+
+- A second `<section class="section settings" id="donnees" aria-labelledby="donnees-titre">` after the formula section, before the « Voir la progression » actions: h2 `id="donnees-titre"` « Données », then `<p class="muted">` intro (`.section > h2 + .muted`: small text under the heading).
+- `<ul class="exports">`, two `<li class="export">`, JSON first (the complete format):
+  - `<a class="button export__link" id="export-json" href="/api/export?format=json" aria-describedby="export-json-aide">` « Exporter en JSON », then `<p class="muted export__hint" id="export-json-aide">` its hint.
+  - The same for CSV: `id="export-csv"`, `href="/api/export?format=csv"`, `export-csv-aide`.
+  - Plain links (D-074): no htmx, no script, **no `download` attribute**. The server's `Content-Disposition: attachment` makes the browser save the file and stay on « Réglages »; without `download`, a failure is an ordinary navigation that shows the error page instead of a broken download (Chromium reports a `download` failure only in its download bar, with no explanation), and an unpaired browser follows the `303` to pairing.
+  - Secondary buttons (no accent): nothing here is the page's main action.
+- Then two `<p class="muted export__note">`: the units sentence and the restore sentence.
+- Files: `rack-overflow-<UTC YYYYMMDDTHHMMSSZ>.json` (`application/json; charset=utf-8`) and `rack-overflow-<UTC YYYYMMDDTHHMMSSZ>-csv.zip` (`application/zip`); content D-072 / D-073. The names are not shown on the page (the browser shows them).
+
+States:
+
+| State | User sees | Focus |
+|---|---|---|
+| Default | the section as drawn; always present (the export of an empty database is valid) | — |
+| Downloading | the browser's own download indicator (desktop bar or list; Safari on iOS asks where to save, then Files); the page does not change | stays on the link |
+| Done | the file in the browser's downloads (iOS: Files → Téléchargements); no message in the page, none needed | stays on the link |
+| Server failure (500) | the error page (L1a — Error pages): « Erreur du serveur », `error.internal`, « Code 500 », « Réessayer » then « Accueil ». « Réessayer » must lead to the same export: the retry link keeps the request's query (`/api/export?format=json`), never `/api/export` alone, which would answer 422 | error page, as L1a |
+| Unknown or missing `format` (typed URL only) | error page `422`, `error.invalid_request` « Demande non valable. », « Accueil » | as L1a |
+| Unpaired browser | `303` to `/appairage` | as L1b |
+
+Layout and style (`pages/progress.css`, tokens only, no new colour; light and dark come from the tokens):
+
+- `.exports`: no list style, `margin-top: var(--space-4)`, flex column, `gap: var(--space-4)`.
+- `.export`: below 40rem a column, the button full width (`width: 100%`) and the hint under it (`margin-top: var(--space-1)`, `--text-sm`). From 40rem a grid `grid-template-columns: 12rem minmax(0, 1fr)`, `column-gap: var(--space-4)`, `align-items: center`: button left (fixed width, so the two buttons align), hint right.
+- `.export__note`: `margin-top: var(--space-3)`, `--text-sm`, `max-width: var(--text-max)` (the section's `.settings`).
+- Targets: each link-button ≥ 48 px high (`.button`), 16 px between the two (≥ 8 px rule). No horizontal scroll at 360 px: the longest label « Exporter en JSON » fits a full-width button.
+
+Keyboard and focus: Tab order header, the formula radio group (one stop), « Exporter en JSON », « Exporter en CSV », « Voir la progression ». Enter on a link starts the download; focus stays on it. Each link's hint is read with it (`aria-describedby`). No live announcement: the page does not change and the browser reports the download.
+
+Browser check (Chromium and WebKit, 360 / 1280, light / dark): the page checks of `/reglages` pass with the section; a click on « Exporter en JSON » fires a download whose name ends in `.json` (Chromium).
+
+### L6 — Forms disable every button (`hx-disabled-elt`)
+
+Every htmx form disables all its buttons during its request through an id selector `#<form id> button` (L4 rule), never `find button` (htmx's `find` takes the first match only). Ids, existing ones kept, new ones added where the form had none:
+
+| Template | Form | `hx-disabled-elt` |
+|---|---|---|
+| `pairing_form.html` | `id="appairage-formulaire"` (new) | `#appairage-formulaire button` |
+| `variable_form.html` | `variable-formulaire` | `#variable-formulaire button` |
+| `exercise_form.html` | `exercice-formulaire` | `#exercice-formulaire button` |
+| `exercise_fields.html` (« Ajouter un champ ») | `id="champ-ajout-formulaire"` (new) | `#champ-ajout-formulaire button` |
+| `exercise_field_form.html` | `{prefix}-formulaire` | `#{prefix}-formulaire button` |
+| `exercise_aliases.html` | `id="alias-formulaire"` (new) | `#alias-formulaire button` |
+| `session_template_form.html` | `seance-type-formulaire` | `#seance-type-formulaire button` |
+| `session_template_slots.html` (add a slot) | `id="bloc-ajout-formulaire"` (new) | `#bloc-ajout-formulaire button` |
+| `session_template_slot_form.html` (slot) | `{prefix}-formulaire` | `#{prefix}-formulaire button` |
+| `session_template_slot_form.html` (add an option) | `id="{prefix}-option-ajout-formulaire"` (new) | `#{prefix}-option-ajout-formulaire button` |
+
+No visible change other than every button of the form being disabled (`.button[disabled]`) while the request runs; the new ids style nothing (classes unchanged). A template audit test fails on any `find button`.
+
+### L6 — Strings (`web/locales/fr.json`)
+
+Typographic apostrophes (’); a no-break space (U+00A0) before « : ».
+
+| Key | Text |
+|---|---|
+| `settings.data_heading` | Données |
+| `settings.data_intro` | Une copie complète de vos données, à garder ou à ouvrir dans un autre logiciel. Les éléments archivés et supprimés sont compris. |
+| `settings.export_json` | Exporter en JSON |
+| `settings.export_json_hint` | Un seul fichier, complet et sans perte, pour un autre logiciel ou un programme. |
+| `settings.export_csv` | Exporter en CSV |
+| `settings.export_csv_hint` | Un fichier zip avec un tableau par type de données, à ouvrir dans Excel, Numbers ou LibreOffice. |
+| `settings.export_units` | Les poids y sont en grammes, les durées en secondes et les distances en mètres. |
+| `settings.export_not_backup` | Cet export ne sert pas à restaurer l’application : les sauvegardes quotidiennes du serveur s’en chargent. |
+
+Reused: `settings.title`, `progress.link`, and on the error page `error.title.internal`, `error.internal`, `error.status`, `error.invalid_request`, `action.retry`, `action.home`.
