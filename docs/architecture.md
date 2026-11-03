@@ -33,6 +33,7 @@ Main flows:
 | `storage/` | File system and persistence; the single atomic writer. | `domain` |
 | `services/` | Business operations, one use case each, shared by the CLI and the web layer. | `domain`, `storage` |
 | `web/` | FastAPI app factory, routes, Jinja2 templates, CSS, vendored htmx, string catalog, security middleware, daily backup task. | `domain`, `services`, `config` |
+| `ops/` | Host process management: `rack supervise` (restart, rotating logs, single instance). POSIX only. | `domain`, `storage` |
 | `config.py` | Load and validate the settings file and the secrets file beside it, once (D-044). | `domain` |
 | `cli.py` | Command-line entry point: parses arguments, calls the layers, maps errors to exit codes (D-004). | everything |
 
@@ -52,6 +53,9 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Open the database with the project pragmas | `storage/db.create_engine` |
 | Database schema | `storage/schema.metadata` |
 | Apply / inspect migrations | `storage/migrate` |
+| Restart delay policy of the supervisor | `domain/supervision` |
+| Supervise `rack serve` (restart, logs, single instance) | `ops/supervise` |
+| Log line format (UTC) of the server and the supervisor | `ops/logs.utc_formatter` |
 | Database timestamp text (UTC `YYYY-MM-DDTHH:MM:SSZ`) | `domain/timestamps` |
 | The V1 user id | `domain/users.SINGLE_USER_ID` |
 | Device, pairing code and token rules | `domain/devices` |

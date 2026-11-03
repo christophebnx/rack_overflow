@@ -10,8 +10,10 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
+import signal
 import sys
-import time
+import threading
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -25,6 +27,9 @@ from rack_overflow.config import ConfigError, Settings, load_settings
 from rack_overflow.domain import devices as device_rules
 from rack_overflow.domain.errors import DomainError
 from rack_overflow.domain.timestamps import to_text
+from rack_overflow.ops import supervise
+from rack_overflow.ops.errors import OpsError
+from rack_overflow.ops.logs import utc_formatter
 from rack_overflow.services import backups, devices
 from rack_overflow.storage import db, migrate
 from rack_overflow.storage.errors import MigrationError, StorageError
@@ -77,11 +82,7 @@ def run_backup(settings: Settings, args: argparse.Namespace) -> None:
 def configure_logging() -> None:
     """Server logs on stderr, UTC timestamps, INFO; uvicorn's loggers propagate here."""
     handler = logging.StreamHandler(sys.stderr)
-    formatter = logging.Formatter(
-        "%(asctime)s %(levelname)s %(name)s: %(message)s", datefmt="%Y-%m-%dT%H:%M:%SZ"
-    )
-    formatter.converter = time.gmtime
-    handler.setFormatter(formatter)
+    handler.setFormatter(utc_formatter())
     root = logging.getLogger()
     root.handlers[:] = [handler]
     root.setLevel(logging.INFO)
@@ -115,6 +116,45 @@ def run_serve(settings: Settings, args: argparse.Namespace) -> None:
         proxy_headers=False,
         log_config=None,
     )
+
+
+def _self_command(command: str, config_path: Path) -> list[str]:
+    """`rack <command> --config <absolute path>` run by this Python (the clone's `.venv`)."""
+    return [sys.executable, "-m", "rack_overflow", command, "--config", str(config_path.resolve())]
+
+
+def run_supervise(settings: Settings, args: argparse.Namespace) -> None:
+    """Run `rack serve` under a supervisor: restarts, rotating logs, one instance per data folder.
+
+    SIGTERM / SIGINT stop the server and exit; SIGHUP (sent by `rack update`) stops the server and
+    re-executes the supervisor, so both run the updated code.
+    """
+    data_dir = settings.storage.data_dir
+    log_file = supervise.log_path(data_dir)
+    lock = supervise.acquire_lock(data_dir)
+    stop = threading.Event()
+    reexec = threading.Event()
+
+    def on_stop(signum: int, frame: object) -> None:
+        del signum, frame
+        stop.set()
+
+    def on_hangup(signum: int, frame: object) -> None:
+        reexec.set()
+        on_stop(signum, frame)
+
+    try:
+        supervise.write_pid(data_dir, os.getpid())
+        for signum in (signal.SIGTERM, signal.SIGINT):
+            signal.signal(signum, on_stop)
+        signal.signal(signal.SIGHUP, on_hangup)
+        supervise.Supervisor(_self_command("serve", args.config), log_file).run(stop)
+    finally:
+        supervise.remove_pid(data_dir)
+        os.close(lock)
+    if reexec.is_set():
+        command = _self_command("supervise", args.config)
+        os.execv(command[0], command)
 
 
 def _pairing_url(settings: Settings) -> str:
@@ -200,6 +240,7 @@ COMMANDS: dict[str, Command] = {
     "migrate": Command("create or upgrade the database to the latest schema", run_migrate),
     "backup": Command("snapshot the database now and prune expired snapshots", run_backup),
     "serve": Command("serve the web app (host and port from the settings file)", run_serve),
+    "supervise": Command("run the server, restart it after a crash, write logs", run_supervise),
     "device": Command(
         "add, list or revoke the devices allowed to use the app", run_device, _device_arguments
     ),
@@ -229,7 +270,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 2
     try:
         COMMANDS[args.command].run(load_settings(args.config), args)
-    except (DomainError, ConfigError, StorageError) as error:
+    except (DomainError, ConfigError, StorageError, OpsError) as error:
         print(f"{PROG}: error: {error}", file=sys.stderr)
         return 1
     return 0
