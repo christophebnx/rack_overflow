@@ -1,6 +1,7 @@
 """Import rules (CLAUDE.md invariant 1), checked by scanning the source with `ast`.
 
 Add a row to `ALLOWED` for every new package: the packages of the project it may import.
+Top-level modules other than `cli` (the composition root, unrestricted) need a `MODULE_ALLOWED` row.
 """
 
 from __future__ import annotations
@@ -17,7 +18,15 @@ PACKAGE = Path(__file__).resolve().parents[2] / "src" / PACKAGE_NAME
 ALLOWED: dict[str, set[str]] = {
     "domain": set(),
     "storage": {"domain"},
+    "services": {"domain", "storage"},
+    "web": {"domain", "services", "config"},
+    "ops": {"domain", "storage"},
 }
+# top-level module -> project packages / modules it may import (`cli` is unrestricted)
+MODULE_ALLOWED: dict[str, set[str]] = {
+    "config": {"domain"},
+}
+UNRESTRICTED_MODULES = {"cli", "__init__", "__main__"}
 
 
 def _imports(path: Path) -> set[str]:
@@ -57,6 +66,16 @@ def test_package_imports_only_allowed_layers(package: str) -> None:
         if _project_packages(path) - allowed
     }
     assert not offenders
+
+
+@pytest.mark.parametrize("module", sorted(MODULE_ALLOWED))
+def test_module_imports_only_allowed_layers(module: str) -> None:
+    assert _project_packages(PACKAGE / f"{module}.py") <= MODULE_ALLOWED[module]
+
+
+def test_every_top_level_module_has_a_rule() -> None:
+    modules = {path.stem for path in PACKAGE.glob("*.py")}
+    assert modules - UNRESTRICTED_MODULES == set(MODULE_ALLOWED)
 
 
 def test_every_package_has_a_layer_rule_and_a_claude_md() -> None:

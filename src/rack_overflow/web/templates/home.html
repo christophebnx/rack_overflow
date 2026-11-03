@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block styles %}<link rel="stylesheet" href="/static/css/pages/home.css">{% endblock %}
+{% block content %}
+<div class="home-empty">
+  <h1>{{ t("home.title") }}</h1>
+  <p class="home-empty__title">{{ t("home.empty_title") }}</p>
+  <p class="muted">{{ t("home.empty_text") }}</p>
+</div>
+{% endblock %}

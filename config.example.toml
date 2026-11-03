@@ -1,0 +1,30 @@
+# Rack Overflow machine settings (D-044).
+#
+# Copy this file to `config.toml` (git-ignored) on the machine that runs the server and adapt it.
+# As committed, it is the development configuration: run
+#     uv run rack <command> --config config.example.toml
+# Every key below is checked at start-up: an unknown key, a wrong type or a value out of range
+# stops the command with an error. Secrets (none in V1) go in the `.env` file beside this one.
+
+[server]
+# Address `rack serve` listens on. "127.0.0.1" = this machine only; "0.0.0.0" = the LAN too.
+host = "127.0.0.1"
+# TCP port, 1 to 65535.
+port = 8765
+# Host name the browsers use to reach the server (the DDNS name in production, without port).
+# Requests whose Host header is neither this name nor localhost / 127.0.0.1 / [::1] are refused.
+public_host = "localhost"
+# true only behind HTTPS (V2, D-013): adds Strict-Transport-Security, marks the device cookie
+# `Secure` (D-049) and makes `rack device add` print an https:// pairing URL. Optional, default false.
+https = false
+
+[storage]
+# Data folder: the database `rack.sqlite`, the `backups/` folder, and for `rack supervise` the
+# `logs/` folder, `supervise.lock` and `supervise.pid`. A relative path is resolved
+# against the folder of this file. Local disk only, never a network volume.
+data_dir = ".local/dev-data"
+
+[backup]
+# Snapshots older than this many days are deleted (the newest one is always kept). Optional,
+# default 30, at least 1.
+retention_days = 30

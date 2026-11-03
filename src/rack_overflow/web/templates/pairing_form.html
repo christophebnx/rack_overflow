@@ -1,0 +1,22 @@
+{% if paired %}
+<div class="pairing-form">
+  <p>{{ t("pairing.paired") }}</p>
+  <a class="button button--primary" href="/">{{ t("pairing.open_app") }}</a>
+</div>
+{% else %}
+{% set message = t(message_key, **message_params) if message_key else "" %}
+<form class="pairing-form" hx-post="{{ pairing_path }}" hx-target="this" hx-swap="outerHTML" hx-disabled-elt="find button">
+  <div class="field">
+    <label class="field__label" for="code">{{ t("pairing.code_label") }}</label>
+    <input class="input input--code" id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" enterkeyhint="go" maxlength="9" required autofocus spellcheck="false" autocapitalize="off" autocorrect="off" aria-describedby="{% if message %}code-erreur {% endif %}code-aide"{% if message %} aria-invalid="true"{% endif %}>
+    {% if message %}
+    <p id="code-erreur" class="field__error">{{ message }}</p>
+    {% endif %}
+    <p id="code-aide" class="field__hint">{{ t("pairing.code_hint") }}</p>
+  </div>
+  <button class="button button--primary">{{ t("pairing.submit") }}</button>
+</form>
+{% if message and announce is defined and announce %}
+<div id="annonce" hx-swap-oob="innerHTML">{{ message }}</div>
+{% endif %}
+{% endif %}

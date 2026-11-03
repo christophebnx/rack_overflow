@@ -1,0 +1,19 @@
+{
+  "format": 1,
+  "files": {
+    "htmx.min.js": {
+      "package": "htmx.org",
+      "version": "2.0.11",
+      "source": "https://unpkg.com/htmx.org@2.0.11/dist/htmx.min.js",
+      "sha256": "d6fdc75f204e6bdefa99b69bf1e6d4ac69b8a364f77929f45c13476b4000f717",
+      "licence": "0BSD"
+    },
+    "json-enc.js": {
+      "package": "htmx-ext-json-enc",
+      "version": "2.0.3",
+      "source": "https://unpkg.com/htmx-ext-json-enc@2.0.3/json-enc.js",
+      "sha256": "9fe14faaedb792c70c187e219b2d8e72fed92891375205dad9dfefe18d9accea",
+      "licence": "0BSD"
+    }
+  }
+}

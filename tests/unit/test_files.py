@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from rack_overflow.storage.files import atomic_write
+from rack_overflow.storage.files import atomic_produce, atomic_write
 
 
 def test_atomic_write_creates_and_replaces(tmp_path: Path) -> None:
@@ -34,3 +34,23 @@ def test_missing_folder_raises_and_writes_nothing(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
         atomic_write(tmp_path / "missing" / "state.json", b"data")
     assert not (tmp_path / "missing").exists()
+
+
+def test_atomic_produce_failure_keeps_the_original_and_no_temp_file(tmp_path: Path) -> None:
+    target = tmp_path / "state.bin"
+    target.write_bytes(b"original")
+
+    def broken(temp: Path) -> None:
+        temp.write_bytes(b"half")
+        raise RuntimeError("producer failed")
+
+    with pytest.raises(RuntimeError, match="producer failed"):
+        atomic_produce(target, broken)
+    assert target.read_bytes() == b"original"
+    assert [path.name for path in tmp_path.iterdir()] == ["state.bin"]
+
+
+def test_atomic_produce_creates_the_file(tmp_path: Path) -> None:
+    target = tmp_path / "out.bin"
+    atomic_produce(target, lambda temp: temp.write_bytes(b"made"))
+    assert target.read_bytes() == b"made"

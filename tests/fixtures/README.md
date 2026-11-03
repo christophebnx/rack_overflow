@@ -8,3 +8,7 @@ One folder per case, `tests/fixtures/<slug>/`, created with the `/add-fixture` s
 - `notes.md` — what the fixture covers.
 
 Never real user data: anonymised or synthetic only.
+
+Scripts used as fake child processes (not cases) live at the top level:
+
+- `fake_server.py` — a fake `rack serve` for the supervisor tests (`tests/integration/test_supervise.py`): records each start, prints lines, exits with a given code after a given time, optionally ignores SIGTERM.

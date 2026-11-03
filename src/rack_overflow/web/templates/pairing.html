@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block styles %}<link rel="stylesheet" href="/static/css/pages/pairing.css">{% endblock %}
+{% block main_class %}{% if already_paired %}main--message{% endif %}{% endblock %}
+{% block content %}
+{% if already_paired %}
+<div class="message-page">
+  <h1>{{ t("pairing.title") }}</h1>
+  <p>{{ t("pairing.already_paired") }}</p>
+  <div class="actions actions--thumb">
+    <a class="button button--primary" href="/">{{ t("pairing.open_app") }}</a>
+  </div>
+</div>
+{% else %}
+<div class="pairing">
+  <h1>{{ t("pairing.title") }}</h1>
+  <p>{{ t("pairing.intro") }}</p>
+  {% include "pairing_form.html" %}
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block main_class %}main--message{% endblock %}
+{% block content %}
+<div class="message-page">
+  <h1>{{ t(title_key) }}</h1>
+  <p>{{ t(message_key) }}</p>
+  <p class="message-page__code muted">{{ t("error.status", status=status) }}</p>
+  <div class="actions actions--thumb">
+    {% if retry_path %}
+    <a class="button button--primary" href="{{ retry_path }}">{{ t("action.retry") }}</a>
+    <a class="button" href="/">{{ t("action.home") }}</a>
+    {% else %}
+    <a class="button button--primary" href="/">{{ t("action.home") }}</a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

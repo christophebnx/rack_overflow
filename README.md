@@ -16,6 +16,7 @@ Status: V1 in development. Scope and milestones: [`docs/release-1.0.0-brief.md`]
 | `docs/decisions.md` | Decision log (D-NNN) |
 | `docs/ui-spec.md` | UI rules and screens |
 | `docs/architecture/` | Design notes, one per change |
+| `docs/deployment/nas.md` | Install, pairing and update on the Synology NAS (LAN only) |
 
 ## Development
 
@@ -27,8 +28,11 @@ uv run pre-commit install
 uv run pytest -q -n auto
 uv run ruff check . && uv run ruff format --check .
 uv run pylint --disable=all --enable=duplicate-code src
-uv run rack --version
+uv run rack migrate --config config.example.toml
+uv run rack serve --config config.example.toml   # http://127.0.0.1:8765
 ```
+
+Every page except `/appairage` needs a paired browser: run `uv run rack device add NAME --config config.example.toml` and type the printed code. More commands (backup, devices, supervise, update, browser tests): `CLAUDE.md`, section "Commands". NAS install: [`docs/deployment/nas.md`](docs/deployment/nas.md).
 
 No automatic CI until V1 is done (D-012): checks run locally and in pre-commit.
 
