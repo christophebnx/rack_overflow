@@ -136,24 +136,16 @@ def target_of(row: sa.Row) -> Target:
     )
 
 
-def _live_slots(template_id: int) -> sa.Select:
-    return (
-        sa.select(template_slot, *_EXERCISE_COLUMNS)
-        .outerjoin(exercise, exercise.c.id == template_slot.c.exercise_id)
-        .where(template_slot.c.template_id == template_id, template_slot.c.deleted_at.is_(None))
-    )
-
-
 def slots_of(connection: sa.Connection, template_id: int) -> Sequence[sa.Row]:
     """The template's live slots by position, each with its exercise's name, pattern and
     `archived_at` (null for a menu)."""
-    query = _live_slots(template_id).order_by(template_slot.c.position, template_slot.c.id)
+    query = (
+        sa.select(template_slot, *_EXERCISE_COLUMNS)
+        .outerjoin(exercise, exercise.c.id == template_slot.c.exercise_id)
+        .where(template_slot.c.template_id == template_id, template_slot.c.deleted_at.is_(None))
+        .order_by(template_slot.c.position, template_slot.c.id)
+    )
     return connection.execute(query).all()
-
-
-def get_slot(connection: sa.Connection, template_id: int, slot_id: int) -> sa.Row | None:
-    """The live slot `slot_id` of the template, or None."""
-    return connection.execute(_live_slots(template_id).where(template_slot.c.id == slot_id)).first()
 
 
 def next_slot_position(connection: sa.Connection, template_id: int) -> int:
