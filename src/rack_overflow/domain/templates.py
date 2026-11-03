@@ -16,8 +16,8 @@ from rack_overflow.domain import units
 from rack_overflow.domain.catalog import (
     CatalogError,
     Problem,
+    check_name,
     choice_input,
-    name_taken,
     raise_if,
     text_input,
 )
@@ -59,9 +59,8 @@ def template_draft(*, name: str | None, location: str | None) -> TemplateDraft:
 
 def check_template_name(name: str, others: Collection[str]) -> None:
     """Refuse `name` (`template_name_taken`) when another template of the user has it after
-    normalisation, archived ones included."""
-    if name_taken(name, others):
-        raise CatalogError([Problem("name", "template_name_taken")])
+    normalisation, archived ones included (`catalog.check_name`)."""
+    check_name(name, others, "template_name_taken")
 
 
 def menu_label(raw: str | None) -> str:

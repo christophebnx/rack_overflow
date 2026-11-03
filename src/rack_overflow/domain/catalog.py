@@ -308,10 +308,12 @@ def name_taken(name: str, others: Iterable[str]) -> bool:
     return any(normalise(other) == target for other in others)
 
 
-def check_name(name: str, others: Iterable[str]) -> None:
-    """Refuse `name` (`name_taken`) when another exercise of the user has it, archived included."""
+def check_name(name: str, others: Iterable[str], code: str = "name_taken") -> None:
+    """Refuse `name` (field `name`, error `code`: `name_taken` for an exercise) when another row of
+    the user has it after `normalise`, archived included. The one name-uniqueness rule of the
+    catalog and of templates."""
     if name_taken(name, others):
-        raise _refuse("name", "name_taken")
+        raise _refuse("name", code)
 
 
 def known_spelling(value: str | None, existing: Iterable[str]) -> str | None:

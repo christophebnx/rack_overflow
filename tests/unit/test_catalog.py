@@ -213,6 +213,12 @@ def test_name_taken_ignores_case_and_accents() -> None:
     catalog.check_name("Planche latérale", ["Planche"])
 
 
+def test_check_name_refuses_with_the_given_code() -> None:
+    with pytest.raises(CatalogError) as caught:
+        catalog.check_name("seance", ["Séance"], "template_name_taken")
+    assert caught.value.problems == (catalog.Problem("name", "template_name_taken"),)
+
+
 def test_known_spelling() -> None:
     assert catalog.known_spelling("tirage horizontal", ["Squat", "Tirage horizontal"]) == "Tirage horizontal"
     assert catalog.known_spelling("Gainage", ["Squat"]) == "Gainage"
