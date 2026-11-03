@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
+from rack_overflow.domain import units
 from rack_overflow.domain.catalog import CatalogError, FieldKind, FieldParams
 from rack_overflow.domain.sessions import (
     Item,
@@ -254,6 +255,12 @@ def test_stepped_without_increment_or_direction() -> None:
     assert stepped(FieldParams(), 5, "up") == 5
     assert stepped(DURATION.params, 90, "sideways") == 90
     assert stepped(DURATION.params, 90, "up") == 120
+
+
+def test_stepped_never_exceeds_what_parse_reads_back() -> None:
+    assert stepped(WEIGHT.params, units.MAX_VALUE - 1, "up") == units.MAX_VALUE
+    assert stepped(WEIGHT.params, units.MAX_VALUE, "up") == units.MAX_VALUE
+    assert stepped(REPS.params, units.MAX_VALUE, "down") == units.MAX_VALUE - 1
 
 
 def test_step_values_moves_one_field_in_display_units() -> None:

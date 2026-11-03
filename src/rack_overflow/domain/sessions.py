@@ -299,8 +299,9 @@ def settings_prefill(last: Mapping[int, FieldValue], fields: Sequence[SessionFie
 
 def stepped(params: FieldParams, value: int | None, direction: str) -> int | None:
     """`value` moved one increment `up` or `down` (D-063): empty + up → one increment, empty +
-    down stays empty, never below 0, a value off the increment grid snaps to the next grid value
-    in that direction. A field without increment keeps its value."""
+    down stays empty, never below 0 nor above `units.MAX_VALUE` (the largest value `units.parse`
+    reads back), a value off the increment grid snaps to the next grid value in that direction. A
+    field without increment keeps its value."""
     step = params.increment
     if step is None or direction not in STEP_DIRECTIONS:
         return value
@@ -308,7 +309,7 @@ def stepped(params: FieldParams, value: int | None, direction: str) -> int | Non
         return step if direction == UP else None
     below, rest = divmod(value, step)
     if direction == UP:
-        return (below + 1) * step
+        return min(units.MAX_VALUE, (below + 1) * step)
     return max(0, (below if rest else below - 1) * step)
 
 
