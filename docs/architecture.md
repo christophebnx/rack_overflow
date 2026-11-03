@@ -52,6 +52,12 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Open the database with the project pragmas | `storage/db.create_engine` |
 | Database schema | `storage/schema.metadata` |
 | Apply / inspect migrations | `storage/migrate` |
+| Database timestamp text (UTC `YYYY-MM-DDTHH:MM:SSZ`) | `domain/timestamps` |
+| The V1 user id | `domain/users.SINGLE_USER_ID` |
+| Device, pairing code and token rules | `domain/devices` |
+| Device and pairing-code queries | `storage/devices` |
+| Device operations (add, list, revoke, pair, authenticate) | `services/devices` |
+| Open the database only when it is at the head revision (CLI) | `cli._open_current_database` |
 | Snapshot naming, ordering, due-ness, retention | `domain/backups` |
 | Take, list and prune database snapshots | `storage/backup` |
 | Backup operation (snapshot then prune, or only when due) | `services/backups` |

@@ -15,3 +15,7 @@ class BackupError(StorageError):
 
 class CorruptDatabaseError(BackupError):
     """The database failed the integrity check: it is neither backed up nor touched."""
+
+
+class DeviceNameTakenError(StorageError):
+    """An active device already has this name (unique index on active names)."""

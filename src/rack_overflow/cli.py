@@ -2,7 +2,8 @@
 
 Exit codes: 0 success, 1 error, 2 usage (no command, unknown command, bad option).
 Errors print `rack: error: <message>` on stderr. Tests call `main([...])` in-process.
-Every command except `--version` reads the settings file given by `--config`.
+Every command except `--version` reads the settings file given by `--config`. A handler receives
+the settings and the parsed arguments; `device` has sub-commands (`add`, `list`, `revoke`).
 """
 
 from __future__ import annotations
@@ -12,21 +13,30 @@ import logging
 import sys
 import time
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
 import uvicorn
+from sqlalchemy.engine import Engine
 
 from rack_overflow import __version__
 from rack_overflow.config import ConfigError, Settings, load_settings
+from rack_overflow.domain import devices as device_rules
 from rack_overflow.domain.errors import DomainError
-from rack_overflow.services import backups
+from rack_overflow.domain.timestamps import to_text
+from rack_overflow.services import backups, devices
 from rack_overflow.storage import db, migrate
 from rack_overflow.storage.errors import MigrationError, StorageError
 from rack_overflow.web.app import create_app
 
 PROG = "rack"
 DEFAULT_CONFIG = Path("config.toml")
+PAIRING_PATH = "/appairage"
+NEVER = "-"
+
+Handler = Callable[[Settings, argparse.Namespace], None]
+DeviceHandler = Callable[[Engine, Settings, argparse.Namespace], None]
 
 
 def _now() -> datetime:
@@ -39,8 +49,9 @@ def _backup_now(settings: Settings) -> Path:
     )
 
 
-def run_migrate(settings: Settings) -> None:
+def run_migrate(settings: Settings, args: argparse.Namespace) -> None:
     """Create the data folder if needed, snapshot an existing database with pending revisions, upgrade."""
+    del args
     data_dir = settings.storage.data_dir
     try:
         data_dir.mkdir(parents=True, exist_ok=True)
@@ -57,8 +68,9 @@ def run_migrate(settings: Settings) -> None:
     print(f"database {settings.database_path} at revision {revision}")
 
 
-def run_backup(settings: Settings) -> None:
+def run_backup(settings: Settings, args: argparse.Namespace) -> None:
     """Snapshot the database now and prune expired snapshots."""
+    del args
     print(_backup_now(settings))
 
 
@@ -75,8 +87,8 @@ def configure_logging() -> None:
     root.setLevel(logging.INFO)
 
 
-def run_serve(settings: Settings) -> None:
-    """Serve the web app on the configured host and port (one worker), once the database is current."""
+def _open_current_database(settings: Settings) -> Engine:
+    """An engine on the database, refused unless the file exists and is at the head revision."""
     engine = db.create_engine(settings.database_path)
     try:
         current = settings.database_path.is_file() and migrate.is_up_to_date(engine)
@@ -86,6 +98,13 @@ def run_serve(settings: Settings) -> None:
     if not current:
         engine.dispose()
         raise MigrationError("database is not up to date; run rack migrate")
+    return engine
+
+
+def run_serve(settings: Settings, args: argparse.Namespace) -> None:
+    """Serve the web app on the configured host and port (one worker), once the database is current."""
+    del args
+    engine = _open_current_database(settings)
     configure_logging()
     app = create_app(settings, engine, clock=_now)
     uvicorn.run(
@@ -98,10 +117,92 @@ def run_serve(settings: Settings) -> None:
     )
 
 
-COMMANDS: dict[str, tuple[str, Callable[[Settings], None]]] = {
-    "migrate": ("create or upgrade the database to the latest schema", run_migrate),
-    "backup": ("snapshot the database now and prune expired snapshots", run_backup),
-    "serve": ("serve the web app (host and port from the settings file)", run_serve),
+def _pairing_url(settings: Settings) -> str:
+    scheme = "https" if settings.server.https else "http"
+    return f"{scheme}://{settings.server.public_host}:{settings.server.port}{PAIRING_PATH}"
+
+
+def _device_add(engine: Engine, settings: Settings, args: argparse.Namespace) -> None:
+    new = devices.add_device(engine, args.name, _now())
+    minutes = int(device_rules.CODE_TTL.total_seconds() // 60)
+    print(
+        f'device "{new.name}" added; pairing code {device_rules.format_code(new.code)}, '
+        f"valid until {to_text(new.expires_at)} ({minutes} minutes)"
+    )
+    print(f"open {_pairing_url(settings)} on the device and type the code")
+
+
+def _device_list(engine: Engine, settings: Settings, args: argparse.Namespace) -> None:
+    del settings, args
+    rows = [("NAME", "STATE", "CREATED", "LAST SEEN")]
+    for info in devices.list_devices(engine):
+        last_seen = to_text(info.last_seen_at) if info.last_seen_at else NEVER
+        rows.append((info.name, info.state.value, to_text(info.created_at), last_seen))
+    if len(rows) == 1:
+        print("no devices")
+        return
+    widths = [max(len(row[column]) for row in rows) for column in range(len(rows[0]) - 1)]
+    for row in rows:
+        cells = [cell.ljust(width) for cell, width in zip(row[:-1], widths, strict=True)]
+        print("  ".join([*cells, row[-1]]))
+
+
+def _device_revoke(engine: Engine, settings: Settings, args: argparse.Namespace) -> None:
+    del settings
+    devices.revoke_device(engine, args.name, _now())
+    print(f'device "{args.name.strip()}" revoked')
+
+
+DEVICE_ACTIONS: dict[str, tuple[str, DeviceHandler]] = {
+    "add": ("add a device and print its one-time pairing code", _device_add),
+    "list": ("list devices with their state and last use", _device_list),
+    "revoke": ("revoke a device: its browser must pair again", _device_revoke),
+}
+
+
+def run_device(settings: Settings, args: argparse.Namespace) -> None:
+    """Run a `rack device` action on the current database (safe while the server runs: WAL)."""
+    engine = _open_current_database(settings)
+    try:
+        DEVICE_ACTIONS[args.action][1](engine, settings, args)
+    finally:
+        engine.dispose()
+
+
+def _config_argument(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=DEFAULT_CONFIG,
+        help=f"settings file (default: {DEFAULT_CONFIG} in the current folder)",
+    )
+
+
+def _device_arguments(parser: argparse.ArgumentParser) -> None:
+    actions = parser.add_subparsers(dest="action", metavar="<action>", required=True)
+    for name, (help_text, _) in DEVICE_ACTIONS.items():
+        action = actions.add_parser(name, help=help_text)
+        if name != "list":
+            action.add_argument("name", help="device name (e.g. iPhone)")
+        _config_argument(action)
+
+
+@dataclass(frozen=True)
+class Command:
+    """A `rack` sub-command: help text, handler, and its extra arguments if any."""
+
+    help: str
+    run: Handler
+    arguments: Callable[[argparse.ArgumentParser], None] | None = None
+
+
+COMMANDS: dict[str, Command] = {
+    "migrate": Command("create or upgrade the database to the latest schema", run_migrate),
+    "backup": Command("snapshot the database now and prune expired snapshots", run_backup),
+    "serve": Command("serve the web app (host and port from the settings file)", run_serve),
+    "device": Command(
+        "add, list or revoke the devices allowed to use the app", run_device, _device_arguments
+    ),
 }
 
 
@@ -110,14 +211,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog=PROG, description="Rack Overflow: personal training tracker.")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     commands = parser.add_subparsers(dest="command", metavar="<command>")
-    for name, (help_text, _) in COMMANDS.items():
-        command = commands.add_parser(name, help=help_text)
-        command.add_argument(
-            "--config",
-            type=Path,
-            default=DEFAULT_CONFIG,
-            help=f"settings file (default: {DEFAULT_CONFIG} in the current folder)",
-        )
+    for name, command in COMMANDS.items():
+        sub = commands.add_parser(name, help=command.help)
+        if command.arguments is None:
+            _config_argument(sub)
+        else:  # nested actions carry `--config` (a parent default would override the child's value)
+            command.arguments(sub)
     return parser
 
 
@@ -128,9 +227,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command is None:
         parser.print_usage(sys.stderr)
         return 2
-    _, run = COMMANDS[args.command]
     try:
-        run(load_settings(args.config))
+        COMMANDS[args.command].run(load_settings(args.config), args)
     except (DomainError, ConfigError, StorageError) as error:
         print(f"{PROG}: error: {error}", file=sys.stderr)
         return 1

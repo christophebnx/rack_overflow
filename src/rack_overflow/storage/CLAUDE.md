@@ -13,9 +13,10 @@
 | Module | Owns |
 |---|---|
 | `files.py` | `atomic_produce(path, produce)`: unused temp name in the same folder, `produce(temp)`, fsync, `os.replace`, folder fsync (POSIX), temp removed on failure; `atomic_write(path, data)` built on it |
-| `errors.py` | `StorageError`, `MigrationError`, `BackupError`, `CorruptDatabaseError(BackupError)` |
+| `errors.py` | `StorageError`, `MigrationError`, `BackupError`, `CorruptDatabaseError(BackupError)`, `DeviceNameTakenError` |
 | `db.py` | `create_engine(database_path)`: WAL, `foreign_keys`, `synchronous = SYNCHRONOUS` (tests: OFF), `busy_timeout`, `BEGIN IMMEDIATE` on every transaction |
 | `schema.py` | `metadata` (naming convention) and one `Table` per table of brief section 7.2 |
 | `migrate.py` | `upgrade_to_head(engine)`, `current_revision(engine)`, `head_revision()`, `is_up_to_date(engine)`; Alembic configured in code; an unreadable database or unknown revision raises `MigrationError` |
 | `migrations/` | Alembic `env.py`, `script.py.mako`, `versions/` (frozen revisions, `0001_initial_schema.py`, `0002_variable_decimal_scale_not_null.py`) |
 | `backup.py` | `check_integrity(database_path)` (bare `sqlite3` connection, no engine pragmas; the copy is checked read-only), `take_snapshot(database_path, backups_dir, now)` (`VACUUM INTO` through `atomic_produce`, copy checked before the rename; corrupt source → `CorruptDatabaseError`, nothing written), `list_snapshots(backups_dir)` (in `domain.backups.ordered` order), `prune(backups_dir, now, retention_days)`; every `OSError` becomes `BackupError` |
+| `devices.py` | Device and pairing-code queries on a caller's `Connection`: `insert_device` (active name taken → `DeviceNameTakenError`), `insert_pairing_code`, `active_device_by_name`, `all_devices`, `revoke`, `codes_by_hash` (newest first, with the device's `revoked_at`, `token_hash`, `name`), `unused_codes` (of active unpaired devices), `add_attempt`, `mark_used`, `set_token`, `device_by_token_hash` (active only), `touch`. No rule decided here |
