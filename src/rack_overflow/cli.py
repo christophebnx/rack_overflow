@@ -29,11 +29,12 @@ from rack_overflow.config import ConfigError, Settings, load_settings
 from rack_overflow.domain import devices as device_rules
 from rack_overflow.domain.errors import DomainError
 from rack_overflow.domain.timestamps import to_text
+from rack_overflow.domain.users import SINGLE_USER_ID
 from rack_overflow.ops import supervise, update
 from rack_overflow.ops.commands import self_command
 from rack_overflow.ops.errors import OpsError
 from rack_overflow.ops.logs import utc_formatter
-from rack_overflow.services import backups, devices
+from rack_overflow.services import backups, devices, seed
 from rack_overflow.storage import db, migrate
 from rack_overflow.storage.errors import MigrationError, StorageError
 from rack_overflow.web.app import create_app
@@ -58,7 +59,9 @@ def _backup_now(settings: Settings) -> Path:
 
 
 def run_migrate(settings: Settings, args: argparse.Namespace) -> None:
-    """Create the data folder if needed, snapshot an existing database with pending revisions, upgrade."""
+    """Create the data folder if needed, snapshot an existing database with pending revisions,
+    upgrade, then apply the pending catalog seed steps (D-057; noted on stderr, so the stdout line
+    stays the revision)."""
     del args
     data_dir = settings.storage.data_dir
     try:
@@ -71,9 +74,12 @@ def run_migrate(settings: Settings, args: argparse.Namespace) -> None:
         if existed and not migrate.is_up_to_date(engine):
             print(f"backup {_backup_now(settings)}")
         revision = migrate.upgrade_to_head(engine)
+        print(f"database {settings.database_path} at revision {revision}")
+        created = seed.seed_catalog(engine, SINGLE_USER_ID)
     finally:
         engine.dispose()
-    print(f"database {settings.database_path} at revision {revision}")
+    if created:
+        print(f"seeded {created} exercises", file=sys.stderr)
 
 
 def run_backup(settings: Settings, args: argparse.Namespace) -> None:

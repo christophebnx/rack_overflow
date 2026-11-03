@@ -27,7 +27,7 @@ Main flows:
 - **Page**: GET → route → service reads → Jinja2 page with strings from `locales/fr.json`.
 - **Action** (e.g. confirm a set): htmx POST/PATCH with a JSON body → Pydantic validation → service (one transaction, domain rules) → HTML fragment swapped in place; a refused user input re-renders the form with `200` (D-050).
 - **Pairing**: `rack device add NAME` prints a one-time code → the browser posts it to `/appairage` → hashed token stored, `rack_device` cookie set (D-040, D-049).
-- **Operations**: `rack migrate`, `rack backup`, `rack device …`, `rack serve` (CLI calls the same services and storage); `rack supervise` runs `rack serve` as a child; `rack update` pulls `main`, syncs, migrates in a new process, then sends SIGHUP to the supervisor, which re-executes itself (D-051, D-052). Install guide: `docs/deployment/nas.md`.
+- **Operations**: `rack migrate` (upgrade, then the pending catalog seed steps, D-057), `rack backup`, `rack device …`, `rack serve` (CLI calls the same services and storage); `rack supervise` runs `rack serve` as a child; `rack update` pulls `main`, syncs, migrates in a new process, then sends SIGHUP to the supervisor, which re-executes itself (D-051, D-052). Install guide: `docs/deployment/nas.md`.
 
 ## Layers
 
@@ -76,6 +76,8 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Unknown or foreign row | `domain/errors.NotFoundError` |
 | Variable operations | `services/variables` |
 | Exercise, field, alias and search operations | `services/exercises` |
+| Seed data (packaged JSON) | `storage/seed` |
+| Seeding the catalog (versioned steps) | `services/seed` (run by `cli.run_migrate`) |
 | Device and pairing-code queries | `storage/devices` |
 | Device operations (add, list, revoke, pair, authenticate) | `services/devices` |
 | Open the database only when it is at the head revision (CLI) | `cli._open_current_database` |

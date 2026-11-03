@@ -1,0 +1,904 @@
+[
+  {
+    "name": "Squat au rack (barre)",
+    "category": "strength",
+    "movement_pattern": "Squat",
+    "equipment": "Barre",
+    "location": "gym",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      },
+      {
+        "quantity": "weight",
+        "required": true,
+        "increment": 2500
+      }
+    ],
+    "aliases": [
+      "Back squat"
+    ]
+  },
+  {
+    "name": "Développé couché (barre)",
+    "category": "strength",
+    "movement_pattern": "Poussée horizontale",
+    "equipment": "Barre",
+    "location": "gym",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      },
+      {
+        "quantity": "weight",
+        "required": true,
+        "increment": 2500
+      }
+    ],
+    "aliases": [
+      "DC",
+      "Bench press"
+    ]
+  },
+  {
+    "name": "Rowing barre au rack",
+    "category": "strength",
+    "movement_pattern": "Tirage horizontal",
+    "equipment": "Barre",
+    "location": "gym",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      },
+      {
+        "quantity": "weight",
+        "required": true,
+        "increment": 2500
+      }
+    ],
+    "aliases": [
+      "Barbell row"
+    ]
+  },
+  {
+    "name": "Rowing assis machine",
+    "category": "strength",
+    "movement_pattern": "Tirage horizontal",
+    "equipment": "Machine",
+    "location": "gym",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      },
+      {
+        "quantity": "weight",
+        "required": true,
+        "increment": 5000
+      }
+    ],
+    "aliases": [
+      "Seated row"
+    ]
+  },
+  {
+    "name": "Tirage horizontal poulie",
+    "category": "strength",
+    "movement_pattern": "Tirage horizontal",
+    "equipment": "Poulie",
+    "location": "gym",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      },
+      {
+        "quantity": "weight",
+        "required": true,
+        "increment": 2500
+      }
+    ],
+    "aliases": [
+      "Cable row"
+    ]
+  },
+  {
+    "name": "Fentes haltères",
+    "category": "strength",
+    "movement_pattern": "Jambes unilatéral",
+    "equipment": "Haltères",
+    "location": "both",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      },
+      {
+        "quantity": "weight",
+        "required": true,
+        "increment": 2000
+      }
+    ],
+    "aliases": [
+      "Lunges"
+    ]
+  },
+  {
+    "name": "Split squat bulgare",
+    "category": "strength",
+    "movement_pattern": "Jambes unilatéral",
+    "equipment": "Haltères",
+    "location": "both",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      },
+      {
+        "quantity": "weight",
+        "required": true,
+        "increment": 2000
+      }
+    ],
+    "aliases": [
+      "Bulgarian split squat"
+    ]
+  },
+  {
+    "name": "Presse à cuisses",
+    "category": "strength",
+    "movement_pattern": "Squat",
+    "equipment": "Machine",
+    "location": "gym",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      },
+      {
+        "quantity": "weight",
+        "required": true,
+        "increment": 5000
+      }
+    ],
+    "aliases": [
+      "Leg press"
+    ]
+  },
+  {
+    "name": "Curl barre EZ",
+    "category": "strength",
+    "movement_pattern": "Biceps",
+    "equipment": "Barre EZ",
+    "location": "both",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      },
+      {
+        "quantity": "weight",
+        "required": true,
+        "increment": 2500
+      }
+    ],
+    "aliases": [
+      "EZ curl"
+    ]
+  },
+  {
+    "name": "Planche",
+    "category": "bodyweight",
+    "movement_pattern": "Gainage",
+    "equipment": "Poids du corps",
+    "location": "both",
+    "fields": [
+      {
+        "quantity": "duration",
+        "required": true,
+        "increment": 15
+      }
+    ],
+    "aliases": [
+      "Plank",
+      "Gainage"
+    ]
+  },
+  {
+    "name": "Crunch poulie haute",
+    "category": "strength",
+    "movement_pattern": "Gainage",
+    "equipment": "Poulie",
+    "location": "gym",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      },
+      {
+        "quantity": "weight",
+        "required": true,
+        "increment": 2500
+      }
+    ],
+    "aliases": [
+      "Cable crunch"
+    ]
+  },
+  {
+    "name": "Relevé de jambes suspendu",
+    "category": "bodyweight",
+    "movement_pattern": "Gainage",
+    "equipment": "Barre de traction",
+    "location": "gym",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      }
+    ],
+    "aliases": [
+      "Hanging leg raise"
+    ]
+  },
+  {
+    "name": "Soulevé de terre roumain (RDL)",
+    "category": "strength",
+    "movement_pattern": "Charnière",
+    "equipment": "Barre",
+    "location": "gym",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      },
+      {
+        "quantity": "weight",
+        "required": true,
+        "increment": 2500
+      }
+    ],
+    "aliases": [
+      "RDL",
+      "Romanian deadlift"
+    ]
+  },
+  {
+    "name": "Développé militaire haltères",
+    "category": "strength",
+    "movement_pattern": "Poussée verticale",
+    "equipment": "Haltères",
+    "location": "both",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      },
+      {
+        "quantity": "weight",
+        "required": true,
+        "increment": 2000
+      }
+    ],
+    "aliases": [
+      "DM",
+      "Shoulder press"
+    ]
+  },
+  {
+    "name": "Tirage vertical poulie",
+    "category": "strength",
+    "movement_pattern": "Tirage vertical",
+    "equipment": "Poulie",
+    "location": "gym",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      },
+      {
+        "quantity": "weight",
+        "required": true,
+        "increment": 2500
+      }
+    ],
+    "aliases": [
+      "Lat pulldown"
+    ]
+  },
+  {
+    "name": "Tractions assistées machine",
+    "category": "bodyweight",
+    "movement_pattern": "Tirage vertical",
+    "equipment": "Machine",
+    "location": "gym",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      }
+    ],
+    "aliases": [
+      "Assisted pull-up"
+    ]
+  },
+  {
+    "name": "Tractions",
+    "category": "bodyweight",
+    "movement_pattern": "Tirage vertical",
+    "equipment": "Barre de traction",
+    "location": "gym",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      },
+      {
+        "quantity": "weight",
+        "required": false,
+        "increment": 2500
+      }
+    ],
+    "aliases": [
+      "Pull-up"
+    ]
+  },
+  {
+    "name": "Développé incliné à la Smith",
+    "category": "strength",
+    "movement_pattern": "Poussée inclinée",
+    "equipment": "Smith",
+    "location": "gym",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      },
+      {
+        "quantity": "weight",
+        "required": true,
+        "increment": 2500
+      }
+    ],
+    "aliases": [
+      "Incline press"
+    ]
+  },
+  {
+    "name": "Leg curl allongé",
+    "category": "strength",
+    "movement_pattern": "Ischios / fessiers",
+    "equipment": "Machine",
+    "location": "gym",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      },
+      {
+        "quantity": "weight",
+        "required": true,
+        "increment": 5000
+      }
+    ],
+    "aliases": [
+      "Leg curl"
+    ]
+  },
+  {
+    "name": "Hip thrust à la Smith",
+    "category": "strength",
+    "movement_pattern": "Ischios / fessiers",
+    "equipment": "Smith",
+    "location": "gym",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      },
+      {
+        "quantity": "weight",
+        "required": true,
+        "increment": 2500
+      }
+    ],
+    "aliases": [
+      "Hip thrust"
+    ]
+  },
+  {
+    "name": "Extension lombaire",
+    "category": "bodyweight",
+    "movement_pattern": "Ischios / fessiers",
+    "equipment": "Banc",
+    "location": "gym",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      },
+      {
+        "quantity": "weight",
+        "required": false,
+        "increment": 2500
+      }
+    ],
+    "aliases": [
+      "Hyperextension"
+    ]
+  },
+  {
+    "name": "Extension triceps poulie",
+    "category": "strength",
+    "movement_pattern": "Triceps",
+    "equipment": "Poulie",
+    "location": "gym",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      },
+      {
+        "quantity": "weight",
+        "required": true,
+        "increment": 2500
+      }
+    ],
+    "aliases": [
+      "Pushdown"
+    ]
+  },
+  {
+    "name": "Barre au front EZ",
+    "category": "strength",
+    "movement_pattern": "Triceps",
+    "equipment": "Barre EZ",
+    "location": "both",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      },
+      {
+        "quantity": "weight",
+        "required": true,
+        "increment": 2500
+      }
+    ],
+    "aliases": [
+      "Skull crusher"
+    ]
+  },
+  {
+    "name": "Dips",
+    "category": "bodyweight",
+    "movement_pattern": "Triceps",
+    "equipment": "Barres parallèles",
+    "location": "gym",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      },
+      {
+        "quantity": "weight",
+        "required": false,
+        "increment": 2500
+      }
+    ],
+    "aliases": []
+  },
+  {
+    "name": "Kettlebell swing",
+    "category": "kettlebell",
+    "movement_pattern": "Charnière",
+    "equipment": "Kettlebell",
+    "location": "home",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      },
+      {
+        "quantity": "weight",
+        "required": true,
+        "discrete_values": [
+          16000,
+          20000,
+          24000
+        ]
+      }
+    ],
+    "aliases": [
+      "Swing",
+      "KB swing"
+    ]
+  },
+  {
+    "name": "Goblet squat kettlebell",
+    "category": "kettlebell",
+    "movement_pattern": "Squat",
+    "equipment": "Kettlebell",
+    "location": "home",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      },
+      {
+        "quantity": "weight",
+        "required": true,
+        "discrete_values": [
+          16000,
+          20000,
+          24000
+        ]
+      }
+    ],
+    "aliases": [
+      "Goblet squat"
+    ]
+  },
+  {
+    "name": "Pompes",
+    "category": "bodyweight",
+    "movement_pattern": "Poussée horizontale",
+    "equipment": "Poids du corps",
+    "location": "both",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      }
+    ],
+    "aliases": [
+      "Push-up"
+    ]
+  },
+  {
+    "name": "Développé haltères au sol",
+    "category": "strength",
+    "movement_pattern": "Poussée horizontale",
+    "equipment": "Haltères",
+    "location": "home",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      },
+      {
+        "quantity": "weight",
+        "required": true,
+        "increment": 2000
+      }
+    ],
+    "aliases": [
+      "Floor press"
+    ]
+  },
+  {
+    "name": "Développé militaire kettlebell",
+    "category": "kettlebell",
+    "movement_pattern": "Poussée verticale",
+    "equipment": "Kettlebell",
+    "location": "home",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      },
+      {
+        "quantity": "weight",
+        "required": true,
+        "discrete_values": [
+          16000,
+          20000,
+          24000
+        ]
+      }
+    ],
+    "aliases": [
+      "KB press"
+    ]
+  },
+  {
+    "name": "Rowing haltère un bras",
+    "category": "strength",
+    "movement_pattern": "Tirage horizontal",
+    "equipment": "Haltères",
+    "location": "both",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      },
+      {
+        "quantity": "weight",
+        "required": true,
+        "increment": 2000
+      }
+    ],
+    "aliases": [
+      "One-arm row"
+    ]
+  },
+  {
+    "name": "Curl marteau haltères",
+    "category": "strength",
+    "movement_pattern": "Biceps",
+    "equipment": "Haltères",
+    "location": "both",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      },
+      {
+        "quantity": "weight",
+        "required": true,
+        "increment": 2000
+      }
+    ],
+    "aliases": [
+      "Hammer curl"
+    ]
+  },
+  {
+    "name": "Turkish get-up kettlebell",
+    "category": "kettlebell",
+    "movement_pattern": "Gainage",
+    "equipment": "Kettlebell",
+    "location": "home",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      },
+      {
+        "quantity": "weight",
+        "required": true,
+        "discrete_values": [
+          16000,
+          20000,
+          24000
+        ]
+      }
+    ],
+    "aliases": [
+      "TGU",
+      "Turkish get-up"
+    ]
+  },
+  {
+    "name": "Course extérieure",
+    "category": "cardio",
+    "movement_pattern": "Cardio",
+    "equipment": "Aucun",
+    "location": "both",
+    "fields": [
+      {
+        "quantity": "duration",
+        "required": true,
+        "increment": 60
+      },
+      {
+        "quantity": "distance",
+        "required": false,
+        "increment": 100
+      }
+    ],
+    "aliases": [
+      "Running",
+      "Footing"
+    ]
+  },
+  {
+    "name": "Tapis de course",
+    "category": "cardio",
+    "movement_pattern": "Cardio",
+    "equipment": "Tapis",
+    "location": "gym",
+    "fields": [
+      {
+        "quantity": "duration",
+        "required": true,
+        "increment": 60
+      },
+      {
+        "quantity": "distance",
+        "required": false,
+        "increment": 100
+      }
+    ],
+    "aliases": [
+      "Treadmill"
+    ]
+  },
+  {
+    "name": "Vélo",
+    "category": "cardio",
+    "movement_pattern": "Cardio",
+    "equipment": "Vélo",
+    "location": "gym",
+    "fields": [
+      {
+        "quantity": "duration",
+        "required": true,
+        "increment": 60
+      },
+      {
+        "quantity": "distance",
+        "required": false,
+        "increment": 100
+      }
+    ],
+    "aliases": [
+      "Bike"
+    ]
+  },
+  {
+    "name": "Rameur",
+    "category": "cardio",
+    "movement_pattern": "Cardio",
+    "equipment": "Rameur",
+    "location": "gym",
+    "fields": [
+      {
+        "quantity": "duration",
+        "required": true,
+        "increment": 60
+      },
+      {
+        "quantity": "distance",
+        "required": false,
+        "increment": 100
+      }
+    ],
+    "aliases": [
+      "Rowing machine"
+    ]
+  },
+  {
+    "name": "Elliptique",
+    "category": "cardio",
+    "movement_pattern": "Cardio",
+    "equipment": "Elliptique",
+    "location": "gym",
+    "fields": [
+      {
+        "quantity": "duration",
+        "required": true,
+        "increment": 60
+      },
+      {
+        "quantity": "distance",
+        "required": false,
+        "increment": 100
+      }
+    ],
+    "aliases": [
+      "Cross trainer"
+    ]
+  },
+  {
+    "name": "Squat à la Smith",
+    "category": "strength",
+    "movement_pattern": "Squat",
+    "equipment": "Smith",
+    "location": "gym",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      },
+      {
+        "quantity": "weight",
+        "required": true,
+        "increment": 2500
+      }
+    ],
+    "aliases": [
+      "Smith squat"
+    ]
+  },
+  {
+    "name": "Développé couché haltères",
+    "category": "strength",
+    "movement_pattern": "Poussée horizontale",
+    "equipment": "Haltères",
+    "location": "both",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      },
+      {
+        "quantity": "weight",
+        "required": true,
+        "increment": 2000
+      }
+    ],
+    "aliases": [
+      "DC haltères",
+      "Dumbbell bench press"
+    ]
+  },
+  {
+    "name": "Leg extension",
+    "category": "strength",
+    "movement_pattern": "Squat",
+    "equipment": "Machine",
+    "location": "gym",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      },
+      {
+        "quantity": "weight",
+        "required": true,
+        "increment": 5000
+      }
+    ],
+    "aliases": []
+  },
+  {
+    "name": "Mollets debout machine",
+    "category": "strength",
+    "movement_pattern": "Mollets",
+    "equipment": "Machine",
+    "location": "gym",
+    "fields": [
+      {
+        "quantity": "reps",
+        "required": true,
+        "increment": 1
+      },
+      {
+        "quantity": "weight",
+        "required": true,
+        "increment": 5000
+      }
+    ],
+    "aliases": [
+      "Standing calf raise"
+    ]
+  }
+]
