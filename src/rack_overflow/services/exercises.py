@@ -200,7 +200,8 @@ def _field_view(row: sa.Row) -> FieldView:
     )
 
 
-def _fields(connection: sa.Connection, exercise_id: int) -> list[FieldView]:
+def field_views(connection: sa.Connection, exercise_id: int) -> list[FieldView]:
+    """The exercise's fields in order with kind and parameters (exercise page, session forms)."""
     return [_field_view(row) for row in queries.fields_of(connection, exercise_id)]
 
 
@@ -208,7 +209,7 @@ def get_detail(engine: Engine, user_id: int, exercise_id: int) -> ExerciseDetail
     """The exercise page's data: attributes, fields, aliases, history flag, addable sources."""
     with engine.begin() as connection:
         row = _row(connection, user_id, exercise_id)
-        fields = _fields(connection, exercise_id)
+        fields = field_views(connection, exercise_id)
         linked = {field.variable.id for field in fields if field.variable is not None}
         variables = variable_queries.list_all(connection, user_id, include_archived=False)
         addable = sorted(
@@ -295,7 +296,7 @@ def _field(
     connection: sa.Connection, user_id: int, exercise_id: int, field_id: int
 ) -> tuple[FieldView, list[FieldView]]:
     _row(connection, user_id, exercise_id)
-    fields = _fields(connection, exercise_id)
+    fields = field_views(connection, exercise_id)
     for field in fields:
         if field.id == field_id:
             return field, fields

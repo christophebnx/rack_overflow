@@ -175,7 +175,9 @@ def _ref(row: sa.Row, exercise_id: int) -> ExerciseRef:
     )
 
 
-def _slots(connection: sa.Connection, template_id: int) -> list[SlotView]:
+def slots_for_session(connection: sa.Connection, template_id: int) -> list[SlotView]:
+    """The template's live slots in order with their options and targets: the one slot reader
+    (template pages and session logging)."""
     rows = queries.slots_of(connection, template_id)
     options: dict[int, list[OptionView]] = {}
     for option in queries.options_of(connection, [row.id for row in rows]):
@@ -199,7 +201,7 @@ def _slots(connection: sa.Connection, template_id: int) -> list[SlotView]:
 def _slot(connection: sa.Connection, user_id: int, template_id: int, slot_id: int) -> list[SlotView]:
     """The template's live slots, checking that `slot_id` is one of them."""
     _row(connection, user_id, template_id)
-    slots = _slots(connection, template_id)
+    slots = slots_for_session(connection, template_id)
     if all(slot.id != slot_id for slot in slots):
         raise NotFoundError(f"no slot {slot_id} in template {template_id}")
     return slots
@@ -307,7 +309,7 @@ def get_detail(engine: Engine, user_id: int, template_id: int) -> TemplateDetail
             id=row.id,
             draft=_draft(row),
             archived=row.archived_at is not None,
-            slots=tuple(_slots(connection, template_id)),
+            slots=tuple(slots_for_session(connection, template_id)),
             available=tuple(ExerciseRef(e.id, e.name, e.movement_pattern, False) for e in exercises),
             patterns=tuple(exercise_queries.movement_patterns(connection, user_id)),
         )
@@ -366,7 +368,7 @@ def update_slot(engine: Engine, user_id: int, template_id: int, slot_id: int, fo
         catalog.raise_if(problems)
         assert target is not None
         queries.update_slot(connection, slot_id, target=target, exercise_id=exercise_id, label=label)
-        return next(s for s in _slots(connection, template_id) if s.id == slot_id)
+        return next(s for s in slots_for_session(connection, template_id) if s.id == slot_id)
 
 
 def move_slot(engine: Engine, user_id: int, template_id: int, slot_id: int, direction: str) -> int:
