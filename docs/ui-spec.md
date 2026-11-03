@@ -6,7 +6,7 @@ Global rules first, then one section per screen. The `ui-designer` agent adds ea
 
 ### Platform
 
-- One responsive web app for phone and desktop, rendered on the server (Jinja2) with htmx for partial updates (D-015). No front-end framework, no build step. JavaScript only for htmx configuration and charts.
+- One responsive web app for phone and desktop, rendered on the server (Jinja2) with htmx for partial updates (D-015). No front-end framework, no build step. JavaScript only for htmx configuration, the shared request-error display (`static/js/request-errors.js`, D-053) and charts.
 - Checked at **360 px** (iPhone, Safari / WebKit) and **1280 px** (desktop), in **light and dark** following the system (`prefers-color-scheme`). No horizontal scroll at 360 px.
 - No external resource: htmx, `json-enc`, Chart.js and fonts are served from `static/`. No inline script or style (CSP, D-034).
 
@@ -34,7 +34,7 @@ Global rules first, then one section per screen. The `ui-designer` agent adds ea
 ### States and messages
 
 - Every screen designs its empty, loading, error and success states.
-- htmx requests disable their trigger while running (`hx-disabled-elt`). A failed request keeps the form values and shows « Non enregistré, réessayer » (key `error.not_saved`).
+- htmx requests disable their trigger while running (`hx-disabled-elt`). A failed request keeps the form values and shows « Non enregistré, réessayer » (key `error.not_saved`) in the form's `[data-request-status]` slot, clears old field errors and returns focus to the form's first field (D-053).
 - Errors from the server carry stable English codes, mapped to French strings by key (D-036). A missing key shows the key itself.
 
 ### Language and units
