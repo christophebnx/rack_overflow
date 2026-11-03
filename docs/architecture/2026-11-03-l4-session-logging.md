@@ -269,3 +269,31 @@ Keyboard order on the session page: skip link, brand, nav, h1, the plan in order
 ### Style changes
 
 No new token, no new breakpoint. `components.css`: `.chips`, `.chip`. New `pages/session.css` (session page and summary) and `pages/home.css` rewritten (start and resume; L1a empty-state classes removed). Session pages also link `pages/catalog.css` (`.empty`, search). At 1280 px the home and session pages are one column of `--text-max` (logging on the desktop is rare; the same DOM serves both), the summary totals are four tiles on one row.
+
+## Review (reviewer, loop 1)
+
+Checks: 2232 passed, 162 skipped (WebKit), 3 strict xfails; ruff and format clean; duplicate-code 10.00. Revision 0004 additive with downgrade; prefill and type order match D-062; record and volume logic only in `domain/indicators`; moved helpers not copied; `tzdata` recorded (D-065); JSON-only and no French in code; performance test valid (warm-up, median of 30, ≈ 6 200 sets, real fsync); tap counting valid. Changes to existing tests (head 0004, home h1, inline-style audit before the screenshot, shared server start-up) are legitimate.
+
+1. **BLOCKING** `storage/sessions.py:264-267` `replace_set_values` (from `services/sessions.py:899`) physically deletes stored values of variables archived or unlinked since (invariant 8; such a variable could then be deleted). Delete only the variable ids of the current fields; turn the strict xfail at `tests/integration/test_session_edges.py:458` into a normal test.
+2. **BLOCKING** (duplication) counted set types defined twice: `COUNTED_TYPES` (`storage/sessions.py:35`) and `RECORD_TYPES` (`domain/indicators.py:12`): storage imports the domain constant.
+3. **TO FIX** D-064 resolution confirmed: no star during the first session of an exercise. Dated refinement on D-064; `domain/indicators.py:73-74` requires at least one earlier counted set from another session (dominance still checked against all earlier sets, today's included); update the `is_record` docstring and the domain CLAUDE.md row; xfail at `test_session_edges.py:544` becomes a normal test.
+4. **TO FIX** « Terminer la séance » and « Annuler » lack `hx-disabled-elt` (`session_actions.html:10`, `session_close.html:5`, `session_close_confirm.html:10`); xfail at `test_web_session_edges.py:513` becomes a normal test.
+5. **TO FIX** `docs/ui-spec.md` lines 1189, 1275, 1299, 1301 still say `find button` (contradicted by the note at 1500): correct them in place.
+6. **TO FIX** older forms still using `find button` (pairing_form, variable_form, exercise_form, exercise_fields, exercise_field_form, exercise_aliases, session_template_form, session_template_slots, session_template_slot_form): follow-up entry in `docs/progress.md`, not fixed in L4.
+7. **SUGGESTION** test the race branches: `services/sessions.py:639-642` with a patched `open_session`; `routes/sessions.py:298-299, 355-356` by closing the session between two service calls.
+8. **SUGGESTION** `domain/sessions.py:300` `stepped` can exceed `units.MAX_VALUE`: cap it.
+9. **SUGGESTION** `_write_missing_settings` runs on every ✓ (`services/sessions.py:846`) while D-062 says "with the first set": reword the docstring or D-062 refinement.
+10. **SUGGESTION** « Oui » / « Non » mapping in three places (`web/display.py:29` `BOOL_KEYS`, `display.py:190`, `exercise_fields.html:7`): use `BOOL_KEYS`.
+11. **SUGGESTION** `tests/e2e/test_session_logging.py:237-239` dead code and private `phone._origin`: expose the origin publicly.
+
+## UI review (ui-designer, loop 1)
+
+Chromium at 360×640 with touch emulation and 1280, light and dark, full Salle A session with seeded history. No horizontal scroll, contrast 6.1–16.9:1, strings match, buttons disabled during requests, ✓ lands at 528–584 px after each confirm.
+
+1. **BLOCKING** `static/css/pages/session.css:102-121`: `.set-row__edit { display: contents }` does not flatten `::details-content` (Chromium, Safari 18.4+): the open edit form is 20 px wide at 360 and 1280, chips break letter by letter, « Enregistrer » and « Supprimer la série » are unusable. Put the grid column on `.set-row__edit::details-content` or stop relying on `display: contents`; add a browser test asserting the edit form's width and target sizes.
+2. **TO FIX** = reviewer 4.
+3. **TO FIX** `routes/sessions.py:165`: after a start, the first ✓ sits at 664–720 px, below the fold of a 640 px viewport (note promises ≈ 560 px). Redirect to `/seances/{id}#exercice-{row}` or reduce the space above it.
+4. **TO FIX** `session.css:55-60`: `display: flex` on `.session-settings__summary` hides the disclosure marker; « Réglages : … » and « Autres valeurs » need the chevron the spec asks for.
+5. **SUGGESTION** after a failed ✓ the status slot pushes the ✓ to 606–662 px: keep the action bar in view (`show:`) or put the status next to the ✓.
+6. **SUGGESTION** `session_summary.html:22-23`: drop zero parts (« Séries : 0 · … · Volume : 0 kg ») for warm-up-only exercises.
+7. **SUGGESTION** "inline style" CSP messages seen once on swaps with request interception + touch emulation, not reproduced: check once on WebKit.
