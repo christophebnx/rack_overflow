@@ -60,10 +60,11 @@ def _session_counts(sets: Iterable[LoggedSet]) -> dict[int, int]:
 
 
 def is_record(category: str, candidate: LoggedSet, previous: Sequence[LoggedSet]) -> bool:
-    """True when `candidate` is a record (D-064) given every earlier set of the exercise in
-    `(completed_at, id)` order: a counted set, after at least one earlier counted set, that no
-    earlier counted set dominates (a tie is not a record). Intervals: the round that lifts its
-    session's count of counted rounds above every earlier session's count."""
+    """True when `candidate` is a record (D-064 and its 2026-11-03 refinement) given every
+    earlier set of the exercise in `(completed_at, id)` order: a counted set, after at least one
+    counted set of another session (never during the first session of the exercise), that no
+    earlier counted set dominates, today's included (a tie is not a record). Intervals: the round
+    that lifts its session's count of counted rounds above every earlier session's count."""
     if not candidate.counted:
         return False
     if category == INTERVALS:
@@ -71,7 +72,9 @@ def is_record(category: str, candidate: LoggedSet, previous: Sequence[LoggedSet]
         mine = counts.pop(candidate.session_id, 0) + 1
         return bool(counts) and mine == max(counts.values()) + 1
     earlier = [item for item in previous if item.counted]
-    return bool(earlier) and not any(_at_least_as_good(item, candidate, category) for item in earlier)
+    if not any(item.session_id != candidate.session_id for item in earlier):
+        return False
+    return not any(_at_least_as_good(item, candidate, category) for item in earlier)
 
 
 def records(

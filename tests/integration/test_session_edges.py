@@ -551,11 +551,6 @@ def test_records_are_per_exercise_and_per_user(migrated_engine: Engine) -> None:
     assert not log(migrated_engine, today, row, lift(5, "110"), T0 + DAY).set.record
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="doc/impl conflict: D-064 and the L4 note say 'no star on the first session'; the "
-    "implemented rule stars a heavier work set later in the very first session of an exercise",
-)
 def test_no_star_in_the_first_session_of_an_exercise(migrated_engine: Engine) -> None:
     squat = make(migrated_engine, "Squat")
     session_id = free(migrated_engine)
