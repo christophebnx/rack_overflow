@@ -244,3 +244,15 @@ Rendered in Chromium at 360 and 1280 px, light and dark, every state: no BLOCKIN
 1. **TO FIX** `static/css/pages/pairing.css:24-28`: the button is full width at 1280 px (stretched by the `.pairing-form` flex column), not the compact button of the wireframe; add `align-self: flex-start` from 40rem.
 2. **SUGGESTION** `static/css/components.css:106-108`: the error border goes from 1 to 2 px and shifts the layout by 2 px; keep 1 px and add a 1 px `--color-danger` box-shadow.
 3. **For L2** (htmx error display): after a 5xx or network error, focus falls to `<body>` and the previous refusal message and `aria-invalid` stay; L2 must clear them and return focus to the input when it shows « Non enregistré, réessayer » (`templates/pairing_form.html:8-17`).
+
+## Fix loop 1 (developer)
+
+- Reviewer 1: `ops/commands.self_command(python, command, config_path)` is the one self-invocation argv, used by `cli.run_supervise` (serve, supervise) and `ops/update` (migrate).
+- Reviewer 2: `rack update` runs `uv sync`, `rack migrate` and the SIGHUP even when HEAD is unchanged (`already up to date; checking dependencies and database`), so a rerun completes a half-applied update. Recorded as D-052 (refines D-051, which carries a dated "Refined by" note); `docs/deployment/nas.md` §11 updated. Section 7 step 2 above is superseded by D-052.
+- Reviewer 3: `web/auth` leaves the response alone when the route already sets the device cookie (stale revoked or renewable cookie during pairing); strict xfail removed, renewal case added.
+- Reviewer 4: an undeliverable SIGHUP is an `OpsError` saying the update and migration were applied; strict xfails removed.
+- Reviewer 5: a child that cannot start (`OSError` from `Popen`) is a failed run (`START_FAILED = 127`) through the restart delay; a failed `os.execv` on SIGHUP is logged (`Supervisor.note`, stderr) and supervision resumes in the same process. Tests for both and for the lock open failure.
+- Reviewer 6: the active-name rule is checked only by `storage/devices.insert_device`; `services/devices.add_device` translates `DeviceNameTakenError` into `DeviceError`.
+- Reviewer 7: `mark_used` (unused code only) and `set_token` (active unpaired device only) return whether they wrote; `pair` runs them in a savepoint and answers `code_expired` with nothing written when either refuses.
+- UI 1 and 2: the pairing button is compact from 40rem (`align-self: flex-start`); a refused input keeps its 1 px border plus a 1 px `--color-danger` box-shadow (no layout shift). Browser tests added; `docs/ui-spec.md` updated. UI 3 stays with L2.
+- Also: `tests/fixtures/fake_server.py` writes its start record through a rename (a flaky empty read in `test_stop_terminates_the_child`).
