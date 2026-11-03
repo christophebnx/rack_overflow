@@ -108,11 +108,15 @@ class Display:
 
     # --- session logging (L4, docs/ui-spec.md "L4 — Session page")
 
+    def yes_no(self, value: int) -> str:
+        """« Oui » for 1, « Non » otherwise: the one reading of a `bool` value (`BOOL_KEYS`)."""
+        return self._catalog.text(BOOL_KEYS.get(value, BOOL_KEYS[0]))
+
     def field_value(self, field: FieldInfo, value: FieldValue) -> str:
         """A set or setting value as read: number with unit, enum label, « Oui » / « Non », text."""
         kind = field.field.kind
         if kind.kind == BOOL:
-            return self._catalog.text(BOOL_KEYS.get(int(value), "field.no"))
+            return self.yes_no(int(value))
         if kind.kind == ENUM:
             return field.enum_label(value)
         if kind.kind == TEXT or not isinstance(value, int):
@@ -187,7 +191,7 @@ class Display:
         an empty choice « — » first."""
         kind = field.field.kind
         if kind.kind == BOOL:
-            items = [("1", self._catalog.text("field.yes")), ("0", self._catalog.text("field.no"))]
+            items = [(str(key), self.yes_no(key)) for key in BOOL_KEYS]
         elif kind.kind == ENUM:
             items = [(value.key, value.label) for value in field.enum_values]
         else:

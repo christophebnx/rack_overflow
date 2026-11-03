@@ -42,8 +42,7 @@
     {% set chosen = v.default if v else (p.default_int | string if p.default_int is not none else "") %}
     <select class="input" id="{{ prefix }}-defaut" name="default"{{ described(prefix ~ "-defaut", errs) }}>
       <option value="">{{ t("form.none") }}</option>
-      <option value="1"{% if chosen == "1" %} selected{% endif %}>{{ t("field.yes") }}</option>
-      <option value="0"{% if chosen == "0" %} selected{% endif %}>{{ t("field.no") }}</option>
+      {% for flag in (1, 0) %}<option value="{{ flag }}"{% if chosen == flag | string %} selected{% endif %}>{{ show.yes_no(flag) }}</option>{% endfor %}
     </select>
     {% elif kind.kind == "text" %}
     <input class="input" id="{{ prefix }}-defaut" name="default" type="text" value="{{ v.default or '' if v else p.default_text or '' }}" maxlength="40" autocomplete="off"{{ described(prefix ~ "-defaut", errs) }}>

@@ -4,7 +4,7 @@
 {% macro default_text(field) -%}
 {% set p = field.params %}
 {% if field.kind.kind == "enum" %}{% for value in field.variable.draft.enum_values if value.key == p.default_text %}{{ value.label }}{% endfor %}
-{%- elif field.kind.kind == "bool" %}{{ t("field.yes") if p.default_int == 1 else t("field.no") }}
+{%- elif field.kind.kind == "bool" %}{{ show.yes_no(p.default_int) }}
 {%- elif field.kind.kind == "text" %}{{ p.default_text }}
 {%- else %}{{ show.value(field.kind.kind, p.default_int, field.kind.scale, field.variable.draft.unit if field.variable else none) }}{% endif %}
 {%- endmacro %}
