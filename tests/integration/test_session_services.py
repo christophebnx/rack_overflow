@@ -117,13 +117,17 @@ def test_start_race_on_the_unique_index_returns_the_open_session(
 ) -> None:
     first = start_a(engine)
     real = session_queries.open_session
-    calls = iter([None])
+    calls: list[int] = []
 
     def first_miss(connection: sa.Connection, user_id: int) -> sa.Row | None:
-        return next(calls, None) or real(connection, user_id)
+        calls.append(user_id)
+        return None if len(calls) == 1 else real(connection, user_id)
 
     monkeypatch.setattr(session_queries, "open_session", first_miss)
     assert sessions.start(engine, USER, None, "gym", T0, TZ) == first
+    assert len(calls) == 2  # the miss, then the read after the unique-index refusal
+    with engine.begin() as connection:
+        assert connection.execute(sa.select(sa.func.count()).select_from(s.session)).scalar_one() == 1
 
 
 def test_insert_session_refuses_a_second_open_session(engine: Engine) -> None:

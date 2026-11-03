@@ -10,6 +10,7 @@ from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from html.parser import HTMLParser
 
+import httpx
 import pytest
 import sqlalchemy as sa
 from fastapi.routing import APIRoute
@@ -611,3 +612,54 @@ def test_home_shows_the_local_start_in_summer_time(clocked: tuple[TestClient, li
     web.post("/seances", json={"template_id": "", "location": "home"}, headers=HTMX)
     home = web.get("/", headers=PAGE).text.replace("\u00a0", " ")
     assert "commencée à 00:01" in home
+
+
+# --- the session closed between two service calls of one request (another device)
+
+
+def closing_first(
+    monkeypatch: pytest.MonkeyPatch, engine: Engine, session_id: int, name: str, *, after: bool = False
+) -> None:
+    """Wrap the service `name` so the session is closed just before it runs (or just after)."""
+    real = getattr(sessions, name)
+
+    def wrapped(*args: object, **kwargs: object) -> object:
+        if not after:
+            sessions.close(engine, USER, session_id, NOW)
+        try:
+            return real(*args, **kwargs)
+        finally:
+            if after:
+                sessions.close(engine, USER, session_id, NOW)
+
+    monkeypatch.setattr(sessions, name, wrapped)
+
+
+def assert_closed(response: httpx.Response, session_id: int) -> None:
+    assert response.status_code == 204
+    assert response.headers["HX-Redirect"] == f"/seances/{session_id}?terminee=1"
+
+
+def test_a_refused_set_on_a_session_closed_meanwhile_redirects(
+    client: TestClient, migrated_engine: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ids = open_session(migrated_engine)
+    closing_first(monkeypatch, migrated_engine, ids["s"], "confirm_set", after=True)
+    body = {"session_exercise_id": str(ids["r"]), "type": "work", "reps": "x", "weight": "100"}
+    before = facts(migrated_engine)
+    response = client.post(fill("/seances/{s}/series", ids), json=body, headers=HTMX)
+    assert_closed(response, ids["s"])
+    assert facts(migrated_engine)[2:] == before[2:]  # no set written, only the close
+
+
+@pytest.mark.parametrize(("method", "name"), [("PATCH", "update_set"), ("DELETE", "delete_set")])
+def test_a_set_change_on_a_session_closed_meanwhile_redirects(
+    client: TestClient, migrated_engine: Engine, monkeypatch: pytest.MonkeyPatch, method: str, name: str
+) -> None:
+    ids = open_session(migrated_engine)
+    closing_first(monkeypatch, migrated_engine, ids["s"], name)
+    before = facts(migrated_engine)
+    body = body_for("/series/{t}", ids) if method == "PATCH" else {}
+    response = client.request(method, fill("/series/{t}", ids), json=body, headers=HTMX)
+    assert_closed(response, ids["s"])
+    assert facts(migrated_engine)[1:] == before[1:]  # the set untouched, only the close
