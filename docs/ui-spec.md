@@ -6,7 +6,7 @@ Global rules first, then one section per screen. The `ui-designer` agent adds ea
 
 ### Platform
 
-- One responsive web app for phone and desktop, rendered on the server (Jinja2) with htmx for partial updates (D-015). No front-end framework, no build step. JavaScript only for htmx configuration, the shared request-error display (`static/js/request-errors.js`, D-053) and charts.
+- One responsive web app for phone and desktop, rendered on the server (Jinja2) with htmx for partial updates (D-015). No front-end framework, no build step. JavaScript only for htmx configuration, the shared request-error display (`static/js/request-errors.js`, D-053) and charts (`static/js/progress-chart.js` with the vendored Chart.js, progress page only, L5).
 - Checked at **360 px** (iPhone, Safari / WebKit) and **1280 px** (desktop), in **light and dark** following the system (`prefers-color-scheme`). No horizontal scroll at 360 px.
 - No external resource: htmx, `json-enc`, Chart.js and fonts are served from `static/`. No inline script or style (CSP, D-034).
 
@@ -801,7 +801,7 @@ Problem codes are the domain's (`domain/catalog`, `domain/units`): the developer
 
 ### L3 — Header and navigation (`templates/_nav.html`, `base.css`, `components.css`)
 
-Task: reach the three management sections from any page. A third link « Séances types » → `/seances-types` (`section = "templates"`, `aria-current` on the list, new, and detail pages) does not fit beside the brand at 360 px: brand ≈ 150 + « Exercices » ≈ 80 + « Variables » ≈ 75 + « Séances types » ≈ 115 + 3 × 8 = 444 px for 328 px.
+Task: reach the three management sections from any page. (Phone layout replaced from L5 by three rows: L5 — Tokens, components and header.) A third link « Séances types » → `/seances-types` (`section = "templates"`, `aria-current` on the list, new, and detail pages) does not fit beside the brand at 360 px: brand ≈ 150 + « Exercices » ≈ 80 + « Variables » ≈ 75 + « Séances types » ≈ 115 + 3 × 8 = 444 px for 328 px.
 
 ```
 360 px (below 40rem: two rows)        1280 px (one row, unchanged)
@@ -1195,7 +1195,7 @@ No open session — one form `<form class="start" id="demarrer" hx-post="/seance
 - No template for the checked place: a muted line per place, shown by the same switch: « Aucune séance type pour la salle. » / « Aucune séance type pour la maison. » and a link « Nouvelle séance type » → `/seances-types/nouvelle`. « Séance libre » stays.
 - Started → `HX-Redirect: /seances/{id}#seance-plan` (L4 fix loop 1: the page opens scrolled to the plan, `scroll-margin-top` `--space-2`, so the first ✓ is above the fold at 360 × 640 instead of at 664–720 px). A session already open (double tap, other device) → the same redirect to it. Refused (`template_unavailable`, `invalid_choice`) → form re-rendered `200`, the message under the template heading, announced. Failure → slot « Non enregistré, réessayer », buttons enabled again.
 
-Open session — no form, nothing to start (one open session at a time): h1 « Séance en cours », the template name or « Séance libre » (weight 600), muted « Salle · commencée à 18:42 » and « Exercices : 2 · Séries : 7 » (rows with a live set; live sets), then the primary link-button « Reprendre la séance » → `/seances/{id}` (full width below 40rem). The phone page uses `main--message` + `.actions--thumb` with the header height of the two-row header (`.main--nav` sets `min-height: calc(100dvh - 2 * var(--target-min) - 1px)` below 40rem), so « Reprendre la séance » sits at the bottom of the screen.
+Open session — no form, nothing to start (one open session at a time): h1 « Séance en cours », the template name or « Séance libre » (weight 600), muted « Salle · commencée à 18:42 » and « Exercices : 2 · Séries : 7 » (rows with a live set; live sets), then the primary link-button « Reprendre la séance » → `/seances/{id}` (full width below 40rem). The phone page uses `main--message` + `.actions--thumb` with the header height of the two-row header (`.main--nav` sets `min-height: calc(100dvh - 2 * var(--target-min) - 1px)` below 40rem; `3 *` from L5, three-row header), so « Reprendre la séance » sits at the bottom of the screen.
 
 Tab order: skip link, brand, nav, location chips, template buttons, « Séance libre ». Tab title `home.title` (« Accueil »). The L1a empty state (`home.empty_title`, `home.empty_text`) is removed.
 
@@ -1498,3 +1498,498 @@ Same typography as L2 / L3: typographic apostrophes; a no-break space (U+00A0) b
 | `catalog.error.exercise_has_sets` | Des séries ou réglages sont enregistrés : l’exercice ne peut plus être changé. |
 
 Removed: `home.empty_title`, `home.empty_text` (L1a placeholder). Implementation notes (L4 developer): the chip list of a discrete, `bool` or `enum` field is built by `Display.choices` (an optional field gets a « — » chip first, a value off the list is appended last); the change-exercise search of an added row loads on the first opening of its `<details>` (`hx-trigger="toggle once"`, no script); the « Exercices » tile counts exercises with a live set; « Récents » includes the exercises of the current session. The L4 forms disable every button of the form through an id selector (`#exercice-{row}-serie button`, `#demarrer button`, `#serie-{id}-form button`, `#menu-{slot}-choix button`, `#fin-de-seance button`), never `find button`: htmx's `find` takes the first match only, which on the set form is the « − » stepper, not the ✓. Older forms (L1b to L3) still written with `find button` above are a follow-up (`docs/progress.md`). Reused: `home.title`, `exercise.location.gym` / `.home` (place words), `template.tag_menu`, `tag.archived_m`, `action.edit`, `action.save`, `action.cancel`, `action.home`, `templates.new`, `exercises.search_label`, `exercises.search_hint`, `exercises.no_match`, `exercises.no_match_hint`, `exercises.empty_title`, `exercises.new`, `exercises.results`, `error.search_failed`, `error.not_saved`, `quantity.*`, `unit.*`, `field.yes` / `field.no`, `duration.compact.*`, `catalog.error.required`, `catalog.error.too_long`, `catalog.error.invalid_choice`, `catalog.error.exercise_unavailable`, the `domain/units` codes. Problem codes of L4 use the one `catalog.error.<code>` prefix of `web/forms.form_errors` (the design note's `session.error.*` placeholder is not used). `date.numeric` takes two-digit `{day}` and `{month}`. `session_closed` has no message: it is a redirect, and the summary shows `session.closed_notice`.
+
+### L5 — Tokens, components and header (`tokens.css`, `components.css`, `_nav.html`)
+
+Design reasons: design note `docs/architecture/2026-11-03-l5-tracking.md`, "UI design". No new breakpoint.
+
+New tokens (chart series; each ≥ 4.5:1 on bg and surface, so text-grade and above the 3:1 non-text rule):
+
+| Token | Light | Dark | Light on bg / surface | Dark on bg / surface |
+|---|---|---|---|---|
+| `--chart-1` | `#0b57b8` | `#7cb0ff` | 6.84 / 6.22 | 8.28 / 7.31 |
+| `--chart-2` | `#b04a00` | `#ffa25c` | 5.49 / 4.99 | 9.21 / 8.13 |
+| `--chart-3` | `#1f7a3a` | `#5fd38a` | 5.38 / 4.89 | 9.73 / 8.59 |
+| `--chart-4` | `#9c2f8f` | `#f08ad8` | 6.53 / 5.93 | 8.13 / 7.17 |
+| `--chart-5` | `#00707a` | `#4fd1d9` | 5.84 / 5.30 | 9.98 / 8.81 |
+| `--chart-6` | `#5b5f00` | `#d9d55a` | 6.81 / 6.19 | 11.86 / 10.47 |
+
+Series *i* always pairs colour `--chart-{i}` with a shape (Chart.js `pointStyle`: circle, rectRot, rect, triangle, crossRot, star; legend glyphs « ● ◆ ■ ▲ ✕ ★ »): never colour alone.
+
+| Component | Markup | Look |
+|---|---|---|
+| Data table | `<table class="data-table">` with `<caption>` (visible or `.visually-hidden`), `<th scope="col">`, first cell of a row `<th scope="row">` | `--text-sm`, full width, cells padding `--space-2` `--space-2`, `--color-divider` line between rows, header muted weight 600; numeric columns `.num` (right, tabular); no cell wraps a number and its unit (no-break space). Wrapped in `<div class="data-table__scroll" role="region" tabindex="0" aria-labelledby="{caption id}">` with `overflow-x: auto`: the last fallback for a very wide font; the 360 px layout must not need it (browser check) |
+| Inline link | `<a class="inline-link">` | a text link as a 48 px target: `display: inline-flex; align-items: center; min-height: var(--target-min)`, underlined, accent |
+| Chip grid | `.chips.chips--grid6` | `display: grid; grid-template-columns: repeat(6, minmax(var(--target-min), 1fr))`, gap `--target-gap`: 6 × 48 + 5 × 8 = 328 px, two exact rows of six at 360 |
+| Success notice on a page | `<p class="form-status" data-kind="ok" role="status">` | the slot look, outside a form (after a redirect) |
+
+**Header (replaces the L3 phone layout).** Five links in two groups:
+
+```
+360 px (below 40rem: three rows)       1280 px (one row)
++------------------------------+       +--------------------------------------------------------------------------+
+| Rack Overflow                | 48    |  Rack Overflow     Historique  Progression    Exercices  Variables  Séances types |
+| Historique  Progression      | 48    |                    ~~~~~~~~~~                                              |
+| ~~~~~~~~~~                   |       +--------------------------------------------------------------------------+
+| Exercices  Variables  Séances| 48
+| types (one line)             |
++------------------------------+
+```
+
+- `_nav.html`: one `<nav>` (unchanged label), two `<ul class="site-nav__list">`: first `site-nav__list--tracking` with « Historique » → `/historique` (`section = "history"`) and « Progression » → `/progression` (`section = "progress"`), then « Exercices », « Variables », « Séances types » as in L3. Link look unchanged (L2).
+- Below 40rem: `.site-nav` takes its own row (`flex-basis: 100%`, L3) and is a column of the two lists, each a 48 px row, gap `--space-4` between links (row 2: 80 + 16 + 95 = 191 px; row 3: 302 px, of 328). Each list keeps `flex-wrap: wrap` (a very wide font adds a row, never a horizontal scroll). Header height on the phone: 145 px (3 × 48 + divider), not sticky; nothing fixed at the bottom of the screen.
+- From 40rem: brand left, both lists on one row on the right, `--space-6` between the lists, `--target-gap` between links, links padded `--space-2`; ≈ 715 px in all, so one row from ≈ 760 px; below that the header wraps the whole nav to a second row (L2 fallback).
+- `aria-current="page"`: « Historique » on `/historique` and on a closed session's page (the history detail); « Progression » on `/progression` and `/progression/{id}`; nothing on `/reglages`, home and an open session.
+- Home (L4 resume state): `.main--nav` becomes `min-height: calc(100dvh - 3 * var(--target-min) - 1px)` below 40rem.
+- Tab order: skip link, brand, « Historique », « Progression », « Exercices », « Variables », « Séances types », main.
+
+### L5 — History (`GET /historique`, `templates/history.html`, `templates/history_page.html`)
+
+Task: find a session to check or correct it; see whether training is regular. Decision: which session to open. Information: weekday and date, template, place, size, exercises; sessions per week.
+
+```
+360 px                                  1280 px (column max 40rem for the week chart, list full content width)
++------------------------------+        +---------------------------------------------------------------------+
+| (header, 3 rows)             |        | (header)                                                            |
++------------------------------+        +---------------------------------------------------------------------+
+| Historique                   |  h1    |  Historique                                                         |
+| Séance supprimée.            |  ?supprimee=1 only                                                           |
+| Régularité                   |  h2    |  Régularité                                                         |
+| Cette semaine : 2            |        |  Cette semaine : 2                                                  |
+| Séances par semaine, moyenne |        |  Séances par semaine, moyenne sur 12 semaines : 2,8                 |
+| sur 12 semaines : 2,8        |        |   3  2  4  3  0  3  2  3  4  3  3  2                                 |
+|  3 2 4 3 0 3 2 3 4 3 3 2     |        |   █  ▆  █  █  _  █  ▆  █  █  █  █  ▒                                 |
+|  █ ▆ █ █ _ █ ▆ █ █ █ █ ▒     |  56 px |  18/08 25/08 ...                                 10/11              |
+| 12 dernières semaines, la    |        |  12 dernières semaines, la semaine en cours à droite.               |
+| semaine en cours à droite.   |        |                                                                     |
+| Novembre 2026                |  h2    |  Novembre 2026                                                      |
+| Salle A — Squat & poussée    |  row   |  lun. 03/11 · 18:42   Salle A — Squat & poussée horiz.  Séries : 22 |
+| horizontale     [En cours]   |        |  Salle                Squat au rack · Développé couché  8450 kg      |
+| lun. 03/11 · 18:42 · Salle   |        |  ...                                                                |
+| Séries : 22 · Volume :       |        |  [ Plus anciennes ]                                                 |
+| 8450 kg                      |        +---------------------------------------------------------------------+
+| Squat au rack (barre) ·      |
+| Développé couché (barre) · … |
+| ---------------------------- |
+| ...                          |
+| [      Plus anciennes      ] |
++------------------------------+
+```
+
+- h1 « Historique ». After a session delete (`?supprimee=1`): « Séance supprimée. » (L5 success notice) under the h1.
+- **Régularité** `<section class="section" aria-labelledby="regularite-titre">`, shown when the user has at least one session: « Cette semaine : {count} », « Séances par semaine, moyenne sur 12 semaines : {value} » (`Display.decimal1`, one decimal, comma; the wording avoids singular / plural agreement), then the week chart `<ol class="week-chart" aria-label="Séances par semaine, 12 dernières semaines">`, oldest first, 12 `<li>`: the count (visible, tabular, centred, `--text-sm`), a decorative bar `<span class="week-chart__bar week-chart__bar--{0..7}" aria-hidden="true">` (heights 2, 8, 16, … 56 px; 7 = « 7 et plus »; 0 is a 2 px `--color-divider` line so empty weeks show), and the week label: visually hidden below 40rem, shown under the bar from 40rem (`Display.week`, « 27/10 », muted `--text-sm`). Each `<li>` carries the accessible text « Semaine du 27/10 : 3 » (« Semaine du 10/11 (en cours) : 2 » for the current week). Bars `--color-accent`; the current week's bar is outlined (1 px accent border, `--color-surface` fill) and the caption under the chart says « 12 dernières semaines, la semaine en cours à droite. » (position and text carry the meaning). 12 equal columns, gap `--space-1`: ≈ 23 px each at 360.
+- **List**: one `<section aria-labelledby>` per month, `h2` « Novembre 2026 » (`Display.month`, first letter capitalised by CSS), then `<ul class="rows history-list">`. Each item one `<a class="row history-item" href="/seances/{id}">`:
+  - `.row__title`: template name or « Séance libre » (wraps), tag « En cours » for an open session;
+  - meta line 1: « lun. 03/11 · 18:42 · Salle » (`history.item_when` + place);
+  - meta line 2: « Séries : 22 · Volume : 8450 kg » (counted sets; volume only when > 0), or « Aucune série » for a session with no live set;
+  - meta line 3: names of the exercises with a live set, joined by « · », wrapping (never an ellipsis); absent when none.
+  - From 40rem: grid `9rem minmax(0, 1fr) 10rem`: when and place | title and exercise names | counts right aligned, tabular.
+- **« Plus anciennes »**: `<div id="historique-suite" data-request-scope>` with the slot, then `<a class="button" href="/historique?avant={id}" hx-get="/historique?avant={id}" hx-target="#historique-suite" hx-swap="outerHTML" hx-disabled-elt="this">` (full width below 40rem). The answer appends the next ≤ 20 items: a month already started on screen continues as a heading-less `.rows` list right under it; a new month gets its `h2`. The first new link has `autofocus`; « Séances chargées : {count} » is announced. Absent on the last page. Without htmx it is a plain link to the next page, which always starts with its month heading.
+
+States:
+
+| State | What the user sees | Focus / announcement |
+|---|---|---|
+| No session at all | `.empty` « Aucune séance pour l’instant. » + muted « Les séances apparaîtront ici dès la première. » + link-button « Nouvelle séance » → `/`; no Régularité section | — |
+| Sessions, none in 12 weeks | the chart with 12 zero lines, « Cette semaine : 0 », average « 0,0 » | — |
+| One page or less | list, no « Plus anciennes » | — |
+| Loading the next page | button disabled, no spinner (< 1 s) | — |
+| Next page failed | « Non enregistré, réessayer » in the `#historique-suite` slot, button enabled | the button (trigger outside a form) |
+| After a delete | « Séance supprimée. » under the h1; the session is gone from the list and the chart | notice `role="status"` |
+| Page failure | L1a 500 page | — |
+
+Tab order: skip link, header, session links in order, « Plus anciennes ». The week chart has no tab stop (text, not controls). Tab title `history.title`.
+
+### L5 — Session detail and corrections (`GET /seances/{id}` closed, `session_summary.html`, `session_detail_exercise.html`, `session_delete_confirm.html`)
+
+Task: fix a set or a setting logged wrong; delete a session that should not exist. Decision: which set; delete or not. Information: every live set with type tag and ⭐, the settings, the totals.
+
+```
+360 px                                   1280 px (one column, max 40rem)
++------------------------------+         +--------------------------------------------------------------+
+| Salle A — Squat & poussée    |         |    Salle A — Squat & poussée horizontale                     |
+| horizontale                  |         |    Séance terminée · Salle                                   |
+| Séance terminée · Salle      |         |    03/11/2026 · 18:42–19:51 · 1 h 09                          |
+| 03/11/2026 · 18:42–19:51 ·   |         |    [ 6 Exercices ][ 22 Séries ][ 8450 kg Volume ][ 2 Records ]|
+| 1 h 09                       |         |    Squat au rack (barre)                                     |
+| [6 Exercices][22 Séries]     |         |    Séries : 4 · Échauffements : 2 · Volume : 1920 kg          |
+| [8450 kg Vol.][2 Records]    |         |    Voir la progression                                        |
+| Squat au rack (barre)        |  h2     |    Réglages : Barre 5                                    ▸   |
+| Séries : 4 · Échauffements : |         |    1  8 × 40 kg  [Échauffement]                [ Modifier ]   |
+| 2 · Volume : 1920 kg         |         |    3  8 × 62,5 kg ★ Record                     [ Modifier ]   |
+| Voir la progression          |  48 px  |    ...                                                       |
+| Réglages : Barre 5         ▸ |         |    [ Retour à l’accueil ]                                    |
+| 1  8 × 40 kg      [Modifier] |         |                                                              |
+|    [Échauffement]            |         |    [ Supprimer la séance ]                                   |
+| 3  8 × 62,5 kg    [Modifier] |         +--------------------------------------------------------------+
+|    ★ Record                  |
+| ...                          |
+| [   Retour à l’accueil     ] |
+|                              |  section gap (32 px)
+| [   Supprimer la séance    ] |  danger
++------------------------------+
+```
+
+- Head and totals as L4 — Session summary; the totals `<dl class="summary-totals" id="seance-totaux">` are re-rendered out of band after each correction (records and volume change).
+- Per exercise with a live set: `<section class="session-block session-detail" id="exercice-{row}" aria-labelledby="exercice-{row}-titre">` (the correction fragment): h2 name (+ « Archivé »), the L4 meta line, `<a class="inline-link" href="/progression/{exercise_id}">` « Voir la progression », then the L4 settings `<details>` when the exercise has non-archived setting variables (same form, same `PATCH …/reglages`, hint « Corrections enregistrées à chaque changement. »), then the L4 set list with « Modifier » and the edit form (same macro, same ids `serie-{id}-…`, same « Enregistrer » / « Supprimer la série »; keyboard accepted, no steppers). No next-set form, no ✓, no « Changer d’exercice ».
+- Corrections validate against the exercise's current fields; the stars, the meta line and the totals are recomputed in the answer.
+- Last live set of an exercise deleted: the section stays with `.empty` « Plus aucune série pour cet exercice. »; focus on its « Voir la progression ».
+- Actions: primary « Retour à l’accueil » (L4). Then, after a `--space-8` gap, `<section id="seance-suppression" data-request-scope>`: slot, danger button « Supprimer la séance » (full width below 40rem; `hx-get="/seances/{id}/suppression" hx-target="#seance-suppression" hx-swap="outerHTML"`). The in-place confirmation (L2, danger border, `role="group"`): « Supprimer la séance ? », « Elle disparaîtra de l’historique, des records et de la progression. La suppression ne peut pas être annulée. », « Annuler » (`autofocus`; `?annuler=1` puts the button back, focus on it) and danger « Supprimer la séance » (`hx-delete="/seances/{id}"` → `HX-Redirect: /historique?supprimee=1`).
+- **Open session** (L4 page): the same `#seance-suppression` block after `#fin-de-seance`, `--space-8` above it.
+
+States (added to L4 — Session summary):
+
+| State | What the user sees | Focus / announcement |
+|---|---|---|
+| Set corrected | row text and ⭐ updated, `<details>` closed, totals updated | the row's « Modifier »; « Série 2 modifiée. » |
+| Set deleted | row gone, rows renumbered, totals updated | next « Modifier », else previous, else « Voir la progression »; « Série 2 supprimée. » |
+| Correction refused | row `<details open>`, messages under inputs | first invalid input; first message |
+| Setting corrected | slot « Réglages enregistrés. », summary text updated | kept; same text |
+| Correction failed / set deleted elsewhere (404) | « Non enregistré, réessayer » in the form's slot | D-053 |
+| Delete asked | the confirmation in place of the button | « Annuler » |
+| Session deleted | `/historique` with « Séance supprimée. » | notice |
+| Deleted session reopened (old tab, link) | L1a 404 page | — |
+
+Tab order: skip link, header, totals (no stops), per exercise « Voir la progression », settings summary, each « Modifier », then « Retour à l’accueil », « Supprimer la séance ».
+
+### L5 — Progress index (`GET /progression`, `templates/progress_index.html`)
+
+Task: open the exercise to review. Information: name, category, last date, number of sessions.
+
+```
+360 px                                  1280 px
++------------------------------+        +----------------------------------------------------------------+
+| Progression                  |  h1    |  Progression                                     [ Réglages ]  |
+| [         Réglages         ] |        |  Développé couché (barre)   Musculation   03/11/2026   Séances : 14 |
+| Développé couché (barre)     |  row   |  Course à pied              Cardio        01/11/2026   Séances : 9  |
+| Musculation · 03/11/2026 ·   |        |  ...                                                           |
+| Séances : 14                 |        +----------------------------------------------------------------+
+| ---------------------------- |
+| ...                          |
++------------------------------+
+```
+
+- Page head: h1 « Progression », secondary link-button « Réglages » → `/reglages` (full width under the h1 below 40rem).
+- `.rows` of `<a class="row" href="/progression/{id}">`, most recent first: title name (+ « Archivé »), meta « Musculation · 03/11/2026 · Séances : 14 » (category, `Display.local_date` of the last session, `progress.item_sessions`). From 40rem one line, grid `minmax(0, 2fr) minmax(0, 1fr) 7rem 8rem` (name, category, date, count right aligned).
+- Empty: `.empty` « Aucune progression pour l’instant. » + muted « Elle apparaîtra après votre première série enregistrée. » + link-button « Nouvelle séance » → `/`.
+- Tab order: header, « Réglages », rows. Tab title `progress.title`.
+
+### L5 — Progress of an exercise (`GET /progression/{exercise_id}`, `templates/progress.html`, `templates/progress_rm.html`, `static/js/progress-chart.js`)
+
+Task: see whether the exercise progresses and what the max is now. Decision (strength): which load to use, whether to retest. Information in order of use: last performance, RM, the main indicator over time, records.
+
+```
+360 px, strength                         1280 px, strength (from 64rem: 1fr | 2fr)
++------------------------------+         +------------------------------------------------------------------------+
+| Développé couché (barre)     |  h1     |  Développé couché (barre)                                              |
+| Musculation · Fiche de       |         |  Musculation · Fiche de l’exercice                                     |
+| l’exercice                   |         |  +----------------------+  +--------------------------------------------+ |
+| Dernière performance         |  h2     |  | Dernière performance |  | Évolution                                  | |
+| 03/11/2026 · Salle A — …     |  link   |  | 03/11/2026 · Salle A |  | Meilleur 1RM estimé de chaque jour et 1RM  | |
+| 1  8 × 40 kg [Échauffement]  |         |  | 1 8 × 40 kg  [Éch.]  |  | mesurés, en kg.                            | |
+| 2  8 × 62,5 kg               |         |  | 2 8 × 62,5 kg        |  | ● 1RM estimé (Epley)  ◆ 1RM mesuré         | |
+| RM (répétition maximale)     |  h2 #rm |  | RM                   |  | [ chart 320 px high ]                      | |
+| 1RM                 105 kg   |         |  | 1RM          105 kg  |  | 48 jours, du 05/11/2025 au 03/11/2026.     | |
+| Mesuré · test en séance du   |         |  | Mesuré · saisie du … |  | Dernière valeur : 102,5 kg ; meilleure :   | |
+| 12/10/2026                   |         |  | Estimation (Epley) : |  | 107,5 kg.                                  | |
+| Estimation (Epley) : 107,5 kg|         |  | 107,5 kg             |  | Voir les données ▸                         | |
+| ▌Estimation supérieure au    |         |  | ▌Estimation sup. …   |  | Records                                    | |
+| ▌test du 12/10/2026          |         |  | Formule : Epley ·    |  | Charge max par nombre de répétitions       | |
+| 5RM                  92,5 kg |         |  | Changer              |  | Rép.  Charge    Date                       | |
+| Mesuré · saisie du 01/10/2026|         |  | Saisir un RM mesuré ▸|  | 1     100 kg    12/10/2026                 | |
+| Formule d’estimation : Epley |         |  +----------------------+  | ...                                        | |
+| · Changer                    |         |                            +--------------------------------------------+ |
+| [ Saisir un RM mesuré      ▸]|         +------------------------------------------------------------------------+
+| Évolution                    |  h2
+| Meilleur 1RM estimé de chaque|
+| jour et 1RM mesurés, en kg.  |
+| ● 1RM estimé (Epley)         |
+| ◆ 1RM mesuré                 |
+| [ chart 328 × 240 ]          |
+| 48 jours, du 05/11/2025 au   |  figcaption
+| 03/11/2026. Dernière valeur :|
+| 102,5 kg ; meilleure : 107,5…|
+| Voir les données           ▸ |
+| Records                      |  h2
+| ...                          |
++------------------------------+
+```
+
+**Head.** h1 exercise name (+ « Archivé »); muted line: category · `<a class="inline-link" href="/exercices/{id}">` « Fiche de l’exercice ». Tab title: the exercise name.
+
+**Layout.** `<div class="progress">`: `<div class="progress__side">` (last performance; RM for strength) then `<div class="progress__main">` (chart, records). Below 64rem one column in that order; from 64rem grid `minmax(0, 1fr) minmax(0, 2fr)`, gap `--space-8`. Visual order = DOM order = tab order.
+
+**Dernière performance** (`section`, h2): a link `<a class="inline-link" href="/seances/{id}">` « 03/11/2026 · Salle A — Squat & poussée horizontale » (or « Séance libre »), then the read-only L4 set rows (number, `Display.set_text`, type tags, ⭐). Empty: muted « Aucune série enregistrée pour cet exercice. ».
+
+**RM** (strength only, `<section id="rm" aria-labelledby="rm-titre">`, the fragment of the RM routes, slot first): h2 « RM (répétition maximale) ».
+
+- `<ul class="rm-rows">`, one `<li>` per row of `rm_table` (1RM always, then each measured n ascending): line 1 flex `space-between`: « 1RM » (weight 600) and the shown value (`--text-lg`, weight 600, tabular); then muted `--text-sm` lines:
+  - origin (`Display.rm_origin`): « Mesuré · saisie du 01/10/2026 », « Mesuré · test en séance du 12/10/2026 », or « Estimé (Epley) · d’après 5 × 92,5 kg du 28/10/2026 »;
+  - for a measured row with an estimate: « Estimation (Epley) : 107,5 kg »;
+  - the flag, when D-069 raises it: `<p class="rm-flag">` « Estimation supérieure au test du 12/10/2026 » (weight 600, text colour, 3 px `--color-accent` left border, padding-inline `--space-3`; the words carry the meaning).
+- No measure and no estimable set: muted « Aucun RM pour l’instant : saisissez un test, ou enregistrez des séries de travail de 1 à 12 répétitions. » (no rows).
+- Muted line « Formule d’estimation : Epley · » + `<a class="inline-link" href="/reglages">` « Changer » (visually hidden « la formule »).
+- `<details class="rm-add" id="rm-saisie">`, summary `.button` full width below 40rem, id `rm-saisir`, « Saisir un RM mesuré » (`open` when the answer carries a refusal). Inside `<form class="form" id="rm-form" hx-post="/rm/{exercise_id}" hx-target="#rm" hx-swap="outerHTML" hx-disabled-elt="#rm-form button">`: slot; `fieldset.chips.chips--grid6` legend « Nombre de répétitions », radios `name="n"` 1 … 12, « 1 » checked; field « Charge (kg) » (`session.field_unit`), `input.input` `name="weight"` `inputmode="decimal"`, hint `unit.hint.weight`, empty; field « Date du test », `<input class="input" type="date" name="date" value="{today}" max="{today}">`; primary « Enregistrer la mesure ». Saved → section re-rendered, `<details>` closed, focus on `#rm-saisir`, « 1RM mesuré enregistré : 105 kg. ». Refused → `200`, messages under the inputs (`rm_reps_range` under the chips' legend, `required` / unit codes / `must_be_positive` under the weight, `bad_date` / `date_in_future` under the date).
+- « Mesures saisies » (h3, only when a manual entry exists): `<ul class="rows">` newest first, each `<li>` a flex row: « 1RM · 100 kg · 12/10/2026 » (tabular) and a danger `.button` « Supprimer » (visually hidden « la mesure 1RM du 12/10/2026 »; `hx-delete="/rm/mesures/{id}" hx-target="#rm" hx-swap="outerHTML" hx-disabled-elt="this"`; no confirmation: re-entering takes three fields, like a set delete in L4). Deleted → section re-rendered, focus on the next measure's « Supprimer », else `#rm-saisir`, « Mesure supprimée. ». RM-test sets are not listed here: they are corrected in their session.
+
+**Évolution** (`section`, h2 « Évolution »):
+
+1. Muted intro by main series (`progress.chart_intro.*`).
+2. Legend `<ul class="chart-legend">` only with ≥ 2 series: per series `<li class="chart-legend__item chart-legend__item--{i}">` with the label; the glyph (● ◆ ■ ▲ ✕ ★ by index) in `--chart-{i}` through `::before` (alt text empty). Flex wrap, gap `--space-3`, `--text-sm`.
+3. `<figure class="chart-figure">`: `<div class="chart" hidden>` `<canvas data-chart-src="/api/progression/{id}" role="img" aria-labelledby="evolution-titre evolution-resume"></canvas></div>`, `<p class="chart__error" data-chart-error hidden>` « Graphique indisponible. Les données restent consultables ci-dessous. », `<figcaption id="evolution-resume" class="muted">` « 48 jours, du 05/11/2025 au 03/11/2026. » + (single main series) « Dernière valeur : 102,5 kg ; meilleure : 107,5 kg. ». `.chart` height `15rem` below 64rem, `20rem` from 64rem, width 100 %, `font-size: var(--text-sm)`; the script removes `hidden` before drawing.
+4. `<details class="chart-data">` summary (chevron, as the L4 settings summary, 48 px) « Voir les données », then the data table, caption visually hidden « Valeurs par jour, de la plus récente à la plus ancienne », newest first:
+
+| Category | Columns (all but Date right aligned) |
+|---|---|
+| `strength` | Date · 1RM estimé · 1RM mesuré (only when any) · Volume |
+| `kettlebell` | Date · Charge · Rép. max (one row per day and load) |
+| `bodyweight` | Date · Rép. max (holds: Durée max) · Total rép. (holds: none) |
+| `cardio` | Date · Distance (when the exercise has one) · Durée · Allure (when both) |
+| `intervals` | Date · Tours · Travail |
+
+Dates `Display.local_date` (« 03/11/2026 »); empty cell « — ». Per-set values (max reps, max duration) as `m:ss` / numbers; per-day sums (durations of a day) compact (« 30 min », L4 summary rule).
+
+Chart drawing (`progress-chart.js`, Chart.js): type line; series *i*: colour `--chart-{i}`, `pointStyle` *i*, line 2 px, point radius 4; a `kind: "points"` series (1RM mesuré) `showLine: false`, radius 5; `spanGaps: true`; `animation: false`; `responsive: true`, `maintainAspectRatio: false`; `locale` from `<html lang>`; `plugins.legend.display: false`; `interaction: {mode: "index", intersect: false}`; x category labels « 03/11 » (`autoSkip`), y title from `axis`; ticks and titles `--color-muted`, grid `--color-divider`, tooltip background `--color-surface`, text `--color-text`, border 1 px `--color-border`; tooltip line from the JSON `tooltip` (« {label} : {value} kg »). Font family and size read from `.chart`'s computed style. Tokens re-read on `prefers-color-scheme` change.
+
+Chart states:
+
+| State | What the user sees |
+|---|---|
+| No counted set | intro hidden; muted « Le graphique apparaîtra après la première séance avec cet exercice. »; no canvas, legend, table |
+| One day | muted « Une seule journée enregistrée : le graphique apparaîtra dès la deuxième. »; no canvas; table with one row |
+| Loading (JS) | the empty box, no spinner (< 1 s) |
+| Ready | chart; `data-chart-state="ready"` |
+| JSON or Chart.js failed | box hidden again, « Graphique indisponible. Les données restent consultables ci-dessous. » shown; caption and table stay |
+| JavaScript off | no box; caption and table |
+
+**Records** (`section`, h2 « Records »; counted sets of live sessions; each date is `<a class="inline-link" href="/seances/{id}">` with visually hidden « séance du »):
+
+| Category | Shown |
+|---|---|
+| `strength` | table « Charge max par nombre de répétitions »: Rép. · Charge · Date, rows 1 … 12 with data, then « 13 et plus »; then « Meilleur volume en une séance » |
+| `kettlebell` | table « Répétitions max par charge »: Charge · Rép. · Date; « Meilleure densité » (only with durations); « Meilleur volume en une séance » |
+| `bodyweight` | « Répétitions max en une série », « Durée max », « Charge ajoutée max » (only when weighted), « Répétitions en une séance » |
+| `cardio` | « Distance max », « Durée max », « Meilleure allure » (« 5:20 /km »), « Meilleure vitesse » (« 11,3 km/h ») (both only with sets holding distance and duration) |
+| `intervals` | « Tours en une séance », « Travail en une séance » |
+
+Single records: `<dl class="records">`, each item `dt` label, `dd` value (weight 600, tabular) and the date link; below 40rem label on one line, value and date on the next; from 40rem grid `minmax(0, 1fr) 8rem 8rem`. Table rows ≥ 48 px (the date link). A record absent (no data) is not listed. No record at all: muted « Aucun record pour l’instant. ».
+
+States of the page:
+
+| State | What the user sees |
+|---|---|
+| Exercise with history | as above |
+| Strength exercise, no history | « Aucune série enregistrée pour cet exercice. », RM section (entry possible), chart and records empty texts |
+| Exercise with one session | last performance, RM from that session, one-day chart text, records |
+| No RM yet (strength) | `rm.no_data` text, « Saisir un RM mesuré » |
+| Only an estimate | 1RM row « Estimé (Epley) · d’après … » |
+| Measured, estimate higher and later | measured value shown, « Estimation (Epley) : … » and the flag |
+| Archived exercise | « Archivé » tag; page works |
+| Unknown or foreign id | L1a 404 page |
+
+Tab order: header, « Fiche de l’exercice », last-performance link, (strength) « Changer », « Saisir un RM mesuré » and its form, each « Supprimer »; « Voir les données »; record date links. The canvas takes no tab stop.
+
+### L5 — Settings (`GET /reglages`, `templates/settings.html`)
+
+Task: choose the 1RM formula. Information: names, expressions, the current one.
+
+```
+360 px                                  1280 px (column max 40rem)
++------------------------------+        +---------------------------------------------------+
+| Réglages                     |  h1    |  Réglages                                         |
+| Estimation du 1RM            |  h2    |  Estimation du 1RM                                |
+| Sert à estimer les RM à      |        |  Sert à estimer les RM à partir des séries de     |
+| partir des séries de travail |        |  travail de 1 à 12 répétitions. Les RM mesurés    |
+| de 1 à 12 répétitions. …     |        |  ne changent pas.                                 |
+| (●) Epley  par défaut        |  48+   |  (●) Epley  par défaut                            |
+|     charge × (1 + rép. / 30) |        |      charge × (1 + rép. / 30)                     |
+| ( ) Brzycki                  |        |  ( ) Brzycki                                      |
+|     charge × 36 / (37 − rép.)|        |      charge × 36 / (37 − rép.)                    |
+| ...                          |        |  ...                                              |
+| Une série d’une répétition   |        |  Une série d’une répétition compte pour sa charge,|
+| compte pour sa charge, …     |        |  quelle que soit la formule.                      |
+| [   Voir la progression    ] |        |  [ Voir la progression ]                          |
++------------------------------+        +---------------------------------------------------+
+```
+
+- `<form class="form" id="reglages-formule" hx-patch="/reglages" hx-trigger="change" hx-target="this" hx-swap="outerHTML">` (no save button, L4 settings pattern): slot first; muted intro; `<fieldset class="choices">` legend « Formule », five `<label class="choice">` radios `name="rm_formula"` (`epley`, `brzycki`, `lombardi`, `oconner`, `wathan`), each text: name (weight 600, « Epley » followed by the tag « par défaut ») and the expression on the next line (muted `--text-sm`, tabular). The current one checked. Then muted « Une série d’une répétition compte pour sa charge, quelle que soit la formule. ».
+- Saved → form re-rendered, slot « Formule enregistrée : Brzycki. » (`kind="ok"`), focus kept on the radio (ids `formule-{key}`), same text announced. Refused (`invalid_choice`) → message under the legend. Failure → D-053.
+- Secondary link-button « Voir la progression » → `/progression` (full width below 40rem).
+- Tab order: header, the radio group (one stop, arrows inside), « Voir la progression ». Tab title `settings.title`.
+
+### L5 — Exercise sheet link (`templates/exercise.html`)
+
+The page head gains a secondary link-button « Voir la progression » → `/progression/{id}` (full width under the h1 below 40rem), every exercise, archived included.
+
+### L5 — Units of computed values (`domain/units`, `web/display.Display`)
+
+| Value | Shown | Key |
+|---|---|---|
+| e1RM, RM, loads | `Display.value` weight, 100 g precision: « 102,5 kg », « 105 kg » | `unit.with_value` |
+| pace (s/km) | « 5:20 /km » (`m:ss`, no-break space before « /km ») | `unit.pace` |
+| speed (m/h) | « 11,3 km/h » (one decimal) | `unit.speed` |
+| density | « 12,5 rép./min » (one decimal) | `unit.density` |
+| weekly average | « 2,8 » (one decimal) | — |
+| chart values | numbers in kg, km, minutes or counts (`units.chart_number`), formatted by Chart.js with the `fr` locale | — |
+| per-session sums of durations | compact, « 4 min », « 1 h 15 » | `duration.compact.*` |
+| per-set durations | `m:ss` / `h:mm:ss` | — |
+
+### L5 — Style (`tokens.css`, `components.css`, `pages/history.css`, `pages/progress.css`)
+
+- `tokens.css`: `--chart-1` … `--chart-6` (L5 — Tokens).
+- `components.css`: the two-list nav (L5 — Header), `.data-table` and `.data-table__scroll`, `.inline-link`, `.chips--grid6`.
+- `pages/history.css`: `.week-chart` (grid `repeat(12, minmax(0, 1fr))`, gap `--space-1`, `align-items: end`, height of the bar zone 56 px), `.week-chart__count`, `.week-chart__bar` (`--color-accent`, `--radius-sm` top corners), `--0` … `--7` (2, 8, 16, 24, 32, 40, 48, 56 px; `--0` in `--color-divider`), `.week-chart__item--current .week-chart__bar` (1 px accent border, `--color-surface` fill), `.week-chart__week` (visually hidden below 40rem, muted `--text-sm` centred from 40rem), `.history-list`, `.history-item` (grid from 40rem), month heading `h2::first-letter { text-transform: uppercase }`.
+- `pages/progress.css`: `.progress` (grid from 64rem), `.progress__side`, `.progress__main`, `.chart` (height 15rem / 20rem from 64rem, `position: relative`), `.chart-legend` and `--1` … `--6` glyphs, `.chart__error`, `.chart-data`, `.records`, `.rm-rows`, `.rm-flag`, `.rm-add`, settings `.choice` second line.
+- Progress and settings pages link `pages/catalog.css` (`.empty`) and `pages/session.css` (set rows); `progress.html` alone loads `chart.umd.min.js` and `progress-chart.js` (`defer`) through `{% block scripts %}`.
+- 360 px check: the longest seed names, the history item, the 12-column week chart, the RM rows with flag, two rows of six chips, every data table (strength with « 1RM mesuré », cardio) and the records tables fit without horizontal scroll (page and `.data-table__scroll`); every target ≥ 48 × 48 px except text inside the week chart (no control).
+
+### L5 — Strings (`web/locales/fr.json`)
+
+Typography as L4: typographic apostrophes; no-break space (U+00A0) before « : », « ; », « ? », inside « », between a number and its unit, before « /km ». Month and weekday names lowercase (headings capitalise through CSS).
+
+| Key | Text |
+|---|---|
+| `nav.history` | Historique |
+| `nav.progress` | Progression |
+| `date.short` | {day}/{month} |
+| `date.month.1` … `date.month.12` | janvier, février, mars, avril, mai, juin, juillet, août, septembre, octobre, novembre, décembre |
+| `date.weekday.1` … `date.weekday.7` | lun., mar., mer., jeu., ven., sam., dim. (ISO: 1 = Monday) |
+| `history.title` | Historique |
+| `history.deleted_notice` | Séance supprimée. |
+| `history.consistency_heading` | Régularité |
+| `history.this_week` | Cette semaine : {count} |
+| `history.week_average` | Séances par semaine, moyenne sur 12 semaines : {value} |
+| `history.weeks_label` | Séances par semaine, 12 dernières semaines |
+| `history.week_item` | Semaine du {date} : {count} |
+| `history.week_item_current` | Semaine du {date} (en cours) : {count} |
+| `history.weeks_caption` | 12 dernières semaines, la semaine en cours à droite. |
+| `history.month_heading` | {month} {year} |
+| `history.item_when` | {weekday} {date} · {time} |
+| `history.open_tag` | En cours |
+| `history.no_sets` | Aucune série |
+| `history.more` | Plus anciennes |
+| `history.loaded` | Séances chargées : {count} |
+| `history.empty_title` | Aucune séance pour l’instant. |
+| `history.empty_text` | Les séances apparaîtront ici dès la première. |
+| `session.settings_hint_closed` | Corrections enregistrées à chaque changement. |
+| `session.exercise_no_sets` | Plus aucune série pour cet exercice. |
+| `session.delete` | Supprimer la séance |
+| `session.delete_confirm_title` | Supprimer la séance ? |
+| `session.delete_confirm_text` | Elle disparaîtra de l’historique, des records et de la progression. La suppression ne peut pas être annulée. |
+| `progress.title` | Progression |
+| `progress.link` | Voir la progression |
+| `progress.settings_link` | Réglages |
+| `progress.item_sessions` | Séances : {count} |
+| `progress.empty_title` | Aucune progression pour l’instant. |
+| `progress.empty_text` | Elle apparaîtra après votre première série enregistrée. |
+| `progress.sheet_link` | Fiche de l’exercice |
+| `progress.last_heading` | Dernière performance |
+| `progress.last_session` | {date} · {name} |
+| `progress.last_empty` | Aucune série enregistrée pour cet exercice. |
+| `progress.chart_heading` | Évolution |
+| `progress.chart_intro.e1rm` | Meilleur 1RM estimé de chaque jour et 1RM mesurés, en kg. |
+| `progress.chart_intro.reps_by_load` | Répétitions max en une série, pour chaque charge. |
+| `progress.chart_intro.max_reps` | Répétitions max en une série, chaque jour. |
+| `progress.chart_intro.max_duration` | Durée max d’une série, chaque jour, en minutes. |
+| `progress.chart_intro.distance` | Distance totale de chaque jour, en km. |
+| `progress.chart_intro.duration` | Durée totale de chaque jour, en minutes. |
+| `progress.chart_intro.rounds` | Tours effectués chaque jour. |
+| `progress.series.e1rm` | 1RM estimé ({formula}) |
+| `progress.series.measured_1rm` | 1RM mesuré |
+| `progress.series.load` | {load} |
+| `progress.series.max_reps` | Répétitions max |
+| `progress.series.max_duration` | Durée max |
+| `progress.series.distance` | Distance |
+| `progress.series.duration` | Durée |
+| `progress.series.rounds` | Tours |
+| `progress.axis.weight` | Charge (kg) |
+| `progress.axis.reps` | Répétitions |
+| `progress.axis.distance` | Distance (km) |
+| `progress.axis.minutes` | Durée (min) |
+| `progress.axis.rounds` | Tours |
+| `progress.chart_tooltip` | {label} : {value} {unit} |
+| `progress.chart_span` | {count} jours, du {first} au {last}. |
+| `progress.chart_latest` | Dernière valeur : {value} ; meilleure : {best}. |
+| `progress.chart_one_point` | Une seule journée enregistrée : le graphique apparaîtra dès la deuxième. |
+| `progress.chart_empty` | Le graphique apparaîtra après la première séance avec cet exercice. |
+| `progress.chart_error` | Graphique indisponible. Les données restent consultables ci-dessous. |
+| `progress.data_toggle` | Voir les données |
+| `progress.data_caption` | Valeurs par jour, de la plus récente à la plus ancienne |
+| `progress.col.date` | Date |
+| `progress.col.e1rm` | 1RM estimé |
+| `progress.col.measured` | 1RM mesuré |
+| `progress.col.volume` | Volume |
+| `progress.col.load` | Charge |
+| `progress.col.reps` | Rép. |
+| `progress.col.max_reps` | Rép. max |
+| `progress.col.total_reps` | Total rép. |
+| `progress.col.max_duration` | Durée max |
+| `progress.col.distance` | Distance |
+| `progress.col.duration` | Durée |
+| `progress.col.pace` | Allure |
+| `progress.col.rounds` | Tours |
+| `progress.col.work` | Travail |
+| `progress.records_heading` | Records |
+| `progress.records_empty` | Aucun record pour l’instant. |
+| `progress.session_of` | séance du |
+| `progress.reps_13_plus` | 13 et plus |
+| `progress.record.max_load_by_reps` | Charge max par nombre de répétitions |
+| `progress.record.max_reps_by_load` | Répétitions max par charge |
+| `progress.record.session_volume` | Meilleur volume en une séance |
+| `progress.record.density` | Meilleure densité |
+| `progress.record.max_reps` | Répétitions max en une série |
+| `progress.record.max_duration` | Durée max |
+| `progress.record.max_added_load` | Charge ajoutée max |
+| `progress.record.session_reps` | Répétitions en une séance |
+| `progress.record.max_distance` | Distance max |
+| `progress.record.best_pace` | Meilleure allure |
+| `progress.record.best_speed` | Meilleure vitesse |
+| `progress.record.session_rounds` | Tours en une séance |
+| `progress.record.session_work` | Travail en une séance |
+| `unit.pace` | {value} /km |
+| `unit.speed` | {value} km/h |
+| `unit.density` | {value} rép./min |
+| `rm.heading` | RM (répétition maximale) |
+| `rm.label` | {n}RM |
+| `rm.origin.manual` | Mesuré · saisie du {date} |
+| `rm.origin.rm_test` | Mesuré · test en séance du {date} |
+| `rm.origin.estimated` | Estimé ({formula}) · d’après {set} du {date} |
+| `rm.estimate_beside` | Estimation ({formula}) : {value} |
+| `rm.flag` | Estimation supérieure au test du {date} |
+| `rm.no_data` | Aucun RM pour l’instant : saisissez un test, ou enregistrez des séries de travail de 1 à 12 répétitions. |
+| `rm.formula_line` | Formule d’estimation : {formula} · |
+| `rm.formula_change` | Changer |
+| `rm.formula_change_named` | la formule |
+| `rm.add` | Saisir un RM mesuré |
+| `rm.reps_legend` | Nombre de répétitions |
+| `rm.date_label` | Date du test |
+| `rm.submit` | Enregistrer la mesure |
+| `rm.saved` | {n}RM mesuré enregistré : {value}. |
+| `rm.measures_heading` | Mesures saisies |
+| `rm.measure_text` | {n}RM · {value} · {date} |
+| `rm.delete` | Supprimer |
+| `rm.measure_named` | la mesure {n}RM du {date} |
+| `rm.deleted` | Mesure supprimée. |
+| `rm.formula.epley` | Epley |
+| `rm.formula.brzycki` | Brzycki |
+| `rm.formula.lombardi` | Lombardi |
+| `rm.formula.oconner` | O’Conner |
+| `rm.formula.wathan` | Wathan |
+| `rm.formula_text.epley` | charge × (1 + rép. / 30) |
+| `rm.formula_text.brzycki` | charge × 36 / (37 − rép.) |
+| `rm.formula_text.lombardi` | charge × rép. ^ 0,10 |
+| `rm.formula_text.oconner` | charge × (1 + rép. / 40) |
+| `rm.formula_text.wathan` | 100 × charge / (48,8 + 53,8 × e ^ (−0,075 × rép.)) |
+| `settings.title` | Réglages |
+| `settings.formula_heading` | Estimation du 1RM |
+| `settings.formula_intro` | Sert à estimer les RM à partir des séries de travail de 1 à 12 répétitions. Les RM mesurés ne changent pas. |
+| `settings.formula_legend` | Formule |
+| `settings.default_tag` | par défaut |
+| `settings.formula_single` | Une série d’une répétition compte pour sa charge, quelle que soit la formule. |
+| `settings.formula_saved` | Formule enregistrée : {formula}. |
+| `catalog.error.rm_reps_range` | Entre 1 et 12 répétitions. |
+| `catalog.error.bad_date` | Date non valable. |
+| `catalog.error.date_in_future` | La date ne peut pas être dans le futur. |
+| `catalog.error.rm_not_strength` | Les RM ne concernent que les exercices de musculation. |
+
+« × », « − » (U+2212) and « ^ » in formula texts take no-break spaces on both sides. Reused: `session.summary.sets`, `session.summary.volume`, `session.summary_title`, `session.settings_saved`, `session.announce_set_updated`, `session.announce_set_deleted`, `session.delete_set`, `session.record`, `session.set_type.*`, `session.field_unit`, `home.free_session`, `home.start_title` (link « Nouvelle séance »), `exercise.location.*`, `exercise.category.*`, `tag.archived_m`, `action.cancel`, `action.home`, `action.save`, `unit.hint.weight`, `unit.with_value`, `date.numeric`, `duration.compact.*`, `quantity.weight`, `unit.kg`, `catalog.error.required`, `catalog.error.must_be_positive`, `catalog.error.invalid_choice`, the `domain/units` codes, `error.not_saved`. The design note's `Display.week` « sem. du 27/10 » is replaced by `date.short` « 27/10 » plus `history.week_item` (accessible text).
