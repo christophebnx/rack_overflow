@@ -1,4 +1,4 @@
-"""rack_overflow: TODO(project) one-line description."""
+"""rack_overflow: personal training tracker (Rack Overflow)."""
 
 from importlib.metadata import PackageNotFoundError, version
 

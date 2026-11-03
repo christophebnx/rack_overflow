@@ -1,14 +1,6 @@
 # Rack Overflow — V1 pre-brief challenge
 
-Status: **answers received** (section E); **seed proposal awaiting correction** (section F.2). **Section D (scope change, 2026-11-03) supersedes every point of sections A to C that it names.** Written by Claude Code on 2026-11-03 after reading this repository (template, agents, skills) and the Equinox Management repository (findings in the appendix of `docs/release-1.0.0-brief.md`). Nothing has been built yet.
-
-Once the user corrects the seeds (F.2), the next step is to rewrite `docs/release-1.0.0-brief.md` as the approved release brief, and to write `docs/roadmap.md`, `docs/decisions.md`, `docs/architecture.md` and `docs/ui-spec.md` in one `docs` commit, then run B0 and the milestones through `/build-roadmap`.
-
-## Resume in a new session
-
-1. Read `CLAUDE.md`, `docs/release-1.0.0-brief.md` (pre-brief + Equinox appendix) and this file.
-2. Read section D first: it supersedes parts of the pre-brief and of sections A to C. Show the user the open points of section F.2; do not start building before they are answered.
-3. Work on the session's designated branch (it plays the role of `dev`); the user merges into `main` through a pull request.
+Status: **closed on 2026-11-03.** History of how the pre-brief became the approved brief. Every point is settled in `docs/release-1.0.0-brief.md` (sections 10 and 11) and recorded in `docs/decisions.md` (D-012 to D-043); where this file and the brief differ, the brief wins. Section D (scope change) supersedes the points of sections A to C that it names; section E holds the user's answers.
 
 ---
 

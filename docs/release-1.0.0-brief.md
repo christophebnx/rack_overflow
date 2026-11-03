@@ -1,27 +1,23 @@
-# Rack Overflow — V1 pre-brief
+# Rack Overflow — release 1.0.0 brief
 
-> **Scope change 2026-11-03:** V1 is a responsive web app (FastAPI + htmx), no PWA, no offline mode, no L0. See section D of `docs/release-1.0.0-challenge.md`, which supersedes the conflicting parts of this file.
->
-> **Status: pre-brief, not approved.** Scoping document written outside the repository, to be challenged by Claude Code (repo access, agents, dev protocol) before producing `docs/architecture.md`, `docs/decisions.md`, `docs/roadmap.md` and `docs/ui-spec.md`. Once aligned with the user, this file becomes the approved release brief (with "Approvals for the unattended run" and "Settled open points").
-> Repository `christophebnx/rack_overflow` · project `rack-overflow` · package `src/rack_overflow` · CLI `rack`.
-> Date: 2026-11-03.
-> **Languages:** the app speaks **French** to its users (UI, messages, seed data). Dev documents (briefs, ADRs, decisions, code, comments) are in **English**.
-> **Equinox reference:** everything this project needs from the Equinox Management repository is recorded in the appendix at the end of this file. The Equinox repository is not consulted again.
+Status: **approved by the user on 2026-11-03.** Source of truth for the V1 build. It replaces the pre-brief written outside the repository; the challenge that led from one to the other, with the user's answers, is kept in `docs/release-1.0.0-challenge.md` (history only: where the two differ, this file wins).
+
+Repository `christophebnx/rack_overflow` · distribution `rack-overflow` · package `src/rack_overflow` · CLI `rack`.
+
+**Languages:** the app speaks **French** to its user (UI, messages, seed data). Code, identifiers, docs and commits are in **English** (D-011).
 
 ---
 
 ## 1. Goal
 
-Personal training tracker: strength training (machines, cables, barbell), kettlebell and bodyweight, cardio and HIIT.
+Personal training tracker for strength training (machines, cables, barbell), kettlebell and bodyweight, and cardio.
 
-V1 focuses on four core functions:
+V1 has four core functions:
 
-1. **Create exercises and their variables**
-2. **Create sessions** (session templates and actual sessions)
-3. **Log data during a session**, fast, including offline
-4. **Minimal progress tracking**
-
-Training follows **menus by movement pattern** (push, pull, hinge, squat, core, cardio…) rather than a fixed program.
+1. **Create exercises and their variables.**
+2. **Create session templates** organised as menus by movement pattern (push, pull, hinge, squat, core, cardio…) rather than a fixed program.
+3. **Log a session**, fast, at the gym or at home.
+4. **Minimal progress tracking.**
 
 Single user in V1, without closing the door to multi-user.
 
@@ -29,170 +25,115 @@ Single user in V1, without closing the door to multi-user.
 
 | Context | Device | Network | Main need |
 |---|---|---|---|
-| Session at the gym (Basic-Fit) | iPhone | Often absent | Logging speed, large buttons, prefill |
-| Session at home (kettlebell, EZ bar, dumbbells) | iPhone | Available | Same |
-| Management and review | Mac / PC (browser) | Available | Catalog, templates, history, charts |
+| Session at the gym (Basic-Fit Overijse) | iPhone, Safari | Available | Logging speed, large buttons, prefill |
+| Session at home (kettlebell, EZ bar, dumbbells) | iPhone, Safari | Available | Same |
+| Management and review | Mac / PC, browser | Available | Catalog, templates, history, charts |
 
 ## 3. Scope
 
-### 3.1 Roadmap
+### 3.1 Versions
 
 | Version | Content |
 |---|---|
-| **V1** | Deliverables L0–L6 (section 6): catalog and variables, templates, offline logging, minimal tracking, operations |
+| **V1 (1.0.0)** | Milestones L1a to L6 (section 6), one release, no intermediate tag |
 | **V1.x** | Excel import with review, %1RM targets in templates |
-| **V2** | AI features (session analysis, suggestions, motivation) through a generic module (section 9), body metrics, actual multi-user |
+| **V2** | HTTPS and transport security (D-013); offline logging, possibly as a mobile app talking to the FastAPI server; AI features (section 9); body metrics; actual multi-user; minimal CI (D-012) |
 
-### 3.2 Out of scope (not planned)
+### 3.2 Out of scope for V1
 
-Rest timer (to add later if needed), external integrations (Garmin, Apple Health, Strava), scanned paper log import, native app, social, nutrition, auto-progression programs.
+Offline mode, PWA, service worker, separate mobile app; HTTPS and reverse proxy; rest timer; work / rest ratio of intervals; external integrations (Garmin, Apple Health, Strava); scanned paper log import; social; nutrition; auto-progression programs; automatic CI.
 
 ## 4. Cross-cutting requirements
 
-- **Offline**: the session screen opens and works without network. No logged data is lost before it is sent.
+- **One responsive web app** for phone and desktop. Mobile first (360 px), usable at 1280 px, light and dark following the system, touch targets ≥ 48 px. French only.
 - **Logging speed**:
   - confirm an unchanged set: **1 tap**;
   - confirm a modified set: **≤ 3 taps** in the common case;
-  - start a session from a template: **≤ 3 taps, < 2 s**, online or offline;
+  - start a session from a template: **≤ 3 taps**;
   - no keyboard in the nominal case;
-  - set confirmation **< 100 ms**, never waits for the network.
-- **UI**: mobile first (360 px), usable on desktop (1280 px), light and dark following the system, touch targets ≥ 48 px. French only.
-- **Display units**: kg and km only (metres and seconds where relevant: swim distance, durations). No unit switch in V1.
-- **Security**: HTTPS only, authentication required, no secret in the repository, secrets in `.env` (`0600`).
+  - server handling of a set confirmation **< 100 ms**; the confirmed set shows as soon as the response arrives.
+- **No silent loss**: a request that fails leaves the form with its values and shows « Non enregistré, réessayer ». The confirm button is disabled while its request runs.
+- **Display units**: kg and km (metres and seconds where relevant: swim distance, durations). No unit switch in V1.
+- **Security** (D-013, D-034, D-040): plain HTTP in V1, LAN only during development, then a high non-standard port forwarded through the DDNS. Per-device authentication, `HttpOnly` `SameSite=Strict` cookie, `Origin` / `Sec-Fetch-Site` check, JSON-only requests, `Host` check, strict CSP. No secret in the repository.
 - **Privacy**: pages load no external resource, no telemetry.
 - **Portability**: same native Python deployment (no Docker) on Synology NAS (DS224+) and Jelastic Cloud (Infomaniak).
-- **Cost**: no license or store fee (no Apple developer account).
+- **Cost**: no license, store fee or paid CI.
 
 ## 5. Architecture (summary)
 
-### 5.1 Stack — same as Equinox Management
+### 5.1 Stack
 
 | Layer | Choice |
 |---|---|
-| Language | Python ≥ 3.12 |
-| API | FastAPI + uvicorn, Pydantic v2 |
-| Front end | Static HTML / CSS / JS served by FastAPI, **no build step** |
-| Offline | Service worker + IndexedDB, session screen only (PWA) |
-| Database | SQLite (WAL) through SQLAlchemy Core (no ORM), Alembic migrations; Postgres-compatible SQL |
-| Charts | JS library served locally (e.g. Chart.js) |
-| Tooling | uv, hatchling, ruff (Equinox rules and line length), pylint, pre-commit |
-| Tests | pytest (+ xdist, cov), isolation guard as in Equinox D-107, `live` marker, Playwright (360 / 1280 px, light / dark, offline) |
-| CI | GitHub Actions: lint, tests, browser |
-| Delivery | Native Python, no Docker: `git` + `uv sync --frozen` + `rack migrate` + `rack serve` behind a reverse proxy, supervised by the host |
+| Language | Python ≥ 3.12, uv, hatchling |
+| Web | FastAPI + uvicorn, Pydantic v2, **Jinja2 templates rendered on the server**, **htmx** for partial updates with the `json-enc` extension (D-015, D-034) |
+| Static assets | htmx, `json-enc` and Chart.js vendored under `static/vendor/` at pinned versions; CSS split into tokens / base / components / pages; no build step |
+| Database | SQLite (WAL) through SQLAlchemy Core (no ORM), Alembic migrations, Postgres-compatible SQL, integer primary keys (D-016, D-035) |
+| Tests | pytest (+ xdist, cov), isolation guard ported from Equinox (D-043), `live` marker, Playwright (Python package) on Chromium and WebKit, 360 / 1280 px, light / dark (D-042) |
+| Quality | ruff, pylint duplicate-code, pre-commit, gitleaks; **no automatic CI** (D-012) |
+| Delivery | Native Python, no Docker: `git` + `uv sync --frozen` + `rack migrate` + `rack serve`, supervised by the host (D-024, D-038) |
 
-### 5.2 Difference from Equinox
+### 5.2 Request flow
 
-Equinox runs locally (`127.0.0.1`, data synced by kDrive). Rack Overflow runs on **one server** reachable from the iPhone: HTTPS reverse proxy, per-device authentication, the server's SQLite database as the source of truth.
+The browser requests a page; FastAPI renders a full Jinja2 page. User actions are htmx requests sent as JSON; the route validates the body with Pydantic, calls a **service** (business operation, one transaction), and returns an HTML fragment that htmx swaps in place. Business rules live in `domain/` (pure), persistence in `storage/` (SQLAlchemy Core), orchestration in `services/`, HTTP in `web/`. A JSON API for a future mobile client or the V2 AI module is added on top of `services/` without rewriting it.
 
-### 5.3 Offline principle
+## 6. Milestones
 
-- **Only in-session logging works offline.** Catalog, templates and history corrections are done online, directly on the server.
-- Server → phone: a read-only **pack** (catalog, variables, templates, last performance and last settings per exercise, records), versioned by ETag.
-- Phone → server: an **outbox** of idempotent operations (upsert by client-generated UUID v7), sent when the network is back.
-- Result: no two-way sync, no conflict resolution.
+Order: **B0 → L1a → L1b → L2 → L3 → L4 → L5 → L6.** Each milestone is demonstrable on its own and depends only on the previous ones. `docs/roadmap.md` holds the same list with the "Done when" lines; ids go in the `Milestone:` commit footer.
 
-## 6. V1 deliverables
+### B0 — Bootstrap
 
-Each deliverable can be demonstrated on its own. Order follows dependencies.
+Template initialised (package, CLI `rack`), project docs written from this brief, hooks checked, local checks green.
 
-### L0 — Offline spike (validates the PWA choice)
+### L1a — Technical foundation
 
-**Goal**: prove that PWA logging on an iPhone is smooth and reliable in airplane mode, before investing in the rest.
+- FastAPI app factory, `rack serve` (host and port from configuration), logs.
+- Configuration: `config.toml` (git-ignored) for machine settings: data folder, host, port, public host name, `[server] https = false`; `.env` for secrets (none needed in V1). Loaded once at start-up, passed down explicitly.
+- Database: SQLAlchemy Core engine, SQLite WAL, `foreign_keys = ON`, `synchronous = FULL`, `busy_timeout`; Alembic set up with batch mode; first migration with the full schema of section 7; `rack migrate`.
+- Daily backup (`VACUUM INTO` a dated file, integrity check first, 30-day retention, never delete a corrupt file) run by the server once a day, and `rack backup`.
+- Web base: base layout (Jinja2), vendored htmx + `json-enc`, CSS tokens (light / dark), French string catalog `locales/fr.json` resolved on the server, security middleware (headers, CSP, `Origin`, `Host`, JSON-only, body size), error pages.
+- Tests: isolation guard, markers, Playwright set-up (Chromium + WebKit, skipped locally when browsers are missing, see D-042).
+- Replace the template `hello` command and `domain/greeting.py`.
 
-**Content**
-- Minimal session page installable on the home screen (manifest + service worker).
-- Logging of dummy sets (reps × load, steppers, ✓).
-- IndexedDB outbox, sent to a throwaway FastAPI endpoint, idempotent by UUID.
-- Persistent storage request.
+### L1b — Per-device authentication and NAS deployment
 
-**Acceptance**
-- The installed app opens in airplane mode and a full session can be logged.
-- Once the network is back, everything reaches the server exactly once, even on resend.
-- Smooth on the iPhone; no perceptible delay when confirming a set.
-- Short report: go / no-go on the PWA, iOS friction points found.
-
-**Output**: D-002 confirmed or revised. The spike code may be discarded.
-
-### L1 — Technical foundation
-
-**Content**
-- Repository skeleton aligned with Equinox: `pyproject.toml`, uv, ruff, pylint, pre-commit, `CLAUDE.md`, `docs/`.
-- Tests: isolation guard, markers, Playwright setup.
-- GitHub Actions CI (lint, tests, browser).
-- FastAPI app, configuration (`config.toml` + `.env`), logs.
-- Database: SQLAlchemy Core, Alembic, first migration (section 7 tables), SQLite in WAL, `foreign_keys = ON`.
-- Repository layer.
-- Per-device auth: `rack device add <name>` issues a one-time pairing code; the server returns a long-lived token (`HttpOnly`, `Secure`, `SameSite=Strict` cookie), stored hashed, revocable.
-- Native deployment on the NAS, no Docker: clone, `uv sync --frozen` (uv provides Python 3.12), `rack migrate`, `rack serve` bound to `127.0.0.1`, started at boot by a DSM Task Scheduler boot-up task, behind the DSM reverse proxy with a Let's Encrypt certificate.
-- `rack update`: `git pull --ff-only`, `uv sync --frozen`, `rack migrate`, restart. Same rules as Equinox: the deployed clone stays on `main` with no local edits.
-
-**Acceptance**
-- After a NAS reboot, the app comes back on its own and answers over HTTPS through the DynDNS.
-- An unpaired device is refused; a revoked device loses access.
-- `uv run pytest` and CI pass.
+- `rack device add <name>` prints a one-time pairing code (valid 10 minutes, attempt-limited). The public pairing page exchanges it for a long-lived random token, stored **hashed**, sent as an `HttpOnly`, `SameSite=Strict` cookie (`Secure` only when `[server] https = true`), renewed on use.
+- `rack device list`, `rack device revoke <name>`.
+- Every page and action except the pairing page and static assets requires a valid device.
+- Deployment docs for the NAS: clone, `uv sync --frozen` (uv provides Python 3.12), `rack migrate`, `rack serve` on the configured port, DSM Task Scheduler boot-up task running `rack supervise` (restart with increasing delay, rotating logs). LAN only during development; WAN exposure on a high non-standard port is a later, user-made router change.
+- `rack update`: `git pull --ff-only`, `uv sync --frozen`, `rack migrate`, restart. The deployed clone stays on `main` with no local edits.
+- **Planned stop**: the user installs on the NAS and checks the "user validation" criteria.
 
 ### L2 — Catalog: exercises and variables
 
-**Content**
-- **Variable** catalog: code, label, type (`int`, `decimal`, `duration`, `distance`, `weight`, `enum`, `bool`, `text`), display unit, scope (`set` = measure, `setting` = equipment setting), enum values. **The seed contains no variable**: every variable is created in the UI.
-- **Shared variables**: a variable is defined once and can be linked to one or more exercises (e.g. one "Siège" setting used by leg press, chest press and shoulder press). Editing the variable's definition applies to every linked exercise; per-exercise parameters live on the link.
-- **Core quantities** (reps, load, duration, distance) are built-in fields, not variables: each exercise just enables the ones it uses.
-- **Exercises**: name, category (`strength`, `kettlebell`, `bodyweight`, `cardio`, `intervals`), movement pattern, equipment, location (gym / home / both), archiving.
-- **Exercise ↔ variable links** (many-to-many): which core quantities and variables the exercise uses, required or not, increment (+2.5 kg, +1 rep, +30 s), default, discrete values (e.g. kettlebells 16 / 20 / 24 kg), display order.
-- **Aliases**: alternative names and abbreviations, normalized for search.
-- Fuzzy search on names and aliases.
-- Starter exercise seed covering current sessions.
-
-**Acceptance**
-- Create a "Siège" setting variable (enum 1–10) in the UI and link it to "Leg press" and "Chest press", with no schema migration.
-- Each linked exercise remembers its own last seat value.
-- Create "Kettlebell swing" with discrete loads 16 / 20 / 24 kg.
-- Create "Bike" with duration and distance (core) plus a "Résistance" measure variable created in the UI.
-- An unused variable can be archived; a variable linked to exercises with history cannot be deleted.
-- Archiving an exercise with history deletes no data.
-- Find "Développé couché" by typing "DC" or "bench".
+- **Variable** catalog: code, French label, type (`int`, `decimal`, `duration`, `distance`, `weight`, `enum`, `bool`, `text`), display unit, scope (`set` = measure, `setting` = equipment setting), enum values, decimal scale, archived. **The seed contains no variable**: every variable is created in the UI (D-030).
+- **Shared variables**: defined once, linked to one or more exercises; editing the definition applies to every linked exercise.
+- **Core quantities** (reps, load, duration, distance) are built-in fields, not variables.
+- **Exercise fields** (`exercise_field`, D-031): one link table for both core quantities and variables, with required, increment (+2.5 kg, +1 rep, +30 s), default, discrete values (e.g. kettlebells 16 / 20 / 24 kg), display order.
+- **Exercises**: name, category (`strength`, `kettlebell`, `bodyweight`, `cardio`, `intervals`), movement pattern, equipment, location (gym / home / both), archived.
+- **Aliases**, normalised (case, accents) for search; fuzzy search on names and aliases.
+- Exercise seed of section 6.1 (core quantities only).
 
 ### L3 — Session templates (menus)
 
-**Content**
-- A template is an ordered list of **slots**.
-- A slot is either a specific exercise or a **menu** (movement pattern + proposed exercises, chosen during the session).
+- A template is an ordered list of **slots**; a slot is a specific exercise or a **menu** (movement pattern + proposed exercises, chosen during the session).
 - Optional indicative target per slot (sets × reps, duration…).
-- Seed examples: "Salle 1", "Salle 2", "Maison", "Cardio bonus".
+- Template seed of section 6.1.
 
-**Acceptance**
-- Create "Salle 1" with a "Pull" slot offering three exercises.
-- The template appears in the offline pack.
+### L4 — Session logging
 
-### L4 — In-session logging (offline)
-
-**Content**
 - Start a session: empty or from a template, choose location.
-- Menu slot: pick the exercise from the proposed list.
-- Add an exercise outside the template: fuzzy search, recent first.
-- **Prefill** sets from the exercise's last performance (else the target), and **settings** from the last session.
-- Adjust with steppers (exercise increment) or discrete values.
-- ✓ confirms the set: immediate local write, outbox entry, ⭐ on a new record (computed from the pack).
-- Set type: warm-up / work / RM test.
-- Optional variables (e.g. an RPE variable if the user creates one) are shown collapsed so they never slow down the nominal path.
-- Layout adapted to category (reps × load; duration / distance / intensity; rounds).
-- Resume the open session after the app is closed.
-- Close: summary (exercises, volume, records).
-- Discreet status: "all sent" / "n operations pending".
-- Server: `GET /api/pack` (ETag), `POST /api/outbox` (batch of idempotent operations).
-
-**Acceptance**
-- Full session logged in airplane mode, then sent correctly when the network is back.
-- A batch sent twice creates no duplicate; a partial batch resumes cleanly.
-- Section 4 speed targets are met.
-- Playwright tests of the session screen with network off.
+- Menu slot: pick the exercise from the proposed list. Add an exercise outside the template: fuzzy search, recent first.
+- **Prefill** sets from the exercise's last performance (else the target), and **settings** from the last session with this exercise.
+- Adjust with steppers (field increment) or discrete values; ✓ confirms the set (htmx request, button disabled while it runs); ⭐ when the server detects a new record.
+- Set type: warm-up / work / RM test. Optional variables shown collapsed.
+- Layout adapted to the category (reps × load; duration / distance; rounds).
+- An open session is resumed when the app is reopened. Close: summary (exercises, volume, records).
 
 ### L5 — Minimal tracking
 
-**Content**
-- Session history (list, detail, online correction of a set or setting).
-- Per exercise: last performance, records, chart of the main indicator over time.
-- Indicators by category:
+- Session history: list, detail, online correction of a set or setting, soft delete of a session (`deleted_at`).
+- Per exercise: last performance, records, chart of the main indicator over time (Chart.js, data from a JSON route).
 
 | Category | Main indicator | Secondary |
 |---|---|---|
@@ -200,159 +141,187 @@ Each deliverable can be demonstrated on its own. Order follows dependencies.
 | `kettlebell` | reps at a given load | density (reps / duration), volume |
 | `bodyweight` | reps | max duration, added load if weighted |
 | `cardio` | distance or duration | pace / speed |
-| `intervals` | rounds | work / rest ratio |
+| `intervals` | number of rounds | total work duration |
 
-- **RM** (`strength` exercises): entry of a measured RM (1RM…nRM); estimation from work sets; origin shown (**measured** / **estimated**, with formula). Formulas: Epley (default), Brzycki, Lombardi, O'Conner, Wathan, global choice in settings. Warm-up sets excluded; sets above 12 reps excluded from estimation.
+- **RM** (`strength`): manual entry of a measured RM (1RM…nRM) outside a session; `rm_test` sets are read directly (one write per fact, D-033); estimation from work sets; origin shown (**mesuré** / **estimé**, with formula). Formulas: Epley (default), Brzycki, Lombardi, O'Conner, Wathan, global choice in settings. Warm-up sets and sets above 12 reps excluded from estimation.
 - Consistency: sessions per week.
-
-**Acceptance**
-- Changing the formula recomputes estimates without touching measured RMs.
-- A measured RM wins over an estimate on display; an estimate above an older test is flagged.
-- Charts render in < 1 s with one year of simulated history.
 
 ### L6 — Operations
 
-**Content**
-- Automatic daily backup (`VACUUM INTO` a dated file, 30-day retention).
 - Full JSON and CSV export (UI and `rack export`).
-- `rack backup`, `rack restore` (documented and tested).
-- Install and update docs: Synology NAS and Jelastic.
+- `rack restore` (server stopped), documented and tested.
+- Install and update docs: Synology NAS and Jelastic (Linux / VPS node with a systemd unit, `Restart=on-failure`; database on the node's local disk, never a network volume).
 - NAS ↔ Jelastic migration documented (backup, restore, URL change).
+- Release 1.0.0 (`/release`).
 
-**Acceptance**
-- Restoring a backup on a blank instance yields identical data.
-- Jelastic: database on the node's local disk, never on a shared network volume.
+### 6.1 Seed data (approved 2026-11-03)
+
+Names in French as shown in the UI. Core quantities only (D-030); targets are indicative. A **menu** slot offers several exercises, chosen during the session.
+
+**Salle A — Squat & poussée horizontale**
+
+| # | Slot | Exercise(s) | Target |
+|---|---|---|---|
+| 1 | Squat | Squat au rack (barre) | 4 × 6–8 |
+| 2 | Poussée horizontale | Développé couché (barre) | 4 × 6–8 |
+| 3 | Menu Tirage horizontal | Rowing barre au rack · Rowing assis machine · Tirage horizontal poulie | 3 × 8–10 |
+| 4 | Menu Jambes unilatéral | Fentes haltères · Split squat bulgare · Presse à cuisses | 3 × 10 |
+| 5 | Biceps | Curl barre EZ | 3 × 10–12 |
+| 6 | Menu Gainage | Planche · Crunch poulie haute · Relevé de jambes suspendu | 3 × 30 s / 12 |
+
+**Salle B — Charnière & poussée verticale**
+
+| # | Slot | Exercise(s) | Target |
+|---|---|---|---|
+| 1 | Charnière | Soulevé de terre roumain (RDL) | 4 × 8 |
+| 2 | Poussée verticale | Développé militaire haltères | 4 × 8 |
+| 3 | Menu Tirage vertical | Tirage vertical poulie · Tractions assistées machine · Tractions | 3 × 8–10 |
+| 4 | Poussée inclinée | Développé incliné à la Smith | 3 × 8–10 |
+| 5 | Menu Ischios / fessiers | Leg curl allongé · Hip thrust à la Smith · Extension lombaire | 3 × 10–12 |
+| 6 | Menu Triceps | Extension triceps poulie · Barre au front EZ · Dips | 3 × 10–12 |
+
+**Maison — Kettlebell, barre EZ, haltères**
+
+| # | Slot | Exercise(s) | Target |
+|---|---|---|---|
+| 1 | Charnière | Kettlebell swing (charges 16 / 20 / 24 kg) | 5 × 15 |
+| 2 | Squat | Goblet squat kettlebell | 4 × 10 |
+| 3 | Menu Poussée | Pompes · Développé haltères au sol · Développé militaire kettlebell | 3 × 10 |
+| 4 | Tirage | Rowing haltère un bras | 3 × 10 / côté |
+| 5 | Menu Bras | Curl barre EZ · Curl marteau haltères · Barre au front EZ | 3 × 12 |
+| 6 | Menu Gainage | Planche · Turkish get-up kettlebell | 3 × 30 s / 3 par côté |
+
+**Cardio — Course 30 min**
+
+| # | Slot | Exercise(s) | Target |
+|---|---|---|---|
+| 1 | Menu Cardio | Course extérieure · Tapis de course · Vélo · Rameur | 1 × 30 min (durée + distance) |
+
+**Catalog without template** (through search): Elliptique (cardio), Squat à la Smith, Développé couché haltères, Leg extension, Mollets debout machine.
 
 ## 7. Storage model
 
 ### 7.1 Principles
 
-- **Measures and settings are distinct.** A *measure* changes on every set (reps, load, HR…). A *setting* is fixed for the exercise within the session (seat height, grip, incline) and is prefilled from last time.
-- **Hybrid: fixed columns + catalogued variables.** The four quantities that drive computations are `set_entry` columns (`reps`, `weight_g`, `duration_s`, `distance_m`). All other variables live in value tables linked to the `variable` catalog. Adding a variable needs no migration.
-- **Canonical integer units**: grams, seconds, metres. Display in kg and km. Conversion only on display.
-- **Variables are shared**: `variable` is a catalog independent of exercises; `exercise_variable` is the many-to-many link and carries per-exercise parameters (required, increment, default, discrete values, order). Values always reference the variable, so a shared variable can be compared across exercises.
-- **Store facts, compute the rest.** Sessions, sets, settings and measured RMs are stored. Last performance, e1RM, records and volume are computed on the fly. A materialized table comes only if performance requires it.
-- **No physical deletion of history**: exercises and variables are archived; removing a variable from an exercise keeps past values.
-- **IDs**: client-generated UUID v7 (`TEXT` in SQLite, `uuid` in Postgres).
+- **Measures and settings are distinct** (D-019). A *measure* changes on every set (reps, load…). A *setting* is fixed for the exercise within the session (seat height, grip, incline) and is prefilled from last time.
+- **Hybrid storage** (D-018): the four quantities that drive computations are `set_entry` columns (`reps`, `weight_g`, `duration_s`, `distance_m`). Other variables live in value tables linked to the `variable` catalog. Adding a variable needs no migration.
+- **Canonical integer units** (D-020): grams, seconds, metres. A `decimal` variable is stored as an integer with the scale fixed on the variable; an `enum` value is stored by its stable key, never its label (D-032).
+- **Facts stored, indicators computed** (D-021): sessions, sets, settings and measured RMs are stored; last performance, e1RM, records and volume are computed on the fly.
+- **No physical deletion of history**: exercises and variables are archived; sessions and sets are soft-deleted (`deleted_at`); removing a field from an exercise keeps past values.
+- **Ids**: integer primary keys generated by the database (D-035).
 - **Timestamps**: UTC ISO 8601; sessions also keep local date and time zone.
-- **`user_id`** on root tables (`variable`, `exercise`, `template`, `session`, `rm_measured`, `device`, `setting`).
+- **`user_id`** on root tables (D-017).
+- **Intervals**: one set = one round, `duration_s` = work time (D-041).
 
 ### 7.2 Schema
 
 ```
-variable ──< exercise_variable >── exercise ──< exercise_alias
-                                      │
-template ──< template_slot ───────────┤   (slot → exercise or menu)
-                                      │
-session ──< session_exercise ─────────┘
+variable ──< exercise_field >── exercise ──< exercise_alias
+                                    │
+template ──< template_slot ─────────┤   (slot → exercise or menu: template_slot_option)
+                                    │
+session ──< session_exercise ───────┘
                 │        └──< exercise_setting   (settings)
                 └──< set_entry ──< set_value      (free measures)
 
-rm_measured · device · setting
+rm_measured · device · pairing_code · app_setting
 ```
 
 | Table | Main fields |
 |---|---|
-| `variable` | code, label, type, display unit, scope (`set` / `setting`), enum values, archived — shared, linked to exercises through `exercise_variable` |
-| `exercise` | name, category, movement pattern, equipment, location, archived |
-| `exercise_variable` | exercise_id, variable_id, required, increment, default, discrete values, order |
-| `exercise_alias` | exercise_id, normalized alias |
-| `template` | name, location, order, archived |
-| `template_slot` | template_id, order, exercise_id **or** movement pattern + proposed exercises, indicative target |
-| `session` | local date, time zone, start, end, location, template_id, notes, status (`open` / `closed`), source |
+| `variable` | user_id, code, label, type, display unit, scope (`set` / `setting`), enum values (key + label), decimal scale, archived |
+| `exercise` | user_id, name, category, movement pattern, equipment, location, archived |
+| `exercise_field` | exercise_id, **either** core quantity (`reps` / `weight` / `duration` / `distance`) **or** variable_id (CHECK: exactly one), required, increment, default, discrete values, display order |
+| `exercise_alias` | exercise_id, alias, normalised alias |
+| `template` | user_id, name, location, order, archived |
+| `template_slot` | template_id, order, exercise_id **or** movement pattern (menu), indicative target |
+| `template_slot_option` | template_slot_id, exercise_id, order (exercises proposed by a menu) |
+| `session` | user_id, local date, time zone, started_at, ended_at, location, template_id, notes, status (`open` / `closed`), deleted_at |
 | `session_exercise` | session_id, exercise_id, template_slot_id, order, notes |
 | `exercise_setting` | session_exercise_id, variable_id, `value_int` / `value_text` |
-| `set_entry` | session_exercise_id, order, type (`warmup` / `work` / `rm_test`), `reps`, `weight_g`, `duration_s`, `distance_m`, `completed_at`, `deleted_at` |
+| `set_entry` | session_exercise_id, order, type (`warmup` / `work` / `rm_test`), `reps`, `weight_g`, `duration_s`, `distance_m`, completed_at, deleted_at |
 | `set_value` | set_entry_id, variable_id, `value_int` / `value_text` |
-| `rm_measured` | exercise_id, n, `weight_g`, date, optional source set_entry_id |
-| `device` | name, token hash, last seen, revoked |
-| `setting` | key, value (RM formula, units, RPE shown…) |
+| `rm_measured` | user_id, exercise_id, n, `weight_g`, date — manual entry only (D-033) |
+| `device` | user_id, name, token hash, created_at, last_seen_at, revoked_at |
+| `pairing_code` | device_id, code hash, expires_at, attempts, used_at |
+| `app_setting` | user_id, key, value (RM formula…) |
 
-### 7.3 Phone side (IndexedDB)
+### 7.3 SQLite operations
 
-| Store | Content |
-|---|---|
-| `pack` | Catalog, variables, templates, last performance and last settings per exercise, records; versioned |
-| `current_session` | Open session, for resume after close |
-| `outbox` | Pending operations (`upsert_session`, `upsert_session_exercise`, `upsert_set`, `upsert_setting`, `delete_set`, `close_session`), each carrying the row UUID |
+WAL, `foreign_keys = ON`, `synchronous = FULL` in production, `busy_timeout`; backup via `VACUUM INTO`; local storage only (never a network volume); restore with the server stopped.
 
-### 7.4 SQLite operations
+## 8. Routes (sketch)
 
-WAL, `foreign_keys = ON`, `synchronous = FULL` in production; backup via `VACUUM INTO`; local storage only (never NFS).
+HTML routes return a full page (normal navigation) or a fragment (htmx request, `HX-Request` header). Every non-GET request is JSON (D-034).
 
-## 8. API (sketch)
-
-| Method | Route | Deliverable |
+| Area | Routes | Milestone |
 |---|---|---|
-| `POST` | `/api/devices/pair` | L1 |
-| `GET/POST/PATCH` | `/api/variables` | L2 |
-| `GET/POST/PATCH` | `/api/exercises`, `/api/exercises/{id}/variables`, `/api/exercises/{id}/aliases` | L2 |
-| `GET/POST/PATCH` | `/api/templates` | L3 |
-| `GET` | `/api/pack` | L4 |
-| `POST` | `/api/outbox` | L4 |
-| `GET/PATCH/DELETE` | `/api/sessions`, `/api/sessions/{id}` | L5 |
-| `GET` | `/api/progress/{exercise_id}` | L5 |
-| `GET/POST` | `/api/rm/{exercise_id}` | L5 |
-| `GET` | `/api/export` | L6 |
+| Pairing | `GET /appairage`, `POST /appairage` | L1b |
+| Variables | `GET /variables`, `POST /variables`, `PATCH /variables/{id}` | L2 |
+| Exercises | `GET /exercices`, `GET /exercices/{id}`, `POST /exercices`, `PATCH /exercices/{id}`, fields and aliases sub-routes, `GET /exercices/recherche?q=` | L2 |
+| Templates | `GET /seances-types`, `POST`, `PATCH`, slots sub-routes | L3 |
+| Session | `POST /seances`, `GET /seances/{id}`, `POST /seances/{id}/exercices`, `POST /seances/{id}/series`, `PATCH /series/{id}`, `POST /seances/{id}/cloture` | L4 |
+| History | `GET /historique`, `PATCH /series/{id}`, `DELETE /seances/{id}` (soft) | L5 |
+| Progress | `GET /progression/{exercise_id}`, `GET /api/progression/{exercise_id}` (JSON for the chart), `GET/POST /rm/{exercise_id}` | L5 |
+| Export | `GET /api/export?format=json|csv` | L6 |
+
+URL paths are in French because the user sees them; route function names stay in English. The architect of each milestone fixes the final list.
 
 ## 9. V2 preparation: AI features (not in V1)
 
-Recorded so V1 closes no door:
-
 - Server module `rack_overflow/ai/` exposing **domain tasks** (`analyse_session`, `propose_next_session`, `motivation`, `weekly_review`), never an SDK directly.
-- One **Pydantic AI** agent per task, structured output (Pydantic model), read-only tools over the data.
-- **Configurable provider** (`[ai] provider = "claude" | "bridge" | "none"`): Claude, or the user's in-progress FastAPI AI engine used as a bridge. Assumption: the engine exposes an **OpenAI-compatible API**, so it plugs in with no provider-specific code.
-- AI is always **asynchronous and optional**: never in the logging path or offline mode. Results stored (`ai_insight`); the latest advice may be included in the pack.
+- One **Pydantic AI** agent per task, structured output, read-only tools over the data, configurable provider (`[ai] provider = "claude" | "bridge" | "none"`).
+- AI is always asynchronous and optional, never in the logging path; results stored (`ai_insight`).
 
-**V1 impact: none**, beyond clean data and tracking computations exposed through a reusable service layer.
+**V1 impact: none**, beyond clean data and tracking computations exposed through `services/` (D-025).
 
-## 10. Proposed decisions (to be challenged)
+## 10. Approvals for the unattended run
 
-| # | Decision | Rationale |
-|---|---|---|
-| D-001 | Same stack as Equinox | Existing know-how, reused tooling and conventions |
-| D-002 | Web + PWA, no native app | No Apple fee, one codebase, instant updates; confirmed or refuted by L0 |
-| D-003 | Offline limited to the session screen | Only context without network; removes two-way sync |
-| D-004 | Read-only pack + idempotent outbox keyed by UUID v7 | No possible conflict, safe resends |
-| D-005 | SQLite (WAL) via SQLAlchemy Core + Alembic, Postgres-compatible SQL | Enough for single user; move to Postgres without rewrite |
-| D-006 | `user_id` on root tables from V1 | Multi-user possible without schema migration |
-| D-007 | Hybrid storage: 4 fixed columns + catalogued variables | Simple computations on the core, extensible without migration |
-| D-008 | Measures (per set) and settings (per session exercise) are distinct | Matches practice; machine settings prefilled |
-| D-009 | Canonical integer units (g, s, m) | No rounding errors; conversion on display only |
-| D-010 | Facts stored, indicators computed on the fly | No cache to invalidate; low volume |
-| D-011 | RM: measured / estimated origin tracked, selectable formula, recomputable estimates | Transparent measurement, formula change without loss |
-| D-012 | Templates as menus by movement pattern | Flexible, non-fixed training practice |
-| D-013 | Hosting on Synology NAS or Jelastic, native Python deployment (no Docker): uv, reverse proxy, host supervision | Same tooling as Equinox, no container layer; reversible choice; SQLite on local storage only |
-| D-014 | AI deferred to V2, through a Pydantic AI module with configurable provider | V1 focuses on the core; provider independence |
-| D-015 | Name: Rack Overflow; repo and package `rack_overflow`, CLI `rack` | Naming aligned with Equinox |
-| D-016 | UI in French; dev documents, code and comments in English | User-facing language vs token economy and standardization |
-| D-017 | No rest timer in V1 | Not essential; added later if needed |
-| D-018 | Display units kg and km only in V1 | Matches use; storage stays canonical (g, s, m) |
-| D-019 | No variable in the seed; variables are created in the UI and shared across exercises (many-to-many) | The user defines their own measures and settings; one definition reused by several exercises |
+The user approved this brief on 2026-11-03 for `/build-roadmap`:
 
-Note: the template already uses D-001 to D-011 for tooling and workflow; these proposals will be renumbered from D-012 when recorded in `docs/decisions.md`.
+- The architect records new decisions without stopping when this brief settles the point, and marks the design note APPROVED FOR AUTONOMOUS MODE.
+- On a question this brief does not settle, the architect writes it in `docs/progress.md` and moves to the next independent milestone if there is one; otherwise the run stops (`BLOCKED`).
+- Planned stops: end of B0 (user checks the result), end of L1b (installation on the NAS and "user validation" criteria), end of L6 (release).
+- Criteria marked **user validation** in `docs/roadmap.md` are checked by the user; the run notes them in `docs/progress.md` and continues.
+- Dependencies may be added when this brief names them (FastAPI, uvicorn, Pydantic, Jinja2, SQLAlchemy, Alembic, python-dotenv, tomli-w, httpx, Playwright, vendored htmx / json-enc / Chart.js). Any other dependency needs a measured reason in the design note.
 
-## 11. Points for Claude Code to challenge
+## 11. Settled open points
 
-1. **Consistency with the Equinox repository**: SQLAlchemy Core + Alembic, or direct SQLite access as in Equinox? Pick what fits existing conventions without losing Postgres compatibility.
-2. **Hybrid storage vs alternatives** (pure wide table, full EAV, JSON column): validate the trade-off against L5 queries.
-3. **iOS standalone PWA**: the installed app has its own cookie jar, separate from Safari, so pairing must happen inside the installed app. Also check IndexedDB persistence and eviction policy.
-4. **Auth**: `HttpOnly` cookie vs token in IndexedDB for outbox sends (service worker and `fetch` must be able to use it).
-5. **Deliverable order**: can L2 / L3 run in parallel with L4 once L1 is done?
-6. **Release split** and release briefs according to the repository's dev protocol.
-7. **Seeds**: starter exercises and templates (supplied by the user or proposed), with core quantities only and no variable (D-019).
-8. **Process supervision without Docker**: DSM boot-up task vs a user-level service on the NAS; Jelastic node type (Python application node vs plain Linux node with systemd). Restart on crash, log rotation, port binding.
-9. **i18n**: French-only UI strings — centralize them from the start (single catalog) even without multi-language support.
+**A. Offline and mobile app.** Dropped for V1: one responsive web app, server-rendered with htmx (D-015). The gym network is reliable. Offline is a later release, possibly a mobile app using a JSON API over `services/`.
 
-## 12. Resolved questions
+**B. JSON-only requests.** Kept from Equinox: htmx sends JSON through `json-enc`; a cross-site form cannot post without a CORS preflight (D-034). A future file upload (Excel import, V1.x) gets its own documented exception.
 
-| Question | Answer | Decision |
-|---|---|---|
-| Rest timer in V1? | No, later if needed | D-017 |
-| Units? | kg and km | D-018 |
-| Variables in the seed? | None; created in the UI, shareable across exercises | D-019 |
+**C. Transport security.** Plain HTTP in V1, LAN only during development, then a high non-standard port through the DDNS; HTTPS in V2 through a configuration switch (D-013).
+
+**D. Database access.** SQLAlchemy Core + Alembic rather than Equinox's raw `sqlite3`: here the database is the only source of truth and its schema will evolve with real data (D-016). Integer primary keys (D-035).
+
+**E. Core quantity parameters.** One `exercise_field` table for core quantities and variables (D-031).
+
+**F. Intervals.** Work / rest ratio removed from V1; one set = one round (D-041).
+
+**G. RM stored once.** `rm_measured` for manual entry only; `rm_test` sets read directly (D-033).
+
+**H. Records.** Computed on the server when a set is confirmed; no formula in JavaScript.
+
+**I. Double submission.** Button disabled during the request; no idempotency token in V1.
+
+**J. Backups early.** Daily backup and `rack backup` in L1a; export, restore and Jelastic docs in L6.
+
+**K. Supervision.** NAS: DSM boot-up task running `rack supervise`. Jelastic: Linux / VPS node with systemd (D-038).
+
+**L. Strings.** One flat catalog `locales/fr.json` resolved on the server; stable English error codes mapped to French strings (D-036).
+
+**M. CI.** None until V1 is done (D-012).
+
+**N. Release.** One release 1.0.0, no intermediate tag.
+
+**O. Seeds.** Section 6.1, approved.
+
+**P. Decision numbering.** The pre-brief's D-001 to D-019 are recorded from D-014 on in `docs/decisions.md` (the template uses D-001 to D-011, the project D-012 and D-013). Pre-brief D-002 to D-004 (PWA, offline, pack + outbox) are dropped.
 
 ---
+
+> **Reading the appendix with this brief.** Where the appendix and the brief differ, the brief wins: A.4 (no automatic CI, D-012; Playwright is the Python package, D-042), A.5 (no reverse proxy in V1: `Host` is checked against the configured host name, D-013), A.6 (strings resolved on the server, no `GET /api/locale` nor `i18n.js`, D-036), A.7 (server-rendered pages with htmx instead of an ES-module client; the CSS split and accessibility rules still apply, with 48 px targets).
 
 ## Appendix — Equinox reference (extracted 2026-11-03)
 

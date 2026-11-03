@@ -4,6 +4,7 @@ All notable changes are listed here, newest first. Format: [Keep a Changelog](ht
 
 ## [Unreleased]
 
-- Project template: `src/` layout managed with uv, pure `domain/` layer with a layering test, atomic file writer, example CLI.
-- Claude Code workflow: project rules (`CLAUDE.md`), six agents (architect, ui-designer, developer, tester, reviewer, documentation), skills `/init-project`, `/feature`, `/build-roadmap`, `/release`, `/add-fixture`, `/add-decision`, hooks guarding secrets and `main` and formatting edited files.
-- Quality gates: commit-msg check, pre-commit (ruff, duplicate code, gitleaks), CI on Ubuntu, Windows and macOS.
+- Project initialised from the Python template: package `rack_overflow`, CLI `rack` (B0).
+- Approved V1 brief, roadmap (L1a to L6), decisions D-012 to D-043, architecture overview and UI rules (B0).
+- CI runs on manual dispatch only until V1 is done (D-012).
+- From the template: `src/` layout managed with uv, pure `domain/` layer with a layering test, atomic file writer, Claude Code agents, skills and hooks, commit-msg check, pre-commit (ruff, duplicate code, gitleaks).
