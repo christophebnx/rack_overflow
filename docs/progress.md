@@ -13,6 +13,10 @@ Maintained by the `/build-roadmap` skill. Branch: the session's designated branc
 | L5 Tracking | todo | | |
 | L6 Operations and release 1.0.0 | todo | | |
 
+## Follow-ups
+
+- Older forms still disable only their first button with `hx-disabled-elt="find button"` (htmx's `find` takes the first match): `pairing_form.html`, `variable_form.html`, `exercise_form.html`, `exercise_fields.html`, `exercise_field_form.html`, `exercise_aliases.html`, `session_template_form.html`, `session_template_slots.html`, `session_template_slot_form.html`. Switch them to an id selector of every button of the form, as L4 does (`#<form id> button`), and correct `docs/ui-spec.md` lines that still write `find button` (pairing, exercise create, template create). Found by the L4 review (loop 1), not fixed in L4.
+
 ## User validations pending
 
 - L1a: run the browser tests on WebKit (`RACK_REQUIRE_BROWSER=1 uv run pytest -q tests/e2e` on a machine with WebKit installed); only Chromium ran in the build environment.

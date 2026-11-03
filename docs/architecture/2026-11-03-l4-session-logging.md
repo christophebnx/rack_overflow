@@ -297,3 +297,28 @@ Chromium at 360×640 with touch emulation and 1280, light and dark, full Salle A
 5. **SUGGESTION** after a failed ✓ the status slot pushes the ✓ to 606–662 px: keep the action bar in view (`show:`) or put the status next to the ✓.
 6. **SUGGESTION** `session_summary.html:22-23`: drop zero parts (« Séries : 0 · … · Volume : 0 kg ») for warm-up-only exercises.
 7. **SUGGESTION** "inline style" CSP messages seen once on swaps with request interception + touch emulation, not reproduced: check once on WebKit.
+
+## Fix loop 1
+
+Reviewer:
+1. Fixed: `storage/sessions.replace_set_values` takes the variable ids of the exercise's current fields and deletes only those; values of variables archived or unlinked since are kept (archived case: former xfail, now a test; unlinked case added).
+2. Fixed: storage reads `domain.indicators.RECORD_TYPES`; `COUNTED_TYPES` removed.
+3. Fixed: dated refinement on D-064; `is_record` needs a counted set of another session, dominance still against every earlier counted set (today's included). Unit fixtures of `test_indicators.py` now put their history in an earlier session (`before()`), since the rule distinguishes sessions; former xfail is a test.
+4. Fixed: « Terminer la séance » (`this` in the action bar, `#fin-de-seance button` in the close section) and « Annuler » carry `hx-disabled-elt`; former xfail is a test.
+5. Fixed: ui-spec L4 forms written with their id selectors.
+6. Recorded in `docs/progress.md` "Follow-ups", not fixed in L4.
+7. Done: the start race test never missed (`None or real(...)`), it now misses exactly once; route tests close the session between two service calls (refused ✓, edit, delete).
+8. Done: `stepped` capped at `units.MAX_VALUE`.
+9. Done: `confirm_set` docstring reworded to D-062's refinement (missing settings checked on every ✓, never overwritten).
+10. Done: `Display.yes_no` reads `BOOL_KEYS`; used by `field_value`, `choices`, `exercise_fields.html`, `exercise_field_form.html`.
+11. Done: `Watched.origin` public, dead code removed.
+
+UI review:
+1. Fixed: `.set-row__edit` in column 3, `[open]` spans `1 / -1` (summary pushed right, form full width); no `display: contents`. Browser test: open form ≥ 90 % of the row and 48 px buttons at 360 and 1280.
+3. Fixed: the start redirect is `/seances/{id}#seance-plan`; the e2e flow asserts the first ✓ inside 640 px after the start.
+4. Fixed: settings and « Autres valeurs » summaries draw a `::before` chevron (▸ / ▾); the e2e flow checks it.
+5. Done: the next-set form's slot follows the ✓ (the one exception to "slot first", spec updated); the e2e failure step asserts the ✓ and the message stay in view.
+6. Done: summary meta drops « Séries : 0 » and zero volume parts (`Display.volume` empty without a counted set).
+7. Not done here: needs WebKit, not installed in this environment.
+
+Note: `test_set_confirmation_median_below_100_ms` and the e2e Salle A flow each failed once under `-n auto` load and passed on rerun (timing).
