@@ -128,13 +128,14 @@ def history(seeded_live_app: LiveApp) -> LiveApp:
 
 
 class Watched:
-    """A phone page: CSP violations and foreign requests are recorded."""
+    """A phone page: CSP violations and foreign requests are recorded; `origin` is the app's
+    base URL."""
 
     def __init__(self, page: Page, origin: str) -> None:
         self.page = page
         self.console: list[str] = []
         self.foreign: list[str] = []
-        self._origin = origin
+        self.origin = origin
         page.on("console", self._console)
         page.route("**/*", self._route)
 
@@ -143,7 +144,7 @@ class Watched:
             self.console.append(message.text)
 
     def _route(self, route: Route, request: Request) -> None:
-        if request.url.startswith(self._origin) or request.url.startswith("data:"):
+        if request.url.startswith(self.origin) or request.url.startswith("data:"):
             route.fallback()
         else:
             self.foreign.append(request.url)
@@ -234,9 +235,7 @@ def current_block(page: Page) -> Locator:
 
 def test_full_salle_a_session_in_counted_taps(phone: Watched) -> None:
     page, taps = phone.page, Taps(phone.page)
-    base = page.url
-    del base
-    page.goto(phone._origin + "/")
+    page.goto(phone.origin + "/")
     assert_targets(page)
     phone.check_clean()
 
@@ -387,7 +386,7 @@ def test_full_salle_a_session_in_counted_taps(phone: Watched) -> None:
 
 def test_other_place_discrete_load_recent_exercise_and_resume(phone: Watched) -> None:
     page, taps = phone.page, Taps(phone.page)
-    page.goto(phone._origin + "/")
+    page.goto(phone.origin + "/")
     with taps.counted(2):  # the other place, then its template (≤ 3)
         taps.tap(page.locator("label.chip", has_text=TEXT("exercise.location.home")))
         taps.tap(page.get_by_role("button", name="Maison"))
@@ -408,7 +407,7 @@ def test_other_place_discrete_load_recent_exercise_and_resume(phone: Watched) ->
     expect(page.locator("#annonce")).to_have_text(added)
     expect(page.locator("#ajout")).not_to_have_attribute("open", "")
     # resume from home: 1 tap, current = the row of the latest set
-    page.goto(phone._origin + "/")
+    page.goto(phone.origin + "/")
     with taps.counted(1):
         taps.tap(page.get_by_role("link", name=TEXT("home.resume")))
     expect(current_block(page).locator("h2")).to_have_text("Kettlebell swing")
