@@ -18,6 +18,7 @@ from rack_overflow.domain.devices import DeviceError, DeviceState, PairingOutcom
 from rack_overflow.domain.timestamps import from_text, to_text
 from rack_overflow.domain.users import SINGLE_USER_ID
 from rack_overflow.storage import devices as queries
+from rack_overflow.storage.errors import DeviceNameTakenError
 
 
 @dataclass(frozen=True)
@@ -69,9 +70,10 @@ def add_device(engine: Engine, name: str, now: datetime) -> NewDevice:
     code = _new_code()
     expires_at = now + rules.CODE_TTL
     with engine.begin() as connection:
-        if queries.active_device_by_name(connection, SINGLE_USER_ID, name) is not None:
-            raise DeviceError(f'device "{name}" already exists; revoke it first')
-        device_id = queries.insert_device(connection, SINGLE_USER_ID, name, to_text(now))
+        try:
+            device_id = queries.insert_device(connection, SINGLE_USER_ID, name, to_text(now))
+        except DeviceNameTakenError as error:
+            raise DeviceError(str(error)) from error
         queries.insert_pairing_code(connection, device_id, rules.hash_secret(code), to_text(expires_at))
     return NewDevice(name=name, code=code, expires_at=from_text(to_text(expires_at)))
 
@@ -124,8 +126,14 @@ def _pair_match(connection: sa.Connection, row: sa.Row, now: datetime) -> Pairin
     if outcome is not PairingOutcome.PAIRED:
         return PairingResult(outcome)
     token = secrets.token_urlsafe(rules.TOKEN_BYTES)
-    queries.mark_used(connection, row.id, to_text(now))
-    queries.set_token(connection, row.device_id, rules.hash_secret(token), to_text(now))
+    savepoint = connection.begin_nested()
+    claimed = queries.mark_used(connection, row.id, to_text(now)) and queries.set_token(
+        connection, row.device_id, rules.hash_secret(token), to_text(now)
+    )
+    if not claimed:  # used or paired since it was read: nothing written, same refusal
+        savepoint.rollback()
+        return PairingResult(PairingOutcome.CODE_EXPIRED)
+    savepoint.commit()
     return PairingResult(outcome, token=token, device_name=row.device_name)
 
 

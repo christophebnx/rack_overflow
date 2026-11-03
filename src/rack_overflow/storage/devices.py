@@ -14,7 +14,8 @@ ACTIVE = device.c.revoked_at.is_(None)
 
 
 def insert_device(connection: sa.Connection, user_id: int, name: str, created_at: str) -> int:
-    """Insert an unpaired device and return its id; an active device with this name is refused."""
+    """Insert an unpaired device and return its id; an active device with this name is refused
+    (`DeviceNameTakenError`, the one place this rule is checked: the unique index also covers races)."""
     savepoint = connection.begin_nested()
     try:
         result = connection.execute(
@@ -89,16 +90,25 @@ def add_attempt(connection: sa.Connection, code_ids: Sequence[int]) -> None:
         )
 
 
-def mark_used(connection: sa.Connection, code_id: int, now: str) -> None:
-    """Mark the code used: it never pairs again."""
-    connection.execute(sa.update(pairing_code).where(pairing_code.c.id == code_id).values(used_at=now))
-
-
-def set_token(connection: sa.Connection, device_id: int, token_hash: str, now: str) -> None:
-    """Store the hash of the device's token and its first use."""
-    connection.execute(
-        sa.update(device).where(device.c.id == device_id).values(token_hash=token_hash, last_seen_at=now)
+def mark_used(connection: sa.Connection, code_id: int, now: str) -> bool:
+    """Mark the code used, only if it still is unused; False when it was already used."""
+    query = (
+        sa.update(pairing_code)
+        .where(pairing_code.c.id == code_id, pairing_code.c.used_at.is_(None))
+        .values(used_at=now)
     )
+    return connection.execute(query).rowcount == 1
+
+
+def set_token(connection: sa.Connection, device_id: int, token_hash: str, now: str) -> bool:
+    """Store the hash of the device's token and its first use, only on an active unpaired device;
+    False when it is already paired or revoked."""
+    query = (
+        sa.update(device)
+        .where(device.c.id == device_id, device.c.token_hash.is_(None), ACTIVE)
+        .values(token_hash=token_hash, last_seen_at=now)
+    )
+    return connection.execute(query).rowcount == 1
 
 
 def device_by_token_hash(connection: sa.Connection, token_hash: str) -> sa.Row | None:

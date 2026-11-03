@@ -209,3 +209,48 @@ def test_code_and_token_are_never_stored_in_clear(migrated_engine: Engine, setti
     assert new.code.encode() not in stored
     assert token.encode() not in stored
     assert rules.hash_secret(token).encode() in stored
+
+
+# --- conditional writes of a successful pairing (review loop 1) -----------------------------------------
+
+
+def test_mark_used_and_set_token_refuse_a_second_write(migrated_engine: Engine) -> None:
+    devices.add_device(migrated_engine, "iPhone", NOW)
+    with migrated_engine.begin() as connection:
+        assert queries.mark_used(connection, 1, "2026-11-03T18:05:00Z") is True
+        assert queries.mark_used(connection, 1, "2026-11-03T18:06:00Z") is False
+        assert queries.set_token(connection, 1, "a" * 64, "2026-11-03T18:05:00Z") is True
+        assert queries.set_token(connection, 1, "b" * 64, "2026-11-03T18:06:00Z") is False
+        row = connection.execute(sa.select(schema.device)).one()
+        used_at = connection.execute(sa.select(schema.pairing_code.c.used_at)).scalar_one()
+    assert (row.token_hash, row.last_seen_at, used_at) == (
+        "a" * 64,
+        "2026-11-03T18:05:00Z",
+        "2026-11-03T18:05:00Z",
+    )
+
+
+def test_set_token_refuses_a_revoked_device(migrated_engine: Engine) -> None:
+    devices.add_device(migrated_engine, "iPhone", NOW)
+    devices.revoke_device(migrated_engine, "iPhone", NOW)
+    with migrated_engine.begin() as connection:
+        assert queries.set_token(connection, 1, "a" * 64, "2026-11-03T18:05:00Z") is False
+
+
+def test_pairing_on_a_stale_read_writes_nothing(
+    migrated_engine: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A code row read before a concurrent pairing: the conditional writes refuse, all rolled back."""
+    first = devices.add_device(migrated_engine, "iPhone", NOW)
+    with migrated_engine.begin() as connection:  # a second live code for the same device
+        queries.insert_pairing_code(connection, 1, rules.hash_secret("87654321"), "2026-11-03T18:14:05Z")
+        stale = queries.codes_by_hash(connection, rules.hash_secret("87654321"))
+    token = devices.pair(migrated_engine, first.code, NOW).token
+    monkeypatch.setattr(queries, "codes_by_hash", lambda connection, code_hash: stale)
+    assert devices.pair(migrated_engine, "87654321", NOW) == devices.PairingResult(
+        PairingOutcome.CODE_EXPIRED
+    )
+    with migrated_engine.connect() as connection:
+        used = list(connection.execute(sa.select(schema.pairing_code.c.used_at).order_by("id")).scalars())
+    assert used == ["2026-11-03T18:04:05Z", None]  # the second code's mark_used was rolled back
+    assert token is not None and devices.authenticate(migrated_engine, token, NOW) is not None
