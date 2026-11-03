@@ -1,0 +1,164 @@
+"""Canonical integers ↔ user text (D-020, D-055). Storage stays in grams, seconds, metres and
+scaled integers; display and input use French conventions (decimal comma).
+
+No unit symbol and no French word here: a unit is a catalog key (`unit.kg`, `unit.km`, `unit.m`)
+rendered by `web/`. L4 reuses `parse` and `format` for steppers and set display.
+"""
+
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass
+from decimal import Decimal
+
+from rack_overflow.domain.errors import DomainError
+
+INT = "int"
+DECIMAL = "decimal"
+WEIGHT = "weight"
+DURATION = "duration"
+DISTANCE = "distance"
+NUMERIC_KINDS: tuple[str, ...] = (INT, DECIMAL, WEIGHT, DURATION, DISTANCE)
+"""Kinds whose values are canonical integers typed as numbers (variable types and core quantities)."""
+
+MAX_VALUE = 10**9
+WEIGHT_DECIMALS = 3
+DISTANCE_DECIMALS = 3
+KILO = 1000
+
+UNIT_KG = "unit.kg"
+UNIT_KM = "unit.km"
+UNIT_M = "unit.m"
+UNIT_DURATION = "unit.duration"
+
+_NUMBER = re.compile(r"(\d*)(?:[.,](\d*))?", re.ASCII)
+_DISTANCE = re.compile(r"(.*?)\s*(km|m)?", re.IGNORECASE | re.DOTALL)
+_DIGITS = re.compile(r"\d+", re.ASCII)
+_TWO_DIGITS = re.compile(r"\d{2}", re.ASCII)
+
+
+class UnitError(DomainError):
+    """A typed value could not be read; `code` is stable (`not_a_number`, `too_many_decimals`,
+    `negative`, `too_large`, `bad_duration`)."""
+
+    def __init__(self, code: str) -> None:
+        super().__init__(code)
+        self.code = code
+
+
+@dataclass(frozen=True)
+class Display:
+    """A value as shown: its number text and the catalog key of its unit (None when it has none)."""
+
+    number_text: str
+    unit_key: str | None
+
+
+def kind_of_quantity(core_quantity: str) -> str:
+    """Value kind of a core quantity: `reps` is an `int`, the others share their name."""
+    return INT if core_quantity == "reps" else core_quantity
+
+
+def input_unit_key(kind: str) -> str | None:
+    """Unit key shown in an input label: kg, km, m:ss; None for kinds with a free or no unit."""
+    return {WEIGHT: UNIT_KG, DISTANCE: UNIT_KM, DURATION: UNIT_DURATION}.get(kind)
+
+
+def parse(kind: str, raw: str, *, scale: int | None = None) -> int:
+    """The canonical integer of `raw` typed in display units for `kind` (see D-055)."""
+    text = raw.strip()
+    if text.startswith("-"):
+        raise UnitError("negative")
+    if kind == DURATION:
+        value = _parse_duration(text)
+    elif kind == DISTANCE:
+        value = _parse_distance(text)
+    elif kind == WEIGHT:
+        value = _scaled(text, WEIGHT_DECIMALS)
+    elif kind == DECIMAL:
+        value = _scaled(text, scale if scale is not None else 0)
+    else:
+        value = _scaled(text, 0)
+    if value > MAX_VALUE:
+        raise UnitError("too_large")
+    return value
+
+
+def _scaled(text: str, decimals: int) -> int:
+    """`text` times 10^decimals as an integer; more decimals than allowed are refused."""
+    match = _NUMBER.fullmatch(text)
+    if match is None or not (match.group(1) or match.group(2)):
+        raise UnitError("not_a_number")
+    whole, fraction = match.group(1) or "0", (match.group(2) or "").rstrip("0")
+    if len(fraction) > decimals:
+        raise UnitError("too_many_decimals")
+    if len(whole) > len(str(MAX_VALUE)):
+        raise UnitError("too_large")
+    return int(whole) * 10**decimals + int(fraction.ljust(decimals, "0") or "0")
+
+
+def _parse_distance(text: str) -> int:
+    match = _DISTANCE.fullmatch(text)
+    number, suffix = (match.group(1), match.group(2)) if match else (text, None)
+    if suffix is not None and suffix.lower() == "m":
+        return _scaled(number, 0)
+    return _scaled(number, DISTANCE_DECIMALS)
+
+
+def _parse_duration(text: str) -> int:
+    parts = text.split(":")
+    if len(parts) == 1:
+        if not _DIGITS.fullmatch(text):
+            raise UnitError("bad_duration")
+        return int(text) if len(text) <= len(str(MAX_VALUE)) else MAX_VALUE + 1
+    if len(parts) > 3 or not all(_DIGITS.fullmatch(part) for part in parts):
+        raise UnitError("bad_duration")
+    lead, *rest = parts
+    if not all(_TWO_DIGITS.fullmatch(part) and int(part) < 60 for part in rest):
+        raise UnitError("bad_duration")
+    if len(lead) > len(str(MAX_VALUE)):
+        raise UnitError("too_large")
+    total = int(lead)
+    for part in rest:
+        total = total * 60 + int(part)
+    return total
+
+
+def format(kind: str, value: int, *, scale: int | None = None) -> Display:
+    """`value` (canonical integer) as shown for `kind`: decimal comma, unit key apart."""
+    if kind == WEIGHT:
+        return Display(_decimal_text(value, WEIGHT_DECIMALS), UNIT_KG)
+    if kind == DISTANCE:
+        if value < KILO:
+            return Display(str(value), UNIT_M)
+        return Display(_decimal_text(value, DISTANCE_DECIMALS), UNIT_KM)
+    if kind == DURATION:
+        return Display(_duration_text(value), None)
+    if kind == DECIMAL:
+        return Display(_decimal_text(value, scale or 0, keep_zeros=True), None)
+    return Display(str(value), None)
+
+
+def input_text(kind: str, value: int, *, scale: int | None = None) -> str:
+    """`value` as text that `parse(kind, ...)` reads back: an input prefilled in display units
+    (a distance under 1 km carries its `m`, since a bare number is read as km)."""
+    shown = format(kind, value, scale=scale)
+    if kind == DISTANCE and shown.unit_key == UNIT_M:
+        return f"{shown.number_text} m"
+    return shown.number_text
+
+
+def _decimal_text(value: int, decimals: int, *, keep_zeros: bool = False) -> str:
+    number = Decimal(value).scaleb(-decimals)
+    text = f"{number:.{decimals}f}"
+    if not keep_zeros and "." in text:
+        text = text.rstrip("0").rstrip(".")
+    return text.replace(".", ",")
+
+
+def _duration_text(seconds: int) -> str:
+    hours, rest = divmod(seconds, 3600)
+    minutes, secs = divmod(rest, 60)
+    if hours:
+        return f"{hours}:{minutes:02d}:{secs:02d}"
+    return f"{minutes}:{secs:02d}"

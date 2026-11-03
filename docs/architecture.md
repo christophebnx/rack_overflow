@@ -65,6 +65,10 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Database timestamp text (UTC `YYYY-MM-DDTHH:MM:SSZ`) | `domain/timestamps` |
 | The V1 user id | `domain/users.SINGLE_USER_ID` |
 | Device, pairing code and token rules | `domain/devices` |
+| Text normalisation (search, aliases, name uniqueness, codes) | `domain/text` |
+| Canonical integers ↔ display and input text (kg, km / m, m:ss) | `domain/units` |
+| Catalog rules (variables, exercises, fields, aliases) | `domain/catalog` |
+| Fuzzy ranking of exercises | `domain/search` |
 | Device and pairing-code queries | `storage/devices` |
 | Device operations (add, list, revoke, pair, authenticate) | `services/devices` |
 | Open the database only when it is at the head revision (CLI) | `cli._open_current_database` |
