@@ -272,3 +272,33 @@ def test_parse_refuses_with_a_stable_code(kind: str, raw: str, code: str) -> Non
 )
 def test_compact_duration(seconds: int, key: str | None, params: dict[str, str]) -> None:
     assert units.compact_duration(seconds) == units.CompactDuration(key, params)
+
+
+@pytest.mark.parametrize(
+    ("seconds", "key", "params"),
+    [
+        (1, units.COMPACT_SECONDS, {"seconds": "1"}),
+        (59, units.COMPACT_SECONDS, {"seconds": "59"}),
+        (61, units.COMPACT_MINUTES_SECONDS, {"minutes": "1", "seconds": "01"}),
+        (599, units.COMPACT_MINUTES_SECONDS, {"minutes": "9", "seconds": "59"}),
+        (3540, units.COMPACT_MINUTES, {"minutes": "59"}),
+        (3599, units.COMPACT_MINUTES_SECONDS, {"minutes": "59", "seconds": "59"}),
+        (3601, None, {"text": "1:00:01"}),
+        (3660, units.COMPACT_HOURS_MINUTES, {"hours": "1", "minutes": "01"}),
+        (7140, units.COMPACT_HOURS_MINUTES, {"hours": "1", "minutes": "59"}),
+        (86399, None, {"text": "23:59:59"}),
+        (86400, units.COMPACT_HOURS, {"hours": "24"}),
+    ],
+)
+def test_compact_duration_boundaries(seconds: int, key: str | None, params: dict[str, str]) -> None:
+    assert units.compact_duration(seconds) == units.CompactDuration(key, params)
+
+
+def test_compact_duration_never_loses_a_second() -> None:
+    for seconds in range(1, 3 * 3600, 7):
+        compact = units.compact_duration(seconds)
+        p = {k: int(v) for k, v in compact.params.items() if k != "text"}
+        if compact.key is None:
+            assert units.parse(units.DURATION, compact.params["text"]) == seconds
+        else:
+            assert p.get("hours", 0) * 3600 + p.get("minutes", 0) * 60 + p.get("seconds", 0) == seconds
