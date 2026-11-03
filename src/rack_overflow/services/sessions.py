@@ -828,8 +828,10 @@ def confirm_set(
     now: datetime,
 ) -> Confirmed:
     """Record one set (D-064): validated by `domain/sessions.set_draft`, appended with its
-    variable values; the row's settings are written as facts from the server's prefill when the
-    row has none yet (missing variables only, D-062)."""
+    variable values. Settings (D-062 and its L4 UI refinement): the variables the row holds no
+    setting fact for (never touched, or cleared since) are written from the server's prefill.
+    Checked on every ✓, so in practice the first ✓ writes them and later ones find nothing
+    missing; a stored setting is never overwritten."""
     with engine.begin() as connection:
         session_row = _session_row(connection, user_id, session_id, writable=True)
         context = _context(connection, session_row)
@@ -852,6 +854,7 @@ def confirm_set(
 def _write_missing_settings(
     connection: sa.Connection, user_id: int, context: _Context, row: sa.Row, fields: Sequence[FieldInfo]
 ) -> None:
+    """Store the prefill of the row's settings that have no fact yet (missing variables only)."""
     if not fields:
         return
     stored = queries.settings_of(connection, row.id)
