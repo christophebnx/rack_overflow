@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -45,3 +46,18 @@ def _synchronous() -> str:
 def _on_begin(connection: sa.Connection) -> None:
     """Take the write lock up front: no read-to-write upgrade failing with SQLITE_BUSY under WAL."""
     connection.exec_driver_sql("BEGIN IMMEDIATE")
+
+
+def guarded_write[T](connection: sa.Connection, write: Callable[[], T], refusal: Exception) -> T:
+    """Run `write` in a savepoint; a unique-constraint violation rolls the savepoint back and
+    raises `refusal`, leaving the caller's transaction usable. Other integrity errors propagate."""
+    savepoint = connection.begin_nested()
+    try:
+        result = write()
+    except sa.exc.IntegrityError as error:
+        savepoint.rollback()
+        if "UNIQUE" not in str(error.orig).upper():
+            raise
+        raise refusal from None
+    savepoint.commit()
+    return result

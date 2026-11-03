@@ -69,6 +69,13 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Canonical integers ↔ display and input text (kg, km / m, m:ss) | `domain/units` |
 | Catalog rules (variables, exercises, fields, aliases) | `domain/catalog` |
 | Fuzzy ranking of exercises | `domain/search` |
+| Variable queries | `storage/variables` |
+| Exercise, field and alias queries | `storage/exercises` |
+| Per-user settings (`app_setting`) | `storage/app_settings` |
+| Unique-constraint guard of a write (savepoint) | `storage/db.guarded_write` |
+| Unknown or foreign row | `domain/errors.NotFoundError` |
+| Variable operations | `services/variables` |
+| Exercise, field, alias and search operations | `services/exercises` |
 | Device and pairing-code queries | `storage/devices` |
 | Device operations (add, list, revoke, pair, authenticate) | `services/devices` |
 | Open the database only when it is at the head revision (CLI) | `cli._open_current_database` |

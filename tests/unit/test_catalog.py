@@ -380,3 +380,11 @@ def test_alias_refusals(raw: str, code: str) -> None:
     with pytest.raises(CatalogError) as caught:
         catalog.alias_draft(raw, "Développé couché (barre)", ["D C"])
     assert codes(caught) == [("alias", code)]
+
+
+def test_sort_key_folds_case_and_accents() -> None:
+    assert sorted(["Élastique", "assistance", "Zèbre"], key=catalog.sort_key) == [
+        "assistance",
+        "Élastique",
+        "Zèbre",
+    ]

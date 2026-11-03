@@ -19,3 +19,7 @@ class CorruptDatabaseError(BackupError):
 
 class DeviceNameTakenError(StorageError):
     """An active device already has this name (unique index on active names)."""
+
+
+class NameTakenError(StorageError):
+    """A unique constraint of the catalog refused a write (variable code, exercise name, alias)."""

@@ -228,7 +228,7 @@ def variable_change(
             if getattr(draft, name) != getattr(current, name):
                 problems.append(Problem(name, "frozen_after_use"))
     kept = {value.key for value in draft.enum_values or ()}
-    if any(key not in kept for key in used_enum_keys):
+    if draft.type == ENUM and any(key not in kept for key in used_enum_keys):
         problems.append(Problem("values", "enum_value_in_use"))
     _raise_if(problems)
     return draft
@@ -271,6 +271,11 @@ def exercise_draft(
     _raise_if(problems)
     assert clean_name is not None and clean_category is not None and clean_location is not None
     return ExerciseDraft(clean_name, clean_category, pattern, clean_equipment, clean_location)
+
+
+def sort_key(text: str) -> str:
+    """Order of names and labels in lists: case and accents folded."""
+    return normalise(text)
 
 
 def name_taken(name: str, others: Iterable[str]) -> bool:
