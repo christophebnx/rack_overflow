@@ -113,9 +113,12 @@ def live_app(tmp_path_factory: pytest.TempPathFactory) -> Iterator[LiveApp]:
 
 
 @pytest.fixture(scope="module")
-def seeded_live_app(tmp_path_factory: pytest.TempPathFactory) -> Iterator[LiveApp]:
+def seeded_live_app(browser: Browser, tmp_path_factory: pytest.TempPathFactory) -> Iterator[LiveApp]:
     """A second live app whose database holds the seed catalog (41 exercises, 4 templates), for
-    the session logging flows; the shared `live_app` stays empty for the catalog tests."""
+    the session logging flows; the shared `live_app` stays empty for the catalog tests. One app
+    per module and browser engine: the sessions one engine's flows log never change the prefill
+    and records the next engine expects."""
+    del browser  # orders the fixture after the engine: a new app for each engine
     yield from _served(tmp_path_factory.mktemp("seeded"), lambda engine: seed.seed_catalog(engine, USER))
 
 

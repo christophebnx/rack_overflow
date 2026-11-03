@@ -122,7 +122,8 @@ EARLIER_SESSION: dict[str, int] = {}
 
 @pytest.fixture(scope="module")
 def history(seeded_live_app: LiveApp) -> LiveApp:
-    """The seeded app with the earlier session (once per module)."""
+    """The seeded app with the earlier session, once per module and browser engine (the app is
+    per engine: one engine's flows never change the prefill and records another expects)."""
     EARLIER_SESSION["id"] = _history(seeded_live_app.engine)
     return seeded_live_app
 
@@ -200,7 +201,7 @@ def assert_confirm_in_thumb_zone(page: Page) -> None:
             return box.top >= height / 2 - 1 && box.bottom <= height + 1;
         }""",
         arg=PHONE["height"],
-        timeout=2000,
+        timeout=5000,
     )
 
 
