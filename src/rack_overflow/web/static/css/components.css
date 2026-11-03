@@ -263,6 +263,11 @@
   .choices--row {
     flex-flow: row wrap;
   }
+
+  .choices--row > .field__hint,
+  .choices--row > .field__error {
+    flex-basis: 100%;
+  }
 }
 
 .choice {

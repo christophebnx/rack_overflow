@@ -43,6 +43,10 @@ class Display:
         """A canonical value as an input's text (parsed back by `domain.units.parse`); empty for None."""
         return "" if value is None else units.input_text(kind, value, scale=scale)
 
+    def input_texts(self, kind: str, values: Sequence[int] | None, scale: int | None = None) -> str:
+        """Proposed values as one input's text, separated by spaces: « 16 20 24 »."""
+        return " ".join(units.input_text(kind, value, scale=scale) for value in values or ())
+
     def unit(self, kind: str, free_unit: str | None = None) -> str:
         """The unit shown in a label or a list: kg, km, m:ss, or the free unit (empty when none)."""
         key = TYPED_UNIT_KEYS.get(kind)

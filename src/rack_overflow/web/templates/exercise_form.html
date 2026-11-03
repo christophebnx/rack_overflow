@@ -1,0 +1,53 @@
+{% from "_form_status.html" import form_status %}
+{% from "_fields.html" import described, field_error, field_hint, optional, oob_announce %}
+{% from "_labels.html" import CATEGORY_KEYS, LOCATION_KEYS %}
+{% set editing = detail is not none %}
+<form id="exercice-formulaire" class="form exercise-form" {% if editing %}hx-patch="/exercices/{{ detail.id }}"{% else %}hx-post="/exercices"{% endif %} hx-target="this" hx-swap="outerHTML" hx-disabled-elt="find button">
+  {{ form_status(t("status.saved") if saved else "", "ok" if saved else "") }}
+  <div class="field">
+    <label class="field__label" for="nom">{{ t("exercise.name_label") }}</label>
+    <input class="input" id="nom" name="name" type="text" value="{{ form.name or '' }}" maxlength="80" required autocomplete="off" autocapitalize="sentences"{{ described("nom", errors, hint=false) }}{% if not editing and not errors %} autofocus{% endif %}>
+    {{ field_error("nom", errors) }}
+  </div>
+  <fieldset class="choices choices--row">
+    <legend class="field__label">{{ t("exercise.category_label") }}</legend>
+    {% for category in categories %}
+    <label class="choice"><input type="radio" id="categorie-{{ category }}" name="category" value="{{ category }}" required{% if loop.first %} aria-describedby="{% if errors.get('categorie-strength') %}categorie-strength-erreur {% endif %}categorie-aide"{% if errors.first_id == "categorie-strength" %} autofocus{% endif %}{% endif %}{% if form.category == category %} checked{% endif %}> {{ t(CATEGORY_KEYS[category]) }}</label>
+    {% endfor %}
+    {{ field_error("categorie-strength", errors) }}
+    {{ field_hint("categorie", t("exercise.category_hint_edit") if editing else t("exercise.category_hint_new")) }}
+  </fieldset>
+  <fieldset class="choices choices--row">
+    <legend class="field__label">{{ t("exercise.location_label") }}</legend>
+    {% for location in locations %}
+    <label class="choice"><input type="radio" id="lieu-{{ location }}" name="location" value="{{ location }}" required{% if loop.first and errors.first_id == "lieu-gym" %} autofocus{% endif %}{% if form.location == location %} checked{% endif %}> {{ t(LOCATION_KEYS[location]) }}</label>
+    {% endfor %}
+    {{ field_error("lieu-gym", errors) }}
+  </fieldset>
+  <div class="field">
+    <label class="field__label" for="mouvement">{{ t("exercise.pattern_label") }}{{ optional() }}</label>
+    <input class="input" id="mouvement" name="movement_pattern" type="text" value="{{ form.movement_pattern or '' }}" maxlength="40" list="mouvements" autocomplete="off"{{ described("mouvement", errors) }}>
+    {{ field_error("mouvement", errors) }}
+    {{ field_hint("mouvement", t("exercise.pattern_hint")) }}
+  </div>
+  <div class="field">
+    <label class="field__label" for="equipement">{{ t("exercise.equipment_label") }}{{ optional() }}</label>
+    <input class="input" id="equipement" name="equipment" type="text" value="{{ form.equipment or '' }}" maxlength="40" list="equipements" autocomplete="off"{{ described("equipement", errors) }}>
+    {{ field_error("equipement", errors) }}
+    {{ field_hint("equipement", t("exercise.equipment_hint")) }}
+  </div>
+  <datalist id="mouvements">{% for value in suggestions.movement_patterns %}<option value="{{ value }}"></option>{% endfor %}</datalist>
+  <datalist id="equipements">{% for value in suggestions.equipments %}<option value="{{ value }}"></option>{% endfor %}</datalist>
+  <div class="actions">
+    {% if editing %}
+    <button class="button button--primary" type="submit">{{ t("action.save") }}</button>
+    {% else %}
+    <button class="button button--primary" type="submit">{{ t("exercise.create") }}</button>
+    <a class="button" href="/exercices">{{ t("action.cancel") }}</a>
+    {% endif %}
+  </div>
+</form>
+{{ oob_announce(announce) }}
+{% if retitle is defined and retitle %}
+<span id="exercice-titre" hx-swap-oob="true">{{ detail.draft.name }}</span>
+{% endif %}

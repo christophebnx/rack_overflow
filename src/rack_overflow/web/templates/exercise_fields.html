@@ -1,0 +1,82 @@
+{% from "_form_status.html" import form_status %}
+{% from "_fields.html" import described, field_error, field_hint, oob_announce %}
+{% from "_labels.html" import QUANTITY_KEYS, GROUP_KEYS, SCOPE_KEYS %}
+{% macro default_text(field) -%}
+{% set p = field.params %}
+{% if field.kind.kind == "enum" %}{% for value in field.variable.draft.enum_values if value.key == p.default_text %}{{ value.label }}{% endfor %}
+{%- elif field.kind.kind == "bool" %}{{ t("field.yes") if p.default_int == 1 else t("field.no") }}
+{%- elif field.kind.kind == "text" %}{{ p.default_text }}
+{%- else %}{{ show.value(field.kind.kind, p.default_int, field.kind.scale, field.variable.draft.unit if field.variable else none) }}{% endif %}
+{%- endmacro %}
+{% set base = "/exercices/" ~ detail.id ~ "/champs" %}
+{% set total = detail.fields | length %}
+<section id="champs" class="section exercise-fields" aria-labelledby="champs-titre" data-request-scope>
+  {{ form_status() }}
+  <h2 id="champs-titre">{{ t("exercise.section_fields") }}</h2>
+  <p class="muted section__intro">{{ t("exercise.fields_intro") }}</p>
+  <ol class="fields">
+    {% for field in detail.fields %}
+    {% set name = names[field.id] %}
+    {% set prefix = "champ-" ~ field.id %}
+    {% set kind = field.kind %}
+    {% set free_unit = field.variable.draft.unit if field.variable else none %}
+    {% set p = field.params %}
+    {% set is_open = open_id == field.id %}
+    <li class="field-row" id="{{ prefix }}">
+      <p class="field-row__head"><span class="field-row__position">{{ loop.index }}</span> <span class="field-row__name">{{ name }}</span>{% if field.variable %}<span class="tag">{{ t(SCOPE_KEYS[field.variable.draft.scope]) }}</span>{% if field.variable.archived %}<span class="tag">{{ t("tag.archived_f") }}</span>{% endif %}{% endif %}</p>
+      <p class="field-row__summary">
+        {{- t("field.required") if p.required else t("field.optional") -}}
+        {%- if p.increment is not none %} · {{ t("field.step", value=show.value(kind.kind, p.increment, kind.scale, free_unit)) }}{% endif -%}
+        {%- if p.discrete_values %} · {{ t("field.values", values=show.values(kind.kind, p.discrete_values, kind.scale, free_unit)) }}{% endif -%}
+        {%- if p.default_int is not none or p.default_text is not none %} · {{ t("field.default", value=default_text(field)) }}{% endif -%}
+      </p>
+      <div class="actions actions--inline">
+        <button class="button" type="button" id="{{ prefix }}-monter" hx-post="{{ base }}/{{ field.id }}/deplacement" hx-vals='{"direction": "up"}' hx-target="#champs" hx-swap="outerHTML" aria-label="{{ t('field.move_up_named', field=name) }}"{% if loop.first %} disabled{% endif %}{% if focus == prefix ~ "-monter" %} autofocus{% endif %}>{{ t("action.move_up") }}</button>
+        <button class="button" type="button" id="{{ prefix }}-descendre" hx-post="{{ base }}/{{ field.id }}/deplacement" hx-vals='{"direction": "down"}' hx-target="#champs" hx-swap="outerHTML" aria-label="{{ t('field.move_down_named', field=name) }}"{% if loop.last %} disabled{% endif %}{% if focus == prefix ~ "-descendre" %} autofocus{% endif %}>{{ t("action.move_down") }}</button>
+      </div>
+      <details class="field-row__edit"{% if is_open or focus == prefix ~ "-obligatoire" %} open{% endif %}>
+        <summary class="button" id="{{ prefix }}-modifier"{% if focus == prefix ~ "-modifier" %} autofocus{% endif %}>{{ t("action.edit") }}<span class="visually-hidden"> {{ name }}</span></summary>
+        {% include "exercise_field_form.html" %}
+      </details>
+    </li>
+    {% endfor %}
+  </ol>
+  <form class="add-field" hx-post="{{ base }}" hx-target="#champs" hx-swap="outerHTML" hx-disabled-elt="find button">
+    {{ form_status() }}
+    {% if detail.addable_quantities or detail.addable_variables %}
+    <div class="field">
+      <label class="field__label" for="champ-ajout">{{ t("field.add_label") }}</label>
+      <div class="add-field__line">
+        <select class="input" id="champ-ajout" name="source" required{{ described("champ-ajout", add_errors, hint=false) }}{% if focus == "champ-ajout" and not add_errors %} autofocus{% endif %}>
+          <option value="">{{ t("form.choose") }}</option>
+          {% if detail.addable_quantities %}
+          <optgroup label="{{ t(GROUP_KEYS['core']) }}">
+            {% for quantity in detail.addable_quantities %}
+            {% set value = "core:" ~ quantity %}
+            <option value="{{ value }}"{% if selected == value %} selected{% endif %}>{{ t(QUANTITY_KEYS[quantity]) }}</option>
+            {% endfor %}
+          </optgroup>
+          {% endif %}
+          {% for scope in ("set", "setting") %}
+          {% set group = detail.addable_variables | selectattr("draft.scope", "equalto", scope) | list %}
+          {% if group %}
+          <optgroup label="{{ t(GROUP_KEYS[scope]) }}">
+            {% for variable in group %}
+            {% set value = "variable:" ~ variable.id %}
+            <option value="{{ value }}"{% if selected == value %} selected{% endif %}>{{ variable.draft.label }}</option>
+            {% endfor %}
+          </optgroup>
+          {% endif %}
+          {% endfor %}
+        </select>
+        <button class="button" type="submit">{{ t("action.add") }}</button>
+      </div>
+      {{ field_error("champ-ajout", add_errors) }}
+    </div>
+    {% else %}
+    <p class="muted" id="champ-ajout" tabindex="-1"{% if focus == "champ-ajout" %} autofocus{% endif %}>{{ t("field.add_none") }}</p>
+    {% endif %}
+  </form>
+  <a class="toggle-link" href="/variables/nouvelle?exercice={{ detail.id }}">{{ t("field.new_variable") }}</a>
+</section>
+{{ oob_announce(announce) }}

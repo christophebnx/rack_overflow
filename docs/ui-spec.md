@@ -413,7 +413,7 @@ States:
 
 Tab order: skip link, brand, nav, « Nouvel exercice », search field, « Afficher les archivés », rows.
 
-### L2 — New exercise (`GET /exercices/nouveau`, `templates/exercise_form.html` in create mode)
+### L2 — New exercise (`GET /exercices/nouveau`, page `templates/exercise_new.html` including `templates/exercise_form.html` in create mode)
 
 Task: add an exercise the catalog lacks. Decision: name, category (it sets the starting fields), location. Information: what each choice changes.
 

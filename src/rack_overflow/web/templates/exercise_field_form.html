@@ -1,0 +1,62 @@
+{# One field's parameters (included by exercise_fields.html inside the row's <details>). #}
+{% set v = typed if (is_open and typed) else none %}
+{% set errs = field_errors if is_open else no_errors %}
+{% set unit = show.unit(kind.kind, free_unit) %}
+{% set inputmode = {"int": "numeric", "weight": "decimal", "decimal": "decimal"}.get(kind.kind, "text") %}
+{% set hint_key = {"weight": "unit.hint.weight", "distance": "unit.hint.distance", "duration": "unit.hint.duration", "decimal": "unit.hint.decimal"}.get(kind.kind) %}
+{% set unit_hint = t(hint_key, scale=kind.scale) if hint_key else "" %}
+{% set mode = v.mode if v else ("values" if p.discrete_values else "step") %}
+<form id="{{ prefix }}-formulaire" class="field-form" hx-patch="{{ base }}/{{ field.id }}" hx-target="#champs" hx-swap="outerHTML" hx-disabled-elt="find button">
+  {{ form_status() }}
+  <label class="choice"><input type="checkbox" id="{{ prefix }}-obligatoire" name="required" value="1"{% if (v.required if v else p.required) %} checked{% endif %}{% if focus == prefix ~ "-obligatoire" %} autofocus{% endif %}> {{ t("field.required") }}</label>
+  {% if kind.numeric %}
+  <fieldset class="choices choices--row">
+    <legend class="field__label">{{ t("field.mode_legend") }}</legend>
+    <label class="choice"><input type="radio" name="mode" value="step"{% if mode != "values" %} checked{% endif %}> {{ t("field.mode_step") }}</label>
+    <label class="choice"><input type="radio" name="mode" value="values"{% if mode == "values" %} checked{% endif %}> {{ t("field.mode_values") }}</label>
+  </fieldset>
+  <div class="field only-step">
+    <label class="field__label" for="{{ prefix }}-pas">{{ t("field.step_label_unit", unit=unit) if unit else t("field.step_label") }}</label>
+    <input class="input" id="{{ prefix }}-pas" name="increment" type="text" inputmode="{{ inputmode }}" value="{{ v.increment or '' if v else show.input_text(kind.kind, p.increment, kind.scale) }}" maxlength="20" autocomplete="off" spellcheck="false" enterkeyhint="done"{{ described(prefix ~ "-pas", errs, hint=unit_hint != "") }}>
+    {{ field_error(prefix ~ "-pas", errs) }}
+    {% if unit_hint %}{{ field_hint(prefix ~ "-pas", unit_hint) }}{% endif %}
+  </div>
+  <div class="field only-values">
+    <label class="field__label" for="{{ prefix }}-valeurs">{{ t("field.values_label_unit", unit=unit) if unit else t("field.values_label") }}</label>
+    <input class="input" id="{{ prefix }}-valeurs" name="discrete_values" type="text" inputmode="text" value="{{ v.discrete_values or '' if v else show.input_texts(kind.kind, p.discrete_values, kind.scale) }}" maxlength="400" autocomplete="off" spellcheck="false" enterkeyhint="done"{{ described(prefix ~ "-valeurs", errs) }}>
+    {{ field_error(prefix ~ "-valeurs", errs) }}
+    {{ field_hint(prefix ~ "-valeurs", t("field.values_hint")) }}
+  </div>
+  {% endif %}
+  <div class="field">
+    <label class="field__label" for="{{ prefix }}-defaut">{{ t("field.default_label_unit", unit=unit) if unit else t("field.default_label") }}</label>
+    {% if kind.kind == "enum" %}
+    {% set chosen = v.default if v else p.default_text %}
+    <select class="input" id="{{ prefix }}-defaut" name="default"{{ described(prefix ~ "-defaut", errs) }}>
+      <option value="">{{ t("form.none") }}</option>
+      {% for value in field.variable.draft.enum_values %}
+      <option value="{{ value.key }}"{% if chosen == value.key %} selected{% endif %}>{{ value.label }}</option>
+      {% endfor %}
+    </select>
+    {% elif kind.kind == "bool" %}
+    {% set chosen = v.default if v else (p.default_int | string if p.default_int is not none else "") %}
+    <select class="input" id="{{ prefix }}-defaut" name="default"{{ described(prefix ~ "-defaut", errs) }}>
+      <option value="">{{ t("form.none") }}</option>
+      <option value="1"{% if chosen == "1" %} selected{% endif %}>{{ t("field.yes") }}</option>
+      <option value="0"{% if chosen == "0" %} selected{% endif %}>{{ t("field.no") }}</option>
+    </select>
+    {% elif kind.kind == "text" %}
+    <input class="input" id="{{ prefix }}-defaut" name="default" type="text" value="{{ v.default or '' if v else p.default_text or '' }}" maxlength="40" autocomplete="off"{{ described(prefix ~ "-defaut", errs) }}>
+    {% else %}
+    <input class="input" id="{{ prefix }}-defaut" name="default" type="text" inputmode="{{ inputmode }}" value="{{ v.default or '' if v else show.input_text(kind.kind, p.default_int, kind.scale) }}" maxlength="20" autocomplete="off" spellcheck="false" enterkeyhint="done"{{ described(prefix ~ "-defaut", errs) }}>
+    {% endif %}
+    {{ field_error(prefix ~ "-defaut", errs) }}
+    {{ field_hint(prefix ~ "-defaut", t("field.default_hint")) }}
+  </div>
+  <div class="actions actions--inline">
+    <button class="button button--primary" type="submit">{{ t("action.save") }}</button>
+    <button class="button button--danger" type="button" id="{{ prefix }}-retirer" hx-delete="{{ base }}/{{ field.id }}" hx-target="#champs" hx-swap="outerHTML" aria-describedby="{% if errs.get(prefix ~ '-retirer') %}{{ prefix }}-retirer-erreur {% endif %}{{ prefix }}-retirer-aide"{% if errs.first_id == prefix ~ "-retirer" %} autofocus{% endif %}>{{ t("field.remove") }}</button>
+  </div>
+  {{ field_error(prefix ~ "-retirer", errs) }}
+  {{ field_hint(prefix ~ "-retirer", t("field.remove_hint")) }}
+</form>

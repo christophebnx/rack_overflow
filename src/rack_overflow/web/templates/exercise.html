@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block nav %}{% include "_nav.html" %}{% endblock %}
+{% block styles %}<link rel="stylesheet" href="/static/css/pages/catalog.css">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1><span id="exercice-titre">{{ detail.draft.name }}</span><span id="exercice-etat">{% if detail.archived %}<span class="tag">{{ t("tag.archived_m") }}</span>{% endif %}</span></h1>
+</div>
+<div class="exercise-detail">
+  <section class="section exercise-detail__info" aria-labelledby="exercice-infos-titre">
+    <h2 id="exercice-infos-titre">{{ t("exercise.section_info") }}</h2>
+    {% include "exercise_form.html" %}
+  </section>
+  <div class="exercise-detail__fields">
+    {% include "exercise_fields.html" %}
+  </div>
+  <div class="exercise-detail__aliases">
+    {% include "exercise_aliases.html" %}
+  </div>
+  <div class="exercise-detail__archive">
+    {% with oob_state=false %}
+    {% include "exercise_archive.html" %}
+    {% endwith %}
+  </div>
+</div>
+{% endblock %}

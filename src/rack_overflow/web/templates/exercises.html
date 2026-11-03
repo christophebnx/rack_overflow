@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% from "_form_status.html" import form_status %}
+{% block nav %}{% include "_nav.html" %}{% endblock %}
+{% block styles %}<link rel="stylesheet" href="/static/css/pages/catalog.css">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ t("exercises.title") }}</h1>
+  <a class="button button--primary" href="/exercices/nouveau">{{ t("exercises.new") }}</a>
+</div>
+<form role="search" class="search" action="/exercices" method="get" hx-get="/exercices/recherche" hx-target="#resultats" hx-swap="innerHTML" hx-trigger="input changed delay:200ms from:find input[name=q], search from:find input[name=q], change from:find input[name=archives], submit">
+  {{ form_status(data_message=t("error.search_failed")) }}
+  <div class="field">
+    <label class="field__label" for="q">{{ t("exercises.search_label") }}</label>
+    <input class="input" id="q" name="q" type="search" value="{{ q }}" autocomplete="off" spellcheck="false" autocapitalize="off" autocorrect="off" enterkeyhint="search" maxlength="80" aria-describedby="q-aide">
+    <p id="q-aide" class="field__hint">{{ t("exercises.search_hint") }}</p>
+  </div>
+  <label class="choice"><input type="checkbox" name="archives" value="1"{% if show_archived %} checked{% endif %}> {{ t("exercises.show_archived") }}</label>
+</form>
+<div id="resultats">
+  {% include "exercise_results.html" %}
+</div>
+{% endblock %}
