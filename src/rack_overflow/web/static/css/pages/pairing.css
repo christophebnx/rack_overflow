@@ -26,3 +26,10 @@
     width: 100%;
   }
 }
+
+/* From 40rem the button keeps its compact width (the flex column would stretch it). */
+@media (min-width: 40rem) {
+  .pairing-form > .button {
+    align-self: flex-start;
+  }
+}

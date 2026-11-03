@@ -65,3 +65,28 @@ def test_wrong_code_shows_the_message_in_place(unpaired: Watched, live_server: s
     expect(page.locator("#code")).to_have_attribute("aria-invalid", "true")
     expect(page.locator("#code")).to_have_value("")
     assert page.url == live_server + "/appairage"
+
+
+def test_button_is_full_width_on_phones_and_compact_from_40rem(unpaired: Watched, live_server: str) -> None:
+    page = unpaired.page
+    page.goto(live_server + "/appairage")
+    form = page.locator(".pairing-form").bounding_box()
+    button = page.get_by_role("button", name=TEXT("pairing.submit")).bounding_box()
+    assert form is not None and button is not None
+    if page.viewport_size["width"] < 640:  # type: ignore[index]
+        assert button["width"] == pytest.approx(form["width"], abs=1)
+    else:
+        assert button["width"] < form["width"] / 2
+        assert button["x"] == pytest.approx(form["x"], abs=1)
+
+
+def test_refusal_border_does_not_shift_the_layout(unpaired: Watched, live_server: str) -> None:
+    page = unpaired.page
+    page.goto(live_server + "/appairage")
+    before = page.locator("#code").bounding_box()
+    page.locator("#code").fill("12")
+    page.get_by_role("button", name=TEXT("pairing.submit")).click()
+    expect(page.locator("#code")).to_have_attribute("aria-invalid", "true")
+    after = page.locator("#code").bounding_box()
+    assert before is not None and after is not None
+    assert (after["x"], after["width"], after["height"]) == (before["x"], before["width"], before["height"])

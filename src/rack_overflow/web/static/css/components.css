@@ -103,8 +103,10 @@
   font-size: var(--text-md);
 }
 
+/* 1 px border plus a 1 px shadow: reads as 2 px without shifting the layout. */
 .input[aria-invalid="true"] {
-  border: 2px solid var(--color-danger);
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 1px var(--color-danger);
 }
 
 .field__error {
