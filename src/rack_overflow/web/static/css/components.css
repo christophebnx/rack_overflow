@@ -155,6 +155,18 @@
   }
 }
 
+/* L3: below 40rem the nav always takes its own row under the brand (three links do not fit
+   beside it); the list still wraps as the last fallback for a very wide system font. */
+@media (max-width: 39.999rem) {
+  .site-nav {
+    flex-basis: 100%;
+  }
+
+  .site-nav__list {
+    gap: var(--space-4);
+  }
+}
+
 /* Status slot of an htmx form or scope (D-053): first child, above the first field. */
 .form-status {
   padding: var(--space-3);

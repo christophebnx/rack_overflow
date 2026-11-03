@@ -5,11 +5,29 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from typing import Literal
+
+from pydantic import BaseModel
 
 from rack_overflow.domain.catalog import CatalogError, Problem
 from rack_overflow.web.locale import Catalog
 
 ERROR_KEY_PREFIX = "catalog.error."
+
+
+class MoveBody(BaseModel):
+    """JSON body of every « Monter » / « Descendre » button: `direction` `up` or `down` (else 422)."""
+
+    direction: Literal["up", "down"]
+
+
+def move_focus(prefix: str, direction: str, index: int, total: int) -> str:
+    """Id of the button that keeps the focus after a move: the same one (`{prefix}-monter` /
+    `{prefix}-descendre`), or the other one when the moved row reached that end (L2 rule)."""
+    up = direction == "up"
+    if (up and index == 0) or (not up and index == total - 1):
+        up = not up
+    return f"{prefix}-monter" if up else f"{prefix}-descendre"
 
 
 def as_list(value: str | Sequence[str] | None) -> list[str]:

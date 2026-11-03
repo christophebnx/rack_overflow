@@ -5,7 +5,7 @@ fragment. Refused input re-renders the fragment `200` (D-050); an unknown or for
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Request
@@ -18,7 +18,7 @@ from rack_overflow.services import exercises
 from rack_overflow.services.exercises import ExerciseDetail, ExerciseForm, FieldForm, FieldView
 from rack_overflow.web.auth import device_user
 from rack_overflow.web.display import Display
-from rack_overflow.web.forms import NO_ERRORS, FormErrors, checked, form_errors
+from rack_overflow.web.forms import NO_ERRORS, FormErrors, MoveBody, checked, form_errors, move_focus
 from rack_overflow.web.rendering import render
 
 router = APIRouter()
@@ -74,12 +74,6 @@ class FieldBody(BaseModel):
     increment: str | None = Field(default=None, max_length=TEXT_MAX)
     discrete_values: str | None = Field(default=None, max_length=VALUES_MAX)
     default: str | None = Field(default=None, max_length=TEXT_MAX)
-
-
-class MoveBody(BaseModel):
-    """`direction`: `up` or `down`."""
-
-    direction: Literal["up", "down"]
 
 
 class AliasBody(BaseModel):
@@ -364,19 +358,17 @@ def move_field(request: Request, exercise_id: int, field_id: int, body: MoveBody
         _engine(request), device_user(request), exercise_id, field_id, body.direction
     )
     detail = _detail(request, exercise_id)
-    last = len(detail.fields) - 1
-    button = "monter" if body.direction == exercises.UP else "descendre"
-    if (button == "monter" and index == 0) or (button == "descendre" and index == last):
-        button = "descendre" if button == "monter" else "monter"
+    total = len(detail.fields)
     moved = detail.fields[index]
     announce = _text(
         request,
         "exercise.announce_field_moved",
         field=field_name(request, moved),
         position=index + 1,
-        total=last + 1,
+        total=total,
     )
-    context = _fields_context(request, detail, focus=f"champ-{field_id}-{button}", announce=announce)
+    focus = move_focus(f"champ-{field_id}", body.direction, index, total)
+    context = _fields_context(request, detail, focus=focus, announce=announce)
     return render(request, "exercise_fields.html", context)
 
 

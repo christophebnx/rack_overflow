@@ -1,0 +1,85 @@
+{# Slots editor of a template: the fragment of every slot and option route (docs/ui-spec.md
+   "L3 — Template detail", Blocs). Focus after a swap: `autofocus` on `focus`. #}
+{% from "_form_status.html" import form_status %}
+{% from "_fields.html" import described, field_error, field_hint, oob_announce %}
+{% from "_exercise_select.html" import exercise_options %}
+{% set base = "/seances-types/" ~ detail.id ~ "/blocs" %}
+{% set a = add_typed or {} %}
+<section id="blocs" class="section template-slots" aria-labelledby="blocs-titre" data-request-scope>
+  {{ form_status() }}
+  <h2 id="blocs-titre">{{ t("template.section_slots") }}</h2>
+  <p class="muted section__intro">{{ t("template.slots_intro") }}</p>
+  <datalist id="mouvements">{% for value in detail.patterns %}<option value="{{ value }}"></option>{% endfor %}</datalist>
+  {% if detail.slots %}
+  <ol class="slots">
+    {% for slot in detail.slots %}
+    {% set prefix = "bloc-" ~ slot.id %}
+    {% set is_open = open_id == slot.id %}
+    {% set target_text = show.target(slot.target) %}
+    <li class="slot" id="{{ prefix }}">
+      <p class="slot__head"><span class="slot__position">{{ loop.index }}</span> <span class="slot__name">{{ slot.name }}</span>
+        {%- if slot.kind == "menu" %}<span class="tag">{{ t("template.tag_menu") }}</span>
+        {%- elif slot.exercise.archived %}<span class="tag">{{ t("tag.archived_m") }}</span>{% endif %}</p>
+      {% if slot.kind == "menu" %}
+      <p class="slot__options">
+        {%- for option in slot.options -%}
+        {{ t("template.option_archived", name=option.exercise.name) if option.exercise.archived else option.exercise.name }}{% if not loop.last %} · {% endif %}
+        {%- endfor -%}
+      </p>
+      {% endif %}
+      {% if target_text %}<p class="slot__target">{{ target_text }}</p>{% endif %}
+      {% if slot.skipped %}<p class="slot__skipped">{{ t("template.slot_skipped_menu") if slot.kind == "menu" else t("template.slot_skipped_exercise") }}</p>{% endif %}
+      <div class="actions actions--inline">
+        <button class="button" type="button" id="{{ prefix }}-monter" hx-post="{{ base }}/{{ slot.id }}/deplacement" hx-vals='{"direction": "up"}' hx-target="#blocs" hx-swap="outerHTML" hx-disabled-elt="this" aria-label="{{ t('template.move_up_named', name=slot.name) }}"{% if loop.first %} disabled{% endif %}{% if focus == prefix ~ "-monter" %} autofocus{% endif %}>{{ t("action.move_up") }}</button>
+        <button class="button" type="button" id="{{ prefix }}-descendre" hx-post="{{ base }}/{{ slot.id }}/deplacement" hx-vals='{"direction": "down"}' hx-target="#blocs" hx-swap="outerHTML" hx-disabled-elt="this" aria-label="{{ t('template.move_down_named', name=slot.name) }}"{% if loop.last %} disabled{% endif %}{% if focus == prefix ~ "-descendre" %} autofocus{% endif %}>{{ t("action.move_down") }}</button>
+      </div>
+      <details class="slot__edit"{% if is_open %} open{% endif %}>
+        <summary class="button" id="{{ prefix }}-modifier"{% if focus == prefix ~ "-modifier" %} autofocus{% endif %}>{{ t("action.edit") }}<span class="visually-hidden"> {{ slot.name }}</span></summary>
+        {% include "session_template_slot_form.html" %}
+      </details>
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <div class="empty">
+    <p class="empty__title">{{ t("template.no_slot_title") }}</p>
+    <p class="muted">{{ t("template.no_slot_text") }}</p>
+  </div>
+  {% endif %}
+  <form class="add-slot" hx-post="{{ base }}" hx-target="#blocs" hx-swap="outerHTML" hx-disabled-elt="find button">
+    {{ form_status() }}
+    <h3 id="bloc-ajout-titre">{{ t("template.add_slot_heading") }}</h3>
+    {% if detail.slots | length >= max_slots %}
+    <p class="muted" id="bloc-ajout-exercice-type" tabindex="-1"{% if focus == "bloc-ajout-exercice-type" %} autofocus{% endif %}>{{ t("template.slots_full") }}</p>
+    {% elif not detail.available %}
+    <p class="muted" id="bloc-ajout-exercice-type" tabindex="-1"{% if focus == "bloc-ajout-exercice-type" %} autofocus{% endif %}>{{ t("template.no_exercise") }}</p>
+    <a class="toggle-link" href="/exercices/nouveau">{{ t("template.create_exercise") }}</a>
+    {% else %}
+    <fieldset class="choices choices--row">
+      <legend class="field__label">{{ t("template.kind_legend") }}</legend>
+      <label class="choice"><input type="radio" id="bloc-ajout-exercice-type" name="kind" value="exercise"{% if a.get("kind") != "menu" %} checked{% endif %}{% if focus == "bloc-ajout-exercice-type" or add_errors.first_id == "bloc-ajout-exercice-type" %} autofocus{% endif %}> {{ t("template.kind_exercise") }}</label>
+      <label class="choice"><input type="radio" id="bloc-ajout-menu-type" name="kind" value="menu"{% if a.get("kind") == "menu" %} checked{% endif %}> {{ t("template.kind_menu") }}</label>
+      {{ field_error("bloc-ajout-exercice-type", add_errors) }}
+    </fieldset>
+    <div class="field only-menu">
+      <label class="field__label" for="bloc-ajout-menu">{{ t("template.menu_label") }}</label>
+      <input class="input" id="bloc-ajout-menu" name="label" type="text" value="{{ a.get("label") or '' }}" maxlength="40" list="mouvements" autocomplete="off" autocapitalize="sentences"{{ described("bloc-ajout-menu", add_errors) }}>
+      {{ field_error("bloc-ajout-menu", add_errors) }}
+      {{ field_hint("bloc-ajout-menu", t("template.menu_hint")) }}
+    </div>
+    <div class="field">
+      <label class="field__label" for="bloc-ajout-exercice">{{ t("template.exercise_label") }}</label>
+      <select class="input" id="bloc-ajout-exercice" name="exercise_id" required{{ described("bloc-ajout-exercice", add_errors) }}>
+        <option value="">{{ t("form.choose") }}</option>
+        {{ exercise_options(detail.groups(), a.get("exercise_id")) }}
+      </select>
+      {{ field_error("bloc-ajout-exercice", add_errors) }}
+      <p id="bloc-ajout-exercice-aide" class="field__hint only-menu">{{ t("template.first_option_hint") }}</p>
+    </div>
+    <div class="actions">
+      <button class="button button--primary" type="submit">{{ t("template.add_slot") }}</button>
+    </div>
+    {% endif %}
+  </form>
+</section>
+{{ oob_announce(announce) }}

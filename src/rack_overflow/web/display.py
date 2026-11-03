@@ -6,9 +6,11 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from rack_overflow.domain import units
+from rack_overflow.domain.templates import Target
 from rack_overflow.web.locale import Catalog
 
 VALUE_SEPARATOR = " · "
+TARGET_PART_SEPARATOR = " / "
 # core quantity -> its word (the one map, read only by `Display.quantity`)
 QUANTITY_KEYS = {
     "reps": "quantity.reps",
@@ -62,3 +64,32 @@ class Display:
     def quantity(self, core_quantity: str) -> str:
         """The word of a core quantity: « Répétitions », « Charge »…"""
         return self._catalog.text(QUANTITY_KEYS[core_quantity])
+
+    def duration_compact(self, seconds: int) -> str:
+        """A duration in the compact form of targets: « 45 s », « 30 min », « 1 h 15 »."""
+        compact = units.compact_duration(seconds)
+        return self._catalog.text(compact.key, **compact.params) if compact.key else compact.params["text"]
+
+    def target(self, target: Target) -> str:
+        """The one text of an indicative target (D-059; examples in docs/ui-spec.md "L3 — Target
+        text"): sets, then the parts in the order duration, distance, reps joined by « / », then the
+        note; « Séries : 4 » for sets alone; empty when nothing is set."""
+        parts: list[str] = []
+        if target.duration_s is not None:
+            parts.append(self.duration_compact(target.duration_s))
+        if target.distance_m is not None:
+            parts.append(self.value(units.DISTANCE, target.distance_m))
+        if target.reps_min is not None and target.reps_max is not None:
+            low, high = target.reps_min, target.reps_max
+            parts.append(
+                str(low) if low == high else self._catalog.text("target.reps_range", min=low, max=high)
+            )
+        text = TARGET_PART_SEPARATOR.join(parts)
+        if target.sets is not None:
+            key = "target.sets_times" if parts else "target.sets_only"
+            text = self._catalog.text(key, sets=target.sets, parts=text)
+        if target.note:
+            text = (
+                self._catalog.text("target.with_note", target=text, note=target.note) if text else target.note
+            )
+        return text

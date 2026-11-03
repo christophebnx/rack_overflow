@@ -99,6 +99,8 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | User-facing strings | `web/locale.Catalog` (`web/locales/fr.json`) |
 | Render a page or fragment | `web/rendering.render` |
 | Values in display units in pages (number + unit text) | `web/display.Display` (`show` in templates) |
+| Text of an indicative target (« 4 × 6–8 ») | `web/display.Display.target` |
+| Focus after a « Monter » / « Descendre » move, and its JSON body | `web/forms.move_focus`, `web/forms.MoveBody` |
 | Word of a core quantity (quantity → string key) | `web/display.QUANTITY_KEYS` (`show.quantity` in templates) |
 | Refused catalog input → messages per input | `web/forms.form_errors` |
 | Show a failed htmx request (« Non enregistré, réessayer », focus back) | `web/static/js/request-errors.js` + `web/templates/_form_status.html` |

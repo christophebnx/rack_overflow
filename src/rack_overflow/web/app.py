@@ -17,7 +17,7 @@ from rack_overflow.web import errors, scheduler
 from rack_overflow.web.auth import DeviceAuthMiddleware
 from rack_overflow.web.locale import load_catalog
 from rack_overflow.web.rendering import create_environment
-from rack_overflow.web.routes import exercises, home, pairing, variables
+from rack_overflow.web.routes import exercises, home, pairing, session_templates, variables
 from rack_overflow.web.security import SecurityMiddleware
 
 WEB = Path(__file__).resolve().parent
@@ -56,6 +56,7 @@ def create_app(
     app.include_router(pairing.router)
     app.include_router(variables.router)
     app.include_router(exercises.router)
+    app.include_router(session_templates.router)
     # Starlette: the last middleware added is the outermost
     app.add_middleware(DeviceAuthMiddleware, engine=engine, clock=clock, https=settings.server.https)
     errors.install(app)

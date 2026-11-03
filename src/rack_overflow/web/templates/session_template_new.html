@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block nav %}{% include "_nav.html" %}{% endblock %}
+{% block styles %}<link rel="stylesheet" href="/static/css/pages/catalog.css"><link rel="stylesheet" href="/static/css/pages/templates.css">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ t("template.new_title") }}</h1>
+</div>
+{% include "session_template_form.html" %}
+{% endblock %}
