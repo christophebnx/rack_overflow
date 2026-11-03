@@ -10,7 +10,7 @@ Maintained by the `/build-roadmap` skill. Branch: the session's designated branc
 | L2 Catalog | done | 4872532 | Built: variables, exercises, fields, aliases, fuzzy search, seed of 41 exercises in `rack migrate` (D-057), catalog navigation, htmx error display (D-053).<br>Tests: 1477 passed, 116 WebKit skipped.<br>Open: WebKit run pending; existing enum values cannot be reordered in L2 (new values go last). |
 | L3 Templates | done | fb545d1 | Built: session templates with blocs (exercise or menu), targets, archive, reordering; migration `0003`; seed of the four templates with seed keys (D-058 to D-060); « Séances types » nav, ids beyond int64 → 404.<br>Tests: 1921 passed, 156 WebKit skipped.<br>Open: WebKit run pending; on a full-menu or full-template refusal the limit text (« … au plus ») is shown and read twice (muted line + error) (`session_template_slot_form.html`, `session_template_slots.html`). |
 | L4 Session logging | done | f4bdfb3 | Built: start or resume from home, session page (plan, menus, search recent first), prefill, server steppers, choice chips, settings saved on change, set types, edit / delete sets, records (⭐) and volume computed, close and summary; `[calendar] time_zone` and `tzdata`; migration `0004` (D-061 to D-066).<br>Tests: 2249 passed, 164 WebKit skipped; tap counts checked on Chromium; set confirmation median ≈ 15–20 ms.<br>Open: WebKit run pending, including a check for CSP messages on swaps; the « Autres valeurs » chevron not seen live in the Salle A flow. |
-| L5 Tracking | todo | | |
+| L5 Tracking | in progress | | |
 | L6 Operations and release 1.0.0 | todo | | |
 
 ## Follow-ups
