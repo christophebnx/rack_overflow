@@ -38,3 +38,25 @@ def test_normalise_is_idempotent() -> None:
 )
 def test_slug(raw: str, expected: str) -> None:
     assert slug(raw) == expected
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("", ""),
+        ("   ", ""),
+        ("---", ""),
+        ("\u00a0Siège\u00a0", "siege"),
+        ("e\u0301", "e"),  # combining accent, NFD input
+        ("\uff24\uff23", "dc"),  # full-width letters
+        ("Tirage   horizontal", "tirage horizontal"),
+        ("1/2 squat", "1 2 squat"),
+    ],
+)
+def test_normalise_edges(raw: str, expected: str) -> None:
+    assert normalise(raw) == expected
+
+
+def test_slug_of_symbols_is_empty_and_nfc_nfd_agree() -> None:
+    assert slug("!!!") == ""
+    assert slug("Siège") == slug("Sie\u0300ge") == "siege"

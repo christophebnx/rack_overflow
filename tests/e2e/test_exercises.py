@@ -4,12 +4,13 @@ search by « DC », a failed field save (D-053) and a revoked device's action.""
 from __future__ import annotations
 
 import itertools
+import re
 from collections.abc import Iterator
 from datetime import UTC, datetime
 
 import pytest
 from conftest import LiveApp, pairing_code
-from playwright.sync_api import Browser, Page, expect
+from playwright.sync_api import Browser, Locator, Page, expect
 from test_pages import SCHEMES, WIDTHS, Watched
 from test_variables import assert_clean
 
@@ -49,6 +50,12 @@ def create_exercise(page: Page, live_server: str, name: str, category: str) -> N
     page.locator(f"#categorie-{category}").check()
     page.get_by_role("button", name=TEXT("exercise.create")).click()
     expect(page.locator("#exercice-titre")).to_have_text(name)
+    page.wait_for_load_state()  # htmx has processed the new page before the next click
+
+
+def row_link(scope: Page | Locator, name: str) -> Locator:
+    """The list row whose title is exactly `name` (« Swing 1 » must not match « Swing 11 »)."""
+    return scope.get_by_role("link", name=re.compile(rf"^{re.escape(name)}( |$)"))
 
 
 def weight_row(page: Page) -> str:
@@ -65,7 +72,7 @@ def test_exercise_pages_render_clean(watched: Watched, live_server: str) -> None
         "aria-current", "page"
     )
     page.goto(live_server + "/exercices")
-    expect(page.locator(".row", has_text=name)).to_be_visible()
+    expect(row_link(page, name)).to_be_visible()
     assert_clean(watched)
 
 
@@ -110,7 +117,7 @@ def test_search_by_alias(page: Page, live_server: str) -> None:
     expect(page.locator("#alias-nouveau")).to_be_focused()
     page.goto(live_server + "/exercices")
     page.locator("#q").fill("DC")
-    expect(page.locator("#resultats .row", has_text=name)).to_be_visible()
+    expect(row_link(page.locator("#resultats"), name)).to_be_visible()
     page.wait_for_url("**/exercices?q=DC")
 
 

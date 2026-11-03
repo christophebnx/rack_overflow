@@ -388,3 +388,80 @@ def test_sort_key_folds_case_and_accents() -> None:
         "Élastique",
         "Zèbre",
     ]
+
+
+# --- limits (tester, L2)
+
+
+@pytest.mark.parametrize(("size", "ok"), [(80, True), (81, False)])
+def test_exercise_name_limit(size: int, ok: bool) -> None:
+    make = lambda: catalog.exercise_draft(name="n" * size, category="strength", location="gym")  # noqa: E731
+    if ok:
+        assert len(make().name) == size
+    else:
+        with pytest.raises(CatalogError):
+            make()
+
+
+@pytest.mark.parametrize(("count", "ok"), [(50, True), (51, False)])
+def test_enum_values_limit(count: int, ok: bool) -> None:
+    values = [ValueInput(str(n)) for n in range(count)]
+    make = lambda: catalog.variable_draft(label="Cran", var_type="enum", scope="setting", values=values)  # noqa: E731
+    if ok:
+        assert len(make().enum_values or ()) == count
+    else:
+        with pytest.raises(CatalogError):
+            make()
+
+
+@pytest.mark.parametrize(("count", "ok"), [(30, True), (31, False)])
+def test_discrete_values_limit(count: int, ok: bool) -> None:
+    raw = " ".join(str(n) for n in range(1, count + 1))
+    make = lambda: catalog.field_params(FieldKind("weight"), required=True, discrete_values=raw)  # noqa: E731
+    if ok:
+        assert len(make().discrete_values or ()) == count
+    else:
+        with pytest.raises(CatalogError):
+            make()
+
+
+@pytest.mark.parametrize(("size", "ok"), [(60, True), (61, False)])
+def test_alias_limit(size: int, ok: bool) -> None:
+    make = lambda: catalog.alias_draft("a" * size, "Squat", [])  # noqa: E731
+    if ok:
+        assert make().alias == "a" * size
+    else:
+        with pytest.raises(CatalogError):
+            make()
+
+
+def test_discrete_values_accept_semicolons_and_sort() -> None:
+    params = catalog.field_params(FieldKind("weight"), required=False, discrete_values="24; 16;20")
+    assert params.discrete_values == (16000, 20000, 24000)
+
+
+def test_distance_values_mix_units() -> None:
+    params = catalog.field_params(FieldKind("distance"), required=False, discrete_values="400 m 1 1,5 km")
+    assert params.discrete_values == (400, 1000, 1500)
+
+
+def test_zero_discrete_value_is_refused() -> None:
+    with pytest.raises(CatalogError) as refused:
+        catalog.field_params(FieldKind("weight"), required=False, discrete_values="0 16")
+    assert ("discrete_values", "must_be_positive") in codes(refused)
+
+
+def test_variable_code_suffixes_skip_taken_ones() -> None:
+    assert catalog.variable_code("Siège", ["siege", "siege_2"]) == "siege_3"
+    assert catalog.variable_code("!!!", ["v"]) == "v_2"
+
+
+def test_enum_labels_equal_after_folding_are_duplicates() -> None:
+    with pytest.raises(CatalogError) as refused:
+        catalog.variable_draft(
+            label="Prise",
+            var_type="enum",
+            scope="setting",
+            values=[ValueInput("Pronation"), ValueInput("PRONATION ")],
+        )
+    assert [c for c in codes(refused) if c[1] == "duplicate_value"]

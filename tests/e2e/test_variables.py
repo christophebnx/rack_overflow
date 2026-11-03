@@ -4,6 +4,7 @@ confirmation, conditional type fields, and a failed save (D-053)."""
 from __future__ import annotations
 
 import itertools
+import re
 from collections.abc import Iterator
 
 import pytest
@@ -41,13 +42,23 @@ def page(watched: Watched) -> Page:
     return watched.page
 
 
+WIDER_THAN_VIEWPORT = """() => {
+  const width = document.documentElement.clientWidth;
+  return [...document.querySelectorAll("body *")]
+    .filter((el) => el.getBoundingClientRect().right > width + 0.5)
+    .slice(0, 5)
+    .map((el) => `${el.tagName}.${el.className}#${el.id} ${Math.round(el.getBoundingClientRect().right)}`);
+}"""
+"""Diagnostics of a failed no-horizontal-scroll check: the elements past the right edge."""
+
+
 def assert_clean(watched: Watched) -> None:
     assert watched.foreign == []
     assert not [text for text in watched.console if "Content Security Policy" in text or "Refused" in text]
     overflow = watched.page.evaluate(
         "() => document.documentElement.scrollWidth - document.documentElement.clientWidth"
     )
-    assert overflow <= 0
+    assert overflow <= 0, (watched.page.url, watched.page.evaluate(WIDER_THAN_VIEWPORT))
 
 
 def create_variable(page: Page, live_server: str, label: str, values: str = "1\n2\n3") -> None:
@@ -58,6 +69,7 @@ def create_variable(page: Page, live_server: str, label: str, values: str = "1\n
     page.locator("#valeurs").fill(values)
     page.get_by_role("button", name=TEXT("variable.create")).click()
     expect(page.locator("#variable-titre")).to_have_text(label)
+    page.wait_for_load_state()  # htmx has processed the new page before the next click
 
 
 def test_variable_pages_render_clean(watched: Watched, live_server: str) -> None:
@@ -70,7 +82,8 @@ def test_variable_pages_render_clean(watched: Watched, live_server: str) -> None
     expect(page.get_by_role("link", name=TEXT("nav.variables"), exact=True)).to_have_attribute(
         "aria-current", "page"
     )
-    expect(page.locator(".row", has_text=label)).to_be_visible()
+    # exact title: « Siège 1 » must not match « Siège 11 » created by another test
+    expect(page.get_by_role("link", name=re.compile(rf"^{re.escape(label)} "))).to_be_visible()
     assert_clean(watched)
     brand = page.locator(".brand").bounding_box()
     title = page.locator("h1").bounding_box()

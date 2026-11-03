@@ -93,3 +93,47 @@ def test_no_match() -> None:
 )
 def test_prefix_distance(q: str, text: str, bound: int, expected: int) -> None:
     assert search.prefix_distance(q, text, bound) == expected
+
+
+# --- edge cases (tester, L2)
+
+
+def test_punctuation_only_query_behaves_like_an_empty_one() -> None:
+    assert rank("!!! ", CANDIDATES) == rank("", CANDIDATES)
+
+
+def test_empty_query_puts_recent_first() -> None:
+    assert rank("", CANDIDATES, recent=[4, 3])[:2] == [4, 3]
+
+
+def test_query_is_folded_like_the_names() -> None:
+    assert rank("DÉVELOPPÉ COUCHÉ", CANDIDATES)[:2] == rank("developpe couche", CANDIDATES)[:2]
+    assert rank("kettlebell-swing", CANDIDATES)[0] == 4
+
+
+def test_no_candidates() -> None:
+    assert rank("dc", []) == []
+    assert rank("", []) == []
+
+
+def test_exact_alias_beats_a_name_prefix() -> None:
+    swing = Candidate(10, "Swing russe")
+    kb = Candidate(11, "Kettlebell swing", ("Swing",))
+    assert rank("swing", [swing, kb]) == [11, 10]
+
+
+def test_single_letter_query_matches_prefixes_only() -> None:
+    assert set(rank("d", CANDIDATES)) == {1, 2}
+    assert score("x", "developpe couche") == 0
+
+
+def test_short_typo_is_not_fuzzy_matched() -> None:
+    # tokens under four letters must prefix-match exactly
+    assert score("dvc", "developpe couche") == 0
+
+
+def test_prefix_distance_bounds() -> None:
+    assert search.prefix_distance("", "abc", 1) == 0
+    assert search.prefix_distance("abc", "", 1) == 2
+    assert search.prefix_distance("developpe", "developpe", 2) == 0
+    assert search.prefix_distance("xxxxxxxx", "developpe", 2) == 3

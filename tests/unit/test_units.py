@@ -135,3 +135,121 @@ def test_kind_of_quantity_and_label_units() -> None:
     assert units.input_unit_key("distance") == "unit.km"
     assert units.input_unit_key("duration") == "unit.duration"
     assert units.input_unit_key("int") is None
+
+
+# --- round trips over whole ranges and boundaries (tester, L2)
+
+
+@pytest.mark.parametrize("kind", ["int", "weight", "distance", "duration"])
+@pytest.mark.parametrize(
+    "value",
+    [
+        0,
+        1,
+        9,
+        10,
+        59,
+        60,
+        99,
+        100,
+        125,
+        999,
+        1000,
+        1001,
+        1250,
+        2500,
+        3599,
+        3600,
+        3601,
+        5200,
+        86399,
+        86400,
+        10**9,
+    ],
+)
+def test_every_value_reads_back_from_its_input_text(kind: str, value: int) -> None:
+    assert units.parse(kind, units.input_text(kind, value)) == value
+
+
+@pytest.mark.parametrize("scale", [1, 2, 3])
+@pytest.mark.parametrize("value", [0, 1, 5, 10, 99, 100, 101, 12345])
+def test_decimal_values_read_back_at_every_scale(scale: int, value: int) -> None:
+    text = units.input_text("decimal", value, scale=scale)
+    assert len(text.split(",")[1]) == scale
+    assert units.parse("decimal", text, scale=scale) == value
+
+
+def test_weight_grid_round_trips() -> None:
+    for grams in range(0, 50001, 125):
+        shown = units.format("weight", grams)
+        assert shown.unit_key == units.UNIT_KG
+        assert units.parse("weight", shown.number_text) == grams
+        assert units.parse("weight", shown.number_text.replace(",", ".")) == grams
+
+
+def test_distance_switches_unit_at_one_kilometre() -> None:
+    assert units.format("distance", 999) == Display("999", units.UNIT_M)
+    assert units.format("distance", 1000) == Display("1", units.UNIT_KM)
+    assert units.format("distance", 1001) == Display("1,001", units.UNIT_KM)
+    for metres in range(0, 3001, 7):
+        assert units.parse("distance", units.input_text("distance", metres)) == metres
+
+
+def test_duration_switches_format_at_one_hour() -> None:
+    assert units.format("duration", 3599).number_text == "59:59"
+    assert units.format("duration", 3600).number_text == "1:00:00"
+    for seconds in range(0, 7400, 13):
+        text = units.format("duration", seconds).number_text
+        assert units.parse("duration", text) == seconds
+
+
+@pytest.mark.parametrize(
+    ("kind", "raw", "value"),
+    [
+        ("weight", "\u00a02,5\u00a0", 2500),
+        ("weight", "007", 7000),
+        ("distance", "5,2KM", 5200),
+        ("distance", "5,2\u00a0km", 5200),
+        ("distance", "400 M", 400),
+        ("distance", ",5", 500),
+        ("duration", "0:00", 0),
+        ("duration", "10:00:00", 36000),
+        ("duration", "120:00", 7200),
+        ("weight", "1000000", 10**9),
+    ],
+)
+def test_parse_tolerates_spacing_case_and_leading_zeros(kind: str, raw: str, value: int) -> None:
+    assert units.parse(kind, raw) == value
+
+
+@pytest.mark.parametrize(
+    ("kind", "raw", "code"),
+    [
+        ("weight", "1000000,001", "too_large"),
+        ("weight", "2,5 kg", "not_a_number"),
+        ("weight", "2,5,0", "not_a_number"),
+        ("weight", "1 000", "not_a_number"),
+        ("weight", "\u0661\u0662", "not_a_number"),
+        ("weight", "+5", "not_a_number"),
+        ("weight", "1e3", "not_a_number"),
+        ("weight", "-0", "negative"),
+        ("distance", "-400 m", "negative"),
+        ("distance", "5 mi", "not_a_number"),
+        ("distance", "400,5 m", "too_many_decimals"),
+        ("distance", "1,0005", "too_many_decimals"),
+        ("duration", "1:5", "bad_duration"),
+        ("duration", "1:60", "bad_duration"),
+        ("duration", "1:00:60", "bad_duration"),
+        ("duration", "1:00:00:00", "bad_duration"),
+        ("duration", ":30", "bad_duration"),
+        ("duration", "1,5", "bad_duration"),
+        ("duration", "", "bad_duration"),
+        ("duration", "1000000001", "too_large"),
+        ("int", "2,5", "too_many_decimals"),
+        ("int", "", "not_a_number"),
+    ],
+)
+def test_parse_refuses_with_a_stable_code(kind: str, raw: str, code: str) -> None:
+    with pytest.raises(UnitError) as refused:
+        units.parse(kind, raw)
+    assert refused.value.code == code
