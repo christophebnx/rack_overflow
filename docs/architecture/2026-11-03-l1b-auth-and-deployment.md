@@ -224,3 +224,23 @@ Status: APPROVED FOR AUTONOMOUS MODE. Every user-visible behaviour is set by the
 | `error.not_paired` | Cet appareil n’est pas appairé. |
 
 **Note for the developer.** A pending device whose code expired or was blocked is still active, so `rack device add <same name>` is refused until `rack device revoke <name>`; the CLI error already says so (`revoke it first`), which is why the page says only « Générez-en un nouveau sur le serveur ». Checks: 360 and 1280 px, light and dark, WebKit numeric keypad, no horizontal scroll, contrast of the danger border on `--color-bg` (6.57 / 8.29).
+
+## Review (reviewer, loop 1)
+
+Checks: 688 passed, 24 skipped (WebKit), 3 xfailed (strict); ruff and format clean; duplicate-code 10.00. Layering holds; middleware order security → errors → auth is correct; static is the only bypass; hashed lookup needs no constant-time compare (D-049); cookie flags match the roadmap; tests were not weakened.
+
+1. **BLOCKING** (duplication) the `python -m rack_overflow <cmd> --config <abs path>` self-invocation is built twice: `cli.py:123` (`_self_command`) and `ops/update.py:85`. One ops helper used by both.
+2. **BLOCKING** (partial state) `ops/update.py:81`: if the pull succeeds and `uv sync` or migrate fails, a second `rack update` sees HEAD unchanged, says "already up to date" and never syncs or migrates; the next restart runs new code on old deps or schema, `rack serve` refuses, the supervisor loops. `docs/deployment/nas.md` §11 is wrong in that case. Fix: on unchanged HEAD still run sync + migrate (both idempotent). Record it as a decision refining D-051.
+3. **TO FIX** (tester bug 1) `web/auth.py:92,106` append a cleared or renewed old cookie after the new token cookie of `routes/pairing.py:62`: the browser ends with no cookie or the old one and the code is spent. Skip the auth cookie update when the response already sets the device cookie.
+4. **TO FIX** (tester bug 2) `ops/update.py:91`: `ProcessLookupError` / `PermissionError` from `os.kill` → traceback. Wrap in `OpsError`, saying the migration was applied.
+5. **TO FIX** `ops/supervise.py:102`: `OSError` from `Popen` (e.g. interpreter missing while `uv sync` rebuilds `.venv`) kills the supervisor. Treat it as a failed run and go through the restart delay; same for `os.execv` at `cli.py:159`. Lock open failure (`ops/supervise.py:150-151`) is already correct: add a test.
+6. **TO FIX** the "name taken" rule lives in `services/devices.py:72-73` and `storage/devices.py:25` with a duplicated message. Keep the storage guard as the single source (it also catches the race) and let the service translate it.
+7. **SUGGESTION** `storage/devices.py:92` `mark_used` and `set_token` update unconditionally: add `used_at IS NULL` / `token_hash IS NULL` and check the row count.
+
+## UI review (ui-designer, loop 1)
+
+Rendered in Chromium at 360 and 1280 px, light and dark, every state: no BLOCKING; strings, keys, input attributes, aria, focus and sizes match the spec.
+
+1. **TO FIX** `static/css/pages/pairing.css:24-28`: the button is full width at 1280 px (stretched by the `.pairing-form` flex column), not the compact button of the wireframe; add `align-self: flex-start` from 40rem.
+2. **SUGGESTION** `static/css/components.css:106-108`: the error border goes from 1 to 2 px and shifts the layout by 2 px; keep 1 px and add a 1 px `--color-danger` box-shadow.
+3. **For L2** (htmx error display): after a 5xx or network error, focus falls to `<body>` and the previous refusal message and `aria-invalid` stay; L2 must clear them and return focus to the input when it shows « Non enregistré, réessayer » (`templates/pairing_form.html:8-17`).
