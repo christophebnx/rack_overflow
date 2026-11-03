@@ -270,7 +270,7 @@
   "template.kind_legend": "Type",
   "template.kind_exercise": "Exercice",
   "template.kind_menu": "Menu",
-  "template.first_option_hint": "Le premier exercice du menu ; les autres s’ajoutent ensuite.",
+  "template.first_option_hint": "Pour un menu, le premier exercice proposé ; les autres s’ajoutent ensuite.",
   "template.add_slot": "Ajouter le bloc",
   "template.slots_full": "30 blocs au plus : retirez-en un pour en ajouter.",
   "template.no_exercise": "Aucun exercice disponible.",

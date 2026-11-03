@@ -151,6 +151,27 @@
   display: none;
 }
 
+/* From 40rem « Modifier » sits on the line of Monter / Descendre (wireframe): the move buttons float
+   and the summary flows beside them; the open form clears them, so nothing moves when it opens. */
+@media (min-width: 40rem) {
+  .slot {
+    display: flow-root;
+  }
+
+  .slot > * + * {
+    margin-top: var(--space-2);
+  }
+
+  .slot > .actions {
+    float: left;
+    margin-inline-end: var(--target-gap);
+  }
+
+  .slot__edit > :not(summary) {
+    clear: left;
+  }
+}
+
 .slot-form {
   display: flex;
   flex-direction: column;

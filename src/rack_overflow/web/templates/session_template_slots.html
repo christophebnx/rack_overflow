@@ -49,11 +49,13 @@
   <form class="add-slot" hx-post="{{ base }}" hx-target="#blocs" hx-swap="outerHTML" hx-disabled-elt="find button">
     {{ form_status() }}
     <h3 id="bloc-ajout-titre">{{ t("template.add_slot_heading") }}</h3>
-    {% if detail.slots | length >= max_slots %}
-    <p class="muted" id="bloc-ajout-exercice-type" tabindex="-1"{% if focus == "bloc-ajout-exercice-type" %} autofocus{% endif %}>{{ t("template.slots_full") }}</p>
-    {% elif not detail.available %}
-    <p class="muted" id="bloc-ajout-exercice-type" tabindex="-1"{% if focus == "bloc-ajout-exercice-type" %} autofocus{% endif %}>{{ t("template.no_exercise") }}</p>
-    <a class="toggle-link" href="/exercices/nouveau">{{ t("template.create_exercise") }}</a>
+    {% set full = detail.slots | length >= max_slots %}
+    {% if full or not detail.available %}
+    {# The form became a muted line (dedicated id): it takes the add form's focus and its refusal. #}
+    {% set refused = add_errors.first_id %}
+    <p class="muted" id="bloc-ajout-etat" tabindex="-1"{% if refused %} aria-describedby="{{ refused }}-erreur"{% endif %}{% if focus == "bloc-ajout-exercice-type" or refused %} autofocus{% endif %}>{{ t("template.slots_full") if full else t("template.no_exercise") }}</p>
+    {% if refused %}{{ field_error(refused, add_errors) }}{% endif %}
+    {% if not full %}<a class="toggle-link" href="/exercices/nouveau">{{ t("template.create_exercise") }}</a>{% endif %}
     {% else %}
     <fieldset class="choices choices--row">
       <legend class="field__label">{{ t("template.kind_legend") }}</legend>
@@ -74,7 +76,7 @@
         {{ exercise_options(detail.groups(), a.get("exercise_id")) }}
       </select>
       {{ field_error("bloc-ajout-exercice", add_errors) }}
-      <p id="bloc-ajout-exercice-aide" class="field__hint only-menu">{{ t("template.first_option_hint") }}</p>
+      {{ field_hint("bloc-ajout-exercice", t("template.first_option_hint")) }}
     </div>
     <div class="actions">
       <button class="button button--primary" type="submit">{{ t("template.add_slot") }}</button>

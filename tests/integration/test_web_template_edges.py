@@ -463,11 +463,6 @@ def test_twelve_options_then_the_add_form_is_replaced(client: TestClient, migrat
     assert rows(migrated_engine) == before
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="session_template_slot_form.html: a refused add-option whose form became a muted line "
-    "(none left / 12 options) autofocuses nothing, so the focus is lost after the swap (D-053)",
-)
 def test_a_refused_option_keeps_a_focus_target_when_nothing_is_left(
     client: TestClient, migrated_engine: Engine
 ) -> None:
@@ -479,6 +474,7 @@ def test_a_refused_option_keeps_a_focus_target_when_nothing_is_left(
     )
     assert TEXT("catalog.error.option_taken") in refused.text
     assert autofocused(refused.text) == [f"bloc-{menu}-option-ajout"]
+    assert f'aria-describedby="bloc-{menu}-option-ajout-erreur"' in refused.text
 
 
 # --- archived exercises in slots and menus
@@ -536,8 +532,24 @@ def test_removing_the_last_slot_with_no_exercise_left_focuses_the_muted_line(
     exercises.set_archived(migrated_engine, USER, only, NOW)
     gone = client.request("DELETE", f"/seances-types/{salle}/blocs/{slot}", json={}, headers=HTMX)
     assert TEXT("template.no_exercise") in gone.text
-    assert autofocused(gone.text) == ["bloc-ajout-exercice-type"]
+    assert autofocused(gone.text) == ["bloc-ajout-etat"]  # the muted line's own id (UI review 6)
     assert TEXT("template.no_slot_title") in gone.text
+
+
+def test_a_refused_add_on_a_full_template_focuses_the_muted_line(
+    client: TestClient, migrated_engine: Engine
+) -> None:
+    salle = templates.create(migrated_engine, USER, TemplateForm("Pleine", "gym"))
+    only = exercise(migrated_engine, "Unique")
+    for _ in range(30):
+        templates.add_slot(migrated_engine, USER, salle, kind="exercise", exercise_id=only)
+    body = {"kind": "exercise", "exercise_id": str(only)}
+    refused = client.post(f"/seances-types/{salle}/blocs", json=body, headers=HTMX)
+    assert refused.status_code == 200
+    assert autofocused(refused.text) == ["bloc-ajout-etat"]
+    assert 'aria-describedby="bloc-ajout-exercice-type-erreur"' in refused.text
+    message = TEXT("catalog.error.too_many_slots", max=30)
+    assert f'id="bloc-ajout-exercice-type-erreur" class="field__error">{message}' in refused.text
 
 
 # --- targets through the page
@@ -681,3 +693,16 @@ def test_every_write_trigger_of_a_full_page_has_a_slot(client: TestClient, migra
         html = client.get(path, headers=PAGE).text
         html = html.replace('<details class="slot__edit">', '<details class="slot__edit" open>')
         assert triggers_without_slot(html) == [], path
+
+
+def test_slot_add_and_remove_controls_are_single_shot_and_described(
+    client: TestClient, migrated_engine: Engine
+) -> None:
+    ids = template_ids(migrated_engine)
+    page = client.get(f"/seances-types/{ids['t']}", headers=PAGE).text
+    remove = page.split(f'id="bloc-{ids["s"]}-retirer"', 1)[1].split(">", 1)[0]
+    assert 'hx-disabled-elt="this"' in remove  # a double tap cannot fail over a done removal
+    select = page.split('id="bloc-ajout-exercice"', 1)[1].split(">", 1)[0]
+    assert 'aria-describedby="bloc-ajout-exercice-aide"' in select
+    hint = page.split('id="bloc-ajout-exercice-aide"', 1)[1].split(">", 1)[0]
+    assert "only-menu" not in hint  # read for both kinds, so shown for both

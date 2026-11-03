@@ -61,7 +61,7 @@
   </fieldset>
   <div class="actions actions--inline">
     <button class="button button--primary" type="submit">{{ t("action.save") }}</button>
-    <button class="button button--danger" type="button" id="{{ prefix }}-retirer" hx-delete="{{ base }}/{{ slot.id }}" hx-target="#blocs" hx-swap="outerHTML" aria-describedby="{{ prefix }}-retirer-aide">{{ t("template.remove_slot") }}</button>
+    <button class="button button--danger" type="button" id="{{ prefix }}-retirer" hx-delete="{{ base }}/{{ slot.id }}" hx-target="#blocs" hx-swap="outerHTML" hx-disabled-elt="this" aria-describedby="{{ prefix }}-retirer-aide">{{ t("template.remove_slot") }}</button>
   </div>
   {{ field_hint(prefix ~ "-retirer", t("template.remove_slot_hint")) }}
 </form>
@@ -96,7 +96,8 @@
 <form class="add-field add-option" hx-post="{{ base }}/{{ slot.id }}/options" hx-target="#blocs" hx-swap="outerHTML" hx-disabled-elt="find button">
   {{ form_status() }}
   {% if slot.options | length >= max_options or not addable %}
-  <p class="muted" id="{{ add_id }}" tabindex="-1"{% if focus == add_id %} autofocus{% endif %}>{{ t("template.options_full") if slot.options | length >= max_options else t("template.options_none_left") }}</p>
+  {% set refused = option_errs.get(add_id) %}
+  <p class="muted" id="{{ add_id }}" tabindex="-1"{% if refused %} aria-describedby="{{ add_id }}-erreur"{% endif %}{% if focus == add_id or refused %} autofocus{% endif %}>{{ t("template.options_full") if slot.options | length >= max_options else t("template.options_none_left") }}</p>
   {{ field_error(add_id, option_errs) }}
   {% else %}
   <div class="field">
