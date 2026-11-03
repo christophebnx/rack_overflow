@@ -162,3 +162,23 @@ def test_0002_keeps_variables_and_their_links(settings: Settings, monkeypatch: p
                 connection.execute(sa.insert(schema.variable).values({**variable, "code": "other"}))
     finally:
         engine.dispose()
+
+
+def test_unknown_revision_is_a_migration_error(migrated_engine: Engine) -> None:
+    with migrated_engine.begin() as connection:
+        connection.exec_driver_sql("UPDATE alembic_version SET version_num = '9999'")
+    assert not migrate.is_up_to_date(migrated_engine)
+    with pytest.raises(MigrationError, match="Can't locate revision"):
+        migrate.upgrade_to_head(migrated_engine)
+
+
+def test_non_database_file_is_a_migration_error(settings: Settings) -> None:
+    settings.database_path.write_bytes(b"this is not a database" * 300)
+    engine = db.create_engine(settings.database_path)
+    try:
+        with pytest.raises(MigrationError, match="cannot be read"):
+            migrate.current_revision(engine)
+        with pytest.raises(MigrationError, match="cannot be read"):
+            migrate.upgrade_to_head(engine)
+    finally:
+        engine.dispose()

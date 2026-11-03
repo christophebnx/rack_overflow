@@ -3,7 +3,6 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-import sqlalchemy as sa
 from fastapi import FastAPI
 
 from rack_overflow import __version__, cli
@@ -99,11 +98,6 @@ def test_serve_refuses_an_empty_database(
 
 
 @pytest.mark.parametrize("command", ["migrate", "serve"])
-@pytest.mark.xfail(
-    strict=True,
-    raises=sa.exc.DatabaseError,
-    reason="product bug: a non-database file escapes main() as a traceback instead of `rack: error:` exit 1",
-)
 def test_non_database_file_is_a_clean_error(
     settings_file: Path, command: str, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -157,3 +151,11 @@ def test_help_lists_every_command(capsys: pytest.CaptureFixture[str]) -> None:
     out = capsys.readouterr().out
     assert all(name in out for name in ("migrate", "backup", "serve"))
     assert "hello" not in out
+
+
+def test_migrate_reports_a_data_folder_that_cannot_be_created(
+    settings_file: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (settings_file.parent / "data").write_bytes(b"a file where the folder should be")
+    assert main(["migrate", "--config", str(settings_file)]) == 1
+    assert capsys.readouterr().err.startswith("rack: error: cannot create data folder")

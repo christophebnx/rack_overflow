@@ -41,7 +41,11 @@ def _backup_now(settings: Settings) -> Path:
 
 def run_migrate(settings: Settings) -> None:
     """Create the data folder if needed, snapshot an existing database with pending revisions, upgrade."""
-    settings.storage.data_dir.mkdir(parents=True, exist_ok=True)
+    data_dir = settings.storage.data_dir
+    try:
+        data_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as error:
+        raise MigrationError(f"cannot create data folder {data_dir}: {error.strerror}") from error
     existed = settings.database_path.is_file()
     engine = db.create_engine(settings.database_path)
     try:
@@ -74,7 +78,12 @@ def configure_logging() -> None:
 def run_serve(settings: Settings) -> None:
     """Serve the web app on the configured host and port (one worker), once the database is current."""
     engine = db.create_engine(settings.database_path)
-    if not settings.database_path.is_file() or not migrate.is_up_to_date(engine):
+    try:
+        current = settings.database_path.is_file() and migrate.is_up_to_date(engine)
+    except MigrationError:
+        engine.dispose()
+        raise
+    if not current:
         engine.dispose()
         raise MigrationError("database is not up to date; run rack migrate")
     configure_logging()

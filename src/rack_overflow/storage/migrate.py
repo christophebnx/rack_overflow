@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
+from alembic.util import CommandError
 from sqlalchemy.engine import Connection, Engine
+from sqlalchemy.exc import DBAPIError
 
 from rack_overflow.storage.errors import MigrationError
 
@@ -23,6 +27,17 @@ def _config(connection: Connection | None = None) -> Config:
     return config
 
 
+@contextmanager
+def _as_migration_error() -> Iterator[None]:
+    """Turn a database failure (e.g. not a database) or an unknown revision into `MigrationError`."""
+    try:
+        yield
+    except DBAPIError as error:
+        raise MigrationError(f"database cannot be read or migrated: {error.orig}") from error
+    except CommandError as error:
+        raise MigrationError(f"migration failed: {error}") from error
+
+
 def head_revision() -> str:
     """The newest revision shipped with the package."""
     head = ScriptDirectory.from_config(_config()).get_current_head()
@@ -33,7 +48,7 @@ def head_revision() -> str:
 
 def current_revision(engine: Engine) -> str | None:
     """The revision the database is at, or None for an empty database."""
-    with engine.connect() as connection:
+    with _as_migration_error(), engine.connect() as connection:
         return MigrationContext.configure(connection).get_current_revision()
 
 
@@ -47,8 +62,9 @@ def upgrade_to_head(engine: Engine) -> str:
 
     Foreign keys are off during the upgrade (batch mode rebuilds tables) and must pass
     `PRAGMA foreign_key_check` before the commit; otherwise everything is rolled back.
+    A database that cannot be read or is at an unknown revision raises `MigrationError`.
     """
-    with engine.connect() as connection:
+    with _as_migration_error(), engine.connect() as connection:
         driver = connection.connection.driver_connection
         driver.execute("PRAGMA foreign_keys = OFF")  # no effect inside a transaction: run it first
         try:
