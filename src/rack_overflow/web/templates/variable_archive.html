@@ -1,0 +1,24 @@
+{% from "_form_status.html" import form_status %}
+{% from "_fields.html" import oob_announce %}
+{% set base = "/variables/" ~ detail.id %}
+<section id="variable-archivage" class="section" aria-labelledby="variable-archivage-titre" data-request-scope>
+  {{ form_status() }}
+  <h2 id="variable-archivage-titre">{{ t("variable.section_archive") }}</h2>
+  <p class="section__intro">{{ t("variable.archived_text") if detail.archived else t("variable.archive_text") }}</p>
+  <p class="section__intro">{{ t("variable.in_use_text") if detail.has_values else t("variable.deletable_text") }}</p>
+  {% if refusal %}<p id="variable-archiver-erreur" class="field__error">{{ refusal.get("variable-archiver") }}</p>{% endif %}
+  <div class="actions actions--inline">
+    {% if detail.archived %}
+    <button class="button button--primary" id="variable-restaurer" hx-delete="{{ base }}/archive" hx-target="#variable-archivage" hx-swap="outerHTML"{% if focus == "restore" %} autofocus{% endif %}>{{ t("action.restore") }}</button>
+    {% else %}
+    <button class="button" id="variable-archiver" hx-post="{{ base }}/archive" hx-target="#variable-archivage" hx-swap="outerHTML"{% if refusal %} aria-describedby="variable-archiver-erreur"{% endif %}{% if focus == "archive" %} autofocus{% endif %}>{{ t("action.archive") }}</button>
+    {% endif %}
+    {% if not detail.has_values %}
+    <button class="button button--danger" id="variable-supprimer" hx-get="{{ base }}/suppression" hx-target="#variable-archivage" hx-swap="outerHTML"{% if focus == "delete" %} autofocus{% endif %}>{{ t("variable.delete") }}</button>
+    {% endif %}
+  </div>
+</section>
+{% if oob_state %}
+<span id="variable-etat" hx-swap-oob="true">{% if detail.archived %}<span class="tag">{{ t("tag.archived_f") }}</span>{% endif %}</span>
+{% endif %}
+{{ oob_announce(announce) }}

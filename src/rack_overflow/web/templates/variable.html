@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block nav %}{% include "_nav.html" %}{% endblock %}
+{% block styles %}<link rel="stylesheet" href="/static/css/pages/catalog.css">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1><span id="variable-titre">{% if detail %}{{ detail.draft.label }}{% else %}{{ t("variable.new_title") }}{% endif %}</span><span id="variable-etat">{% if detail and detail.archived %}<span class="tag">{{ t("tag.archived_f") }}</span>{% endif %}</span></h1>
+</div>
+{% if for_exercise %}
+<p class="muted catalog-intro">{{ t("variable.for_exercise", name=for_exercise[1]) }}</p>
+{% endif %}
+{% if detail and detail.linked %}
+<p class="muted catalog-intro">{{ t("variable.shared_hint") }}</p>
+{% endif %}
+<div class="detail">
+  <div>
+    {% include "variable_form.html" %}
+  </div>
+  {% if detail %}
+  <div>
+    <section class="section" aria-labelledby="variable-liens-titre">
+      <h2 id="variable-liens-titre">{{ t("variable.section_linked") }}</h2>
+      {% if detail.linked %}
+      <ul class="rows">
+        {% for link in detail.linked %}
+        <li><a class="row" href="/exercices/{{ link.id }}"><span class="row__title">{{ link.name }}{% if link.archived %}<span class="tag">{{ t("tag.archived_m") }}</span>{% endif %}</span></a></li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="muted section__intro">{{ t("variable.no_linked") }}</p>
+      {% endif %}
+    </section>
+    {% with focus=none, oob_state=false, refusal=none, announce=none %}
+    {% include "variable_archive.html" %}
+    {% endwith %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

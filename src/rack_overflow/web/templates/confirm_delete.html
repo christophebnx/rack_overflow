@@ -1,0 +1,14 @@
+{% from "_form_status.html" import form_status %}
+{% set base = "/variables/" ~ detail.id %}
+<section id="variable-archivage" class="section" aria-labelledby="variable-archivage-titre" data-request-scope>
+  {{ form_status() }}
+  <h2 id="variable-archivage-titre">{{ t("variable.section_archive") }}</h2>
+  <div class="confirm" role="group" aria-labelledby="confirmation-titre">
+    <p id="confirmation-titre" class="confirm__title">{{ t("variable.confirm_delete_title", label=detail.draft.label) }}</p>
+    <p>{{ t("variable.confirm_delete_text_linked") if detail.linked else t("variable.confirm_delete_text") }}</p>
+    <div class="actions actions--inline">
+      <button class="button" id="variable-annuler" hx-get="{{ base }}/suppression?annuler=1" hx-target="#variable-archivage" hx-swap="outerHTML" autofocus>{{ t("action.cancel") }}</button>
+      <button class="button button--danger" id="variable-confirmer" hx-delete="{{ base }}" hx-target="#variable-archivage" hx-swap="outerHTML">{{ t("variable.confirm_delete") }}</button>
+    </div>
+  </div>
+</section>

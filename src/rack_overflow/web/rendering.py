@@ -10,13 +10,15 @@ from fastapi import Request
 from fastapi.responses import HTMLResponse
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
+from rack_overflow.web.display import Display
 from rack_overflow.web.locale import Catalog
 
 TEMPLATES = Path(__file__).resolve().parent / "templates"
 
 
 def create_environment(catalog: Catalog) -> Environment:
-    """The Jinja2 environment of the app: templates folder, autoescape, strict undefined, `t()`."""
+    """The Jinja2 environment of the app: templates folder, autoescape, strict undefined, `t()`,
+    `show` (value display, `web.display.Display`)."""
     environment = Environment(
         loader=FileSystemLoader(TEMPLATES),
         autoescape=True,
@@ -25,6 +27,7 @@ def create_environment(catalog: Catalog) -> Environment:
         lstrip_blocks=True,
     )
     environment.globals["t"] = catalog.text
+    environment.globals["show"] = Display(catalog)
     return environment
 
 

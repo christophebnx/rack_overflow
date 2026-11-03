@@ -90,6 +90,8 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Request authentication by device and the device cookie | `web/auth` |
 | User-facing strings | `web/locale.Catalog` (`web/locales/fr.json`) |
 | Render a page or fragment | `web/rendering.render` |
+| Values in display units in pages (number + unit text) | `web/display.Display` (`show` in templates) |
+| Refused catalog input → messages per input | `web/forms.form_errors` |
 | Show a failed htmx request (« Non enregistré, réessayer », focus back) | `web/static/js/request-errors.js` + `web/templates/_form_status.html` |
 | HTTP error → error page or JSON code | `web/errors` |
 | Check a commit message | `tools/check_commit_message.problems` |

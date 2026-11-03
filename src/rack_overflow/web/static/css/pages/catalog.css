@@ -1,0 +1,81 @@
+/* Catalog pages (docs/ui-spec.md, L2 — Exercise and Variable screens). */
+.catalog-intro {
+  margin-top: var(--space-2);
+  max-width: var(--text-max);
+}
+
+.toggle-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min);
+  margin-top: var(--space-2);
+}
+
+.empty {
+  margin-top: var(--space-6);
+  max-width: var(--text-max);
+}
+
+.empty__title {
+  font-weight: var(--weight-semibold);
+}
+
+@media (min-width: 40rem) {
+  .row--variable {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) auto;
+    gap: var(--space-4);
+    align-items: baseline;
+  }
+
+  .row--variable .row__meta {
+    font-size: var(--text-md);
+    line-height: var(--leading-md);
+  }
+
+  .row__count {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+}
+
+/* Variable form: the inputs of the chosen type only (CSS :has on the type select; frozen type: class). */
+.only-unit,
+.only-decimal,
+.only-enum {
+  display: none;
+}
+
+.variable-form:has(#type option[value="int"]:checked) .only-unit,
+.variable-form:has(#type option[value="decimal"]:checked) .only-unit,
+.variable-form:has(#type option[value="decimal"]:checked) .only-decimal,
+.variable-form:has(#type option[value="enum"]:checked) .only-enum,
+.variable-form--int .only-unit,
+.variable-form--decimal .only-unit,
+.variable-form--decimal .only-decimal,
+.variable-form--enum .only-enum {
+  display: flex;
+}
+
+.enum-values {
+  gap: var(--space-2);
+}
+
+.enum-value {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+@media (min-width: 40rem) {
+  .enum-value {
+    display: grid;
+    grid-template-columns: 7rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .enum-value > .field__hint {
+    margin: 0;
+  }
+}

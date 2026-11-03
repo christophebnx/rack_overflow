@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse, Response
 from starlette.exceptions import HTTPException
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from rack_overflow.domain.errors import NotFoundError
 from rack_overflow.web.rendering import render
 from rack_overflow.web.security import PAYLOAD_TOO_LARGE, UNSUPPORTED_MEDIA_TYPE
 
@@ -35,6 +36,7 @@ MESSAGE_KEYS: dict[str, str] = {
     "not_found": "error.not_found",
     "not_paired": "error.not_paired",
     "internal": "error.internal",
+    "invalid_request": "error.invalid_request",
     "method_not_allowed": "error.method_not_allowed",
     PAYLOAD_TOO_LARGE: "error.payload_too_large",
     UNSUPPORTED_MEDIA_TYPE: "error.unsupported_media_type",
@@ -82,6 +84,11 @@ async def _http_error(request: Request, error: Exception) -> Response:
     return response
 
 
+async def _not_found(request: Request, error: Exception) -> Response:
+    del error
+    return error_response(request, 404)
+
+
 async def _validation_error(request: Request, error: Exception) -> Response:
     del error
     return error_response(request, 422)
@@ -115,7 +122,9 @@ class UnhandledErrorMiddleware:
 
 
 def install(app: FastAPI) -> None:
-    """Register the error handlers and the unhandled-error middleware on `app`."""
+    """Register the error handlers (an unknown or foreign row, `domain.errors.NotFoundError`, is a
+    404) and the unhandled-error middleware on `app`."""
     app.add_exception_handler(HTTPException, _http_error)
     app.add_exception_handler(RequestValidationError, _validation_error)
+    app.add_exception_handler(NotFoundError, _not_found)
     app.add_middleware(UnhandledErrorMiddleware)
