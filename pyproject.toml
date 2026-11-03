@@ -5,7 +5,11 @@ description = "Personal training tracker: exercise catalog, session templates, s
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "alembic>=1.13",
+    "python-dotenv>=1.0",
+    "sqlalchemy>=2.0",
+]
 
 [project.scripts]
 rack = "rack_overflow.cli:main"

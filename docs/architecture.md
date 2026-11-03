@@ -33,9 +33,10 @@ The packages `web/` and `services/` and the database part of `storage/` are crea
 |---|---|---|
 | `domain/` | Pure business logic: models, rules, validation. No I/O, no clock, no environment (D-003). | nothing |
 | `storage/` | File system and persistence; the single atomic writer. | `domain` |
+| `config.py` | Load and validate the settings file and the secrets file beside it, once (D-044). | `domain` |
 | `cli.py` | Command-line entry point: parses arguments, calls the layers, maps errors to exit codes (D-004). | everything |
 
-Add a row when adding a package, and the matching entry in `ALLOWED` of `tests/unit/test_layering.py`. Each package has a `CLAUDE.md` with its rules and module table.
+Add a row when adding a package, and the matching entry in `ALLOWED` of `tests/unit/test_layering.py` (`MODULE_ALLOWED` for a top-level module). Each package has a `CLAUDE.md` with its rules and module table.
 
 ## Responsibility map
 
@@ -46,6 +47,11 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Base class of business errors | `domain/errors.DomainError` |
 | Write a file atomically (temp + fsync + rename) | `storage/files.atomic_write` |
 | Map an error to a CLI exit code and message | `cli.main` |
+| Load settings and secrets | `config.load_settings` |
+| Allowed values of enumerated columns | `domain/vocabulary` |
+| Open the database with the project pragmas | `storage/db.create_engine` |
+| Database schema | `storage/schema.metadata` |
+| Apply / inspect migrations | `storage/migrate` |
 | Check a commit message | `tools/check_commit_message.problems` |
 | Block secrets, protected folders, commits and pushes on `main` (Claude Code) | `.claude/hooks/guard_paths.py` |
 | Format and lint-fix an edited file (Claude Code) | `.claude/hooks/format.py` |
@@ -53,4 +59,4 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 
 ## Configuration
 
-Settings live in a machine settings file at the repository root (git-ignored): data folder, host, port, public host name, `[server] https = false` in V1 (D-013). Secrets go in the secrets file (git-ignored, template in `.env.example`); V1 needs none. Both are loaded once at start-up by the configuration module and passed down explicitly; no layer reads the environment on its own. Convention of this template: secrets in `.env` (git-ignored, template in `.env.example`), machine-specific settings in `config.toml` (git-ignored), local runtime data in `.local/` (git-ignored; `.local/dev-data/` for development, `.local/credentials/` never read by Claude Code).
+Settings live in a TOML settings file (D-044), given to every command by `--config PATH` (default `config.toml` in the current folder, git-ignored): `[server]` host, port, public host name, `https = false` in V1 (D-013); `[storage] data_dir` (relative to the settings file's folder); `[backup] retention_days`. The committed `config.example.toml` documents every key and is the development configuration (`uv run rack <command> --config config.example.toml`, data in `.local/dev-data/`). Secrets go in the `.env` file beside the settings file (git-ignored, template in `.env.example`); V1 needs none. `config.load_settings` reads both once, in `cli.py`, and the frozen `Settings` are passed down explicitly; no other layer reads the environment or these files. A missing or invalid file is an error, never a silent default.

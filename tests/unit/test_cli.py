@@ -1,17 +1,26 @@
+from pathlib import Path
+
 import pytest
 
 from rack_overflow import __version__
 from rack_overflow.cli import main
 
 
-def test_hello_prints_a_greeting(capsys: pytest.CaptureFixture[str]) -> None:
-    assert main(["hello", "Ada"]) == 0
-    assert capsys.readouterr().out == "Hello, Ada!\n"
+def test_migrate_creates_the_database_and_is_idempotent(
+    settings_file: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    database = settings_file.parent / "data" / "rack.sqlite"
+    assert main(["migrate", "--config", str(settings_file)]) == 0
+    first = capsys.readouterr().out
+    assert first == f"database {database} at revision 0001\n"
+    assert main(["migrate", "--config", str(settings_file)]) == 0
+    assert capsys.readouterr().out == first
 
 
-def test_domain_error_exits_1(capsys: pytest.CaptureFixture[str]) -> None:
-    assert main(["hello", " "]) == 1
-    assert capsys.readouterr().err == "rack: error: name is empty\n"
+def test_missing_settings_file_exits_1(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    missing = tmp_path / "missing.toml"
+    assert main(["migrate", "--config", str(missing)]) == 1
+    assert capsys.readouterr().err == f"rack: error: settings file not found: {missing}\n"
 
 
 def test_no_command_exits_2(capsys: pytest.CaptureFixture[str]) -> None:
@@ -19,9 +28,10 @@ def test_no_command_exits_2(capsys: pytest.CaptureFixture[str]) -> None:
     assert "usage:" in capsys.readouterr().err
 
 
-def test_unknown_command_exits_2() -> None:
+@pytest.mark.parametrize("argv", [["nope"], ["migrate", "--bad"]])
+def test_usage_errors_exit_2(argv: list[str]) -> None:
     with pytest.raises(SystemExit) as exit_info:
-        main(["nope"])
+        main(argv)
     assert exit_info.value.code == 2
 
 

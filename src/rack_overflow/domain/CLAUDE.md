@@ -11,4 +11,4 @@
 | Module | Owns |
 |---|---|
 | `errors.py` | `DomainError(ValueError)`, base of every module's error class |
-| `greeting.py` | Example module (replace it): `greeting(name)`, `GreetingError`, `NAME_LIMIT` |
+| `vocabulary.py` | Allowed values of enumerated columns (`VARIABLE_TYPES`, `VARIABLE_SCOPES`, `CORE_QUANTITIES`, `EXERCISE_CATEGORIES`, `LOCATIONS`, `SESSION_LOCATIONS`, `SESSION_STATUSES`, `SET_TYPES`): stable English keys, turned into `CHECK` constraints by `storage/schema` |
