@@ -374,3 +374,52 @@ def test_field_helpers() -> None:
 
 def test_session_error_code() -> None:
     assert SessionError("session_closed").code == "session_closed"
+
+
+# --- edge cases (tester)
+
+LEVEL = SessionField("var_12", FieldKind("decimal", scale=1), FieldParams(increment=5), variable_id=12)
+
+
+@pytest.mark.parametrize(
+    ("fields", "raw", "step", "expected"),
+    [
+        ((LEVEL,), {"var_12": "2,5"}, "var_12:up", "3,0"),  # decimal keeps its scale
+        ((LEVEL,), {"var_12": "0,3"}, "var_12:down", "0,0"),  # off the grid, floored at 0
+        ((DISTANCE,), {"distance": "900 m"}, "distance:up", "1"),  # crosses 1 km: km text
+        ((DISTANCE,), {"distance": "1"}, "distance:down", "900 m"),
+        ((DURATION,), {"duration": "59:45"}, "duration:up", "1:00:00"),  # off the grid: snaps
+        ((DURATION,), {"duration": "0:10"}, "duration:down", "0:00"),
+    ],
+)
+def test_step_values_round_trip_through_the_parser(
+    fields: tuple[SessionField, ...], raw: dict[str, str], step: str, expected: str
+) -> None:
+    name = fields[0].name
+    moved = step_values(fields, raw, step)
+    assert moved[name] == expected
+    assert set_draft("cardio", fields, "work", {name: expected}).values.get(name, 0) >= 0
+
+
+def test_target_is_ignored_once_a_last_performance_exists() -> None:
+    target = Target(sets=3, reps_min=10, reps_max=12)
+    assert prefill(0, [], [work(5, 100000)], target, STRENGTH) == work(5, 100000)
+
+
+def test_prefill_beyond_the_last_performance_keeps_todays_type() -> None:
+    # no last performance and today's previous set is a work set: work again, same values
+    assert prefill(3, [warmup(10, 40000), work(8, 60000), work(8, 60000)], [], None, STRENGTH) == work(
+        8, 60000
+    )
+    # last performance shorter than today: its type no longer drives the next set
+    assert prefill(2, [work(8, 60000), warmup(5, 30000)], [work(8, 60000)], None, STRENGTH) == warmup(
+        5, 30000
+    )
+
+
+def test_prefill_of_a_last_performance_missing_a_field_takes_no_default() -> None:
+    weighted = SessionField(
+        "weight", FieldKind("weight"), FieldParams(required=True, default_int=20000), core_quantity="weight"
+    )
+    found = prefill(0, [], [SetFacts("work", {"reps": 8})], None, (REPS, weighted))
+    assert found.values == {"reps": 8}

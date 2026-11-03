@@ -120,3 +120,40 @@ def test_volume_per_category() -> None:
 
 def test_round_count() -> None:
     assert round_count(rounds(1, 8) + rounds(1, 2, "warmup")) == 8
+
+
+# --- edge cases (tester)
+
+
+def test_intervals_equal_round_count_is_not_a_record() -> None:
+    history = rounds(1, 4) + rounds(2, 4)
+    assert records("intervals", history) == set()
+    assert records("intervals", history + rounds(2, 1)) == {8}  # the 5th round of session 2
+
+
+def test_intervals_first_session_has_no_record() -> None:
+    assert records("intervals", rounds(1, 10)) == set()
+
+
+def test_rm_test_and_work_sets_compare_with_each_other() -> None:
+    assert not is_record("strength", lift(1, 100), [lift(1, 100, "rm_test")])
+    assert is_record("strength", lift(1, 102.5, "rm_test"), [lift(1, 100)])
+
+
+def test_missing_quantities_read_as_zero() -> None:
+    # a hold with added load against an unloaded hold: more load, same duration
+    hold = LoggedSet("work", duration_s=60)
+    assert is_record("bodyweight", LoggedSet("work", duration_s=60, weight_g=5000), [hold])
+    assert not is_record("bodyweight", LoggedSet("work", duration_s=30), [hold])
+
+
+def test_cardio_duration_only_against_a_timed_distance() -> None:
+    assert not is_record("cardio", LoggedSet("work", duration_s=1800), [run(30, 5000)])
+    assert is_record("cardio", LoggedSet("work", duration_s=1860), [run(30, 5000)])
+
+
+def test_volume_ignores_warm_ups_and_empty_values() -> None:
+    assert volume("kettlebell", [LoggedSet("warmup", reps=10, weight_g=16000)]) == Volume("kettlebell")
+    assert volume(
+        "bodyweight", [LoggedSet("work", duration_s=45), LoggedSet("work", duration_s=50)]
+    ) == Volume("bodyweight", duration_s=95, sets=2)
