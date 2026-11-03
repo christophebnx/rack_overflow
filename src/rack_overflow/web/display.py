@@ -9,7 +9,7 @@ from rack_overflow.domain import units
 from rack_overflow.web.locale import Catalog
 
 VALUE_SEPARATOR = " · "
-# core quantity -> its word (the one map, used by `Display.quantity` and the exercise routes)
+# core quantity -> its word (the one map, read only by `Display.quantity`)
 QUANTITY_KEYS = {
     "reps": "quantity.reps",
     "weight": "quantity.weight",

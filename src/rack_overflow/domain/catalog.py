@@ -540,16 +540,20 @@ class FieldSource:
         return self.core_quantity is not None or self.variable_scope == "set"
 
 
+def _has_measure(fields: Iterable[FieldSource]) -> bool:
+    return any(source.is_measure for source in fields)
+
+
 def check_measures(fields: Iterable[FieldSource]) -> None:
     """An exercise keeps at least one measure (`last_measure` otherwise)."""
-    if not any(source.is_measure for source in fields):
+    if not _has_measure(fields):
         raise _refuse("field", "last_measure")
 
 
 def check_linked_measures(field_name: str, linked: Iterable[tuple[str, Iterable[FieldSource]]]) -> None:
     """A variable change or delete keeps a measure on every linked exercise: `linked` gives each
     exercise's name and its fields after the change; `variable_last_measure` names the others."""
-    lacking = [name for name, fields in linked if not any(source.is_measure for source in fields)]
+    lacking = [name for name, fields in linked if not _has_measure(fields)]
     if lacking:
         raise _refuse(field_name, "variable_last_measure", exercises=", ".join(lacking))
 

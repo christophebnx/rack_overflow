@@ -17,7 +17,7 @@ from rack_overflow.domain.vocabulary import EXERCISE_CATEGORIES, LOCATIONS
 from rack_overflow.services import exercises
 from rack_overflow.services.exercises import ExerciseDetail, ExerciseForm, FieldForm, FieldView
 from rack_overflow.web.auth import device_user
-from rack_overflow.web.display import QUANTITY_KEYS
+from rack_overflow.web.display import Display
 from rack_overflow.web.forms import NO_ERRORS, FormErrors, checked, form_errors
 from rack_overflow.web.rendering import render
 
@@ -100,7 +100,7 @@ def field_name(request: Request, field: FieldView) -> str:
     """The displayed name of a field: the core quantity's word or the variable's label."""
     if field.variable is not None:
         return field.variable.draft.label
-    return _text(request, QUANTITY_KEYS[field.core_quantity or ""])
+    return Display(request.app.state.catalog).quantity(field.core_quantity or "")
 
 
 # --- list and search
