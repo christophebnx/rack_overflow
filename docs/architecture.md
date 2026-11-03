@@ -18,12 +18,16 @@ domain/     pure rules: units, records, e1RM, prefill, validation
 storage/    SQLAlchemy Core queries, Alembic migrations, backups, atomic file writes
    ▼
 SQLite (WAL) in the data folder  ──  daily VACUUM INTO backups
+
+ops/        rack supervise (restarts rack serve, rotating logs), rack update (host side, beside the stack)
 ```
 
 Main flows:
+- **Every request**: security checks (`Host`, `Origin`, JSON-only, body size) → device cookie (`web/auth`; unpaired: navigation `303` to `/appairage`, otherwise `401 not_paired`). Only `/appairage` and `/static/` are public (D-049).
 - **Page**: GET → route → service reads → Jinja2 page with strings from `locales/fr.json`.
-- **Action** (e.g. confirm a set): htmx POST/PATCH with a JSON body → security checks (`Origin`, `Host`, JSON-only, device cookie) → Pydantic validation → service (one transaction, domain rules) → HTML fragment swapped in place.
-- **Operations**: `rack migrate`, `rack backup`, `rack device …`, `rack serve`, `rack supervise` (CLI calls the same services and storage).
+- **Action** (e.g. confirm a set): htmx POST/PATCH with a JSON body → Pydantic validation → service (one transaction, domain rules) → HTML fragment swapped in place; a refused user input re-renders the form with `200` (D-050).
+- **Pairing**: `rack device add NAME` prints a one-time code → the browser posts it to `/appairage` → hashed token stored, `rack_device` cookie set (D-040, D-049).
+- **Operations**: `rack migrate`, `rack backup`, `rack device …`, `rack serve` (CLI calls the same services and storage); `rack supervise` runs `rack serve` as a child; `rack update` pulls `main`, syncs, migrates in a new process, then sends SIGHUP to the supervisor, which re-executes itself (D-051, D-052). Install guide: `docs/deployment/nas.md`.
 
 ## Layers
 

@@ -4,6 +4,12 @@ All notable changes are listed here, newest first. Format: [Keep a Changelog](ht
 
 ## [Unreleased]
 
+- Per-device access: `rack device add | list | revoke NAME`; `add` prints a one-time 8-digit code, valid 10 minutes, blocked after 5 wrong attempts; codes and tokens stored only as SHA-256 hashes (D-049) (L1b).
+- Pairing page `/appairage`; every other route except `/static/` requires a paired device (unpaired navigation redirected, other requests `401 not_paired`); refusals re-render the form in place (D-050) (L1b).
+- Device cookie `rack_device`: `HttpOnly`, `SameSite=Strict`, 400 days renewed by use, `Secure` only when `[server] https = true`; a revoked device loses access on its next request (D-040) (L1b).
+- `rack supervise`: runs `rack serve`, restarts it after a crash (1 s doubling to 300 s), rotating logs in `<data_dir>/logs/`, one instance per data folder (D-038, D-051) (L1b).
+- `rack update`: on a clean `main` clone, pull, `uv sync --frozen`, `rack migrate`, then restart through the supervisor; it still syncs, migrates and restarts when nothing new was pulled, so a rerun completes a failed update (D-052) (L1b).
+- NAS install and update guide, LAN only: `docs/deployment/nas.md` (L1b).
 - Configuration: one TOML settings file passed with `--config` (default `config.toml`), secrets in the `.env` beside it; committed `config.example.toml` for development; a missing or invalid file is an error (D-044) (L1a).
 - `rack migrate`: creates or upgrades the SQLite database (full V1 schema, Alembic revisions shipped in the package), idempotent, snapshots an existing database before pending revisions (D-046) (L1a).
 - `rack backup` and a daily backup in the server: `rack-<UTC timestamp>.sqlite` snapshots by `VACUUM INTO`, integrity checked, 30-day retention keeping the newest; a corrupt database is refused, never moved or deleted (D-045) (L1a).
