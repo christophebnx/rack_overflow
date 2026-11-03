@@ -3,7 +3,7 @@
 {% from "_form_status.html" import form_status %}
 {% from "_fields.html" import field_error, oob_announce %}
 {% from "_labels.html" import LOCATION_KEYS %}
-<form class="start" id="demarrer" hx-post="/seances" hx-target="this" hx-swap="outerHTML" hx-disabled-elt="find button">
+<form class="start" id="demarrer" hx-post="/seances" hx-target="this" hx-swap="outerHTML" hx-disabled-elt="#demarrer button">
   {{ form_status() }}
   <h1>{{ t("home.start_title") }}</h1>
   <fieldset class="chips">

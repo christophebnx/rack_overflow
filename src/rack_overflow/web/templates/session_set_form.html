@@ -7,7 +7,7 @@
 {% set prefix = "exercice-" ~ b.id %}
 {% set intervals = b.exercise.category == "intervals" %}
 {% set more = b.more_fields %}
-<form class="set-form" id="{{ prefix }}-serie" hx-post="/seances/{{ sid }}/series" hx-target="#{{ prefix }}" hx-swap="outerHTML show:#{{ prefix }}-actions:bottom" hx-disabled-elt="find button">
+<form class="set-form" id="{{ prefix }}-serie" hx-post="/seances/{{ sid }}/series" hx-target="#{{ prefix }}" hx-swap="outerHTML show:#{{ prefix }}-actions:bottom" hx-disabled-elt="#{{ prefix }}-serie button">
   {{ form_status() }}
   <input type="hidden" name="session_exercise_id" value="{{ b.id }}">
   <h3 id="{{ prefix }}-serie-titre">{{ t("session.next_round" if intervals else "session.next_set", n=b.number) }}</h3>

@@ -149,6 +149,9 @@ def test_session_page_from_salle_a(client: TestClient, seeded: Engine) -> None:
     assert TEXT("session.all_heading") in html
     assert triggers_without_slot(html) == []
     assert write_triggers(html) > 40
+    # every button of a form is disabled during its request (htmx `find` would take the first only)
+    assert f'hx-disabled-elt="#exercice-{squat}-serie button"' in html
+    assert 'hx-disabled-elt="find button"' not in html
 
 
 def test_requested_items_and_unknown_ones(client: TestClient, seeded: Engine) -> None:

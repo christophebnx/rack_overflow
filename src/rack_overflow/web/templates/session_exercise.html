@@ -47,14 +47,14 @@
       <span class="set-row__text">{{ show.set_text(item.facts, b.fields) }}{% if item.facts.type == "warmup" %}<span class="tag">{{ t("session.set_type.warmup") }}</span>{% elif item.facts.type == "rm_test" %}<span class="tag">{{ t("session.set_type.rm_test") }}</span>{% endif %}{% if item.record %}<span class="tag tag--record">{{ t("session.record") }}</span>{% endif %}</span>
       <details class="set-row__edit"{% if editing and eerrors %} open{% endif %}>
         <summary class="button" id="{{ eprefix }}-modifier"{% if focus == eprefix ~ "-modifier" %} autofocus{% endif %}>{{ t("action.edit") }}<span class="visually-hidden"> {{ t("session.set_named", n=item.number) }}</span></summary>
-        <form class="set-edit" hx-patch="/series/{{ item.id }}" hx-target="#{{ prefix }}" hx-swap="outerHTML" hx-disabled-elt="find button">
+        <form class="set-edit" id="{{ eprefix }}-form" hx-patch="/series/{{ item.id }}" hx-target="#{{ prefix }}" hx-swap="outerHTML" hx-disabled-elt="#{{ eprefix }}-form button">
           {{ form_status() }}
           {{ fields.type_chips(b.types, edit.type if editing else item.facts.type, eprefix ~ "-type", eerrors) }}
           {{ field_error(eprefix ~ "-serie", eerrors) }}
           {% for f in b.fields %}{{ fields.input(f, eprefix, etexts, eerrors) }}{% endfor %}
           <div class="actions actions--inline">
             <button class="button button--primary" type="submit">{{ t("action.save") }}</button>
-            <button class="button button--danger" type="button" hx-delete="/series/{{ item.id }}" hx-target="#{{ prefix }}" hx-swap="outerHTML">{{ t("session.delete_set") }}</button>
+            <button class="button button--danger" type="button" hx-delete="/series/{{ item.id }}" hx-target="#{{ prefix }}" hx-swap="outerHTML" hx-disabled-elt="#{{ eprefix }}-form button">{{ t("session.delete_set") }}</button>
           </div>
         </form>
       </details>
