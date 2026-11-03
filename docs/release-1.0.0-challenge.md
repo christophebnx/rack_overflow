@@ -126,7 +126,8 @@ B0 → **L1a** (FastAPI app, Jinja2 + htmx layout, config, database, migrations,
 
 ### F.1 Plain HTTP in V1 (user decision, 2026-11-03)
 
-- `rack serve` listens directly on the NAS port reached through the DDNS port forwarding; no reverse proxy, no certificate.
+- **During development (L1a to L6): LAN only, no WAN exposure.** No port forwarding; the app is reached on the local network only.
+- **Once in use**: `rack serve` listens on a high, non-standard port (configured, e.g. 40000-65000), forwarded through the DDNS; no reverse proxy, no certificate. A non-standard port cuts automated noise but does not hide the app from a full port scan, so the protections below stay.
 - **Accepted risk**: traffic (pairing code, session cookie, training data) travels in clear, and the app is reachable by anyone who finds the address. The user accepts it for V1.
 - **Kept, because it costs little and the app is on the internet**: per-device pairing and the `HttpOnly`, `SameSite=Strict` cookie, the `Origin` / `Sec-Fetch-Site` check and the JSON-only rule (A.5). Without them, anyone reaching the port could write data.
 - The cookie `Secure` flag and HSTS are driven by configuration (`[server] https = false` in V1), so turning HTTPS on in V2 is a configuration change, not a code change.
