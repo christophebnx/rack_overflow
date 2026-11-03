@@ -198,15 +198,27 @@ class Estimate:
     source: LoggedSet
 
 
+def _set_e1rm(formula: str, item: LoggedSet) -> int | None:
+    """The e1RM of one set, None when the set is not estimable."""
+    if not estimable(item):
+        return None
+    assert item.reps is not None and item.weight_g is not None
+    return estimate_1rm(formula, item.reps, item.weight_g)
+
+
+def _day_e1rm(formula: str, group: Iterable[LoggedSet]) -> int | None:
+    """The best e1RM of a group of sets (a day's), None without an estimable set."""
+    return max((value for item in group if (value := _set_e1rm(formula, item)) is not None), default=None)
+
+
 def best_estimate(formula: str, sets: Iterable[LoggedSet]) -> Estimate | None:
     """The best e1RM over `sets` (history order), the latest set on a tie; None without an
     estimable set."""
     best: Estimate | None = None
     for item in sets:
-        if not estimable(item):
+        value = _set_e1rm(formula, item)
+        if value is None:
             continue
-        assert item.reps is not None and item.weight_g is not None
-        value = estimate_1rm(formula, item.reps, item.weight_g)
         if best is None or value >= best.value_g:
             best = Estimate(value, item)
     return best
@@ -398,12 +410,10 @@ class Bests:
         return not (self.by_reps or self.by_load or self.singles)
 
 
-def _session_load(group: list[LoggedSet]) -> int:
-    return sum((item.reps or 0) * (item.weight_g or 0) for item in group)
-
-
 def _singles(category: str, sets: Sequence[LoggedSet]) -> dict[str, Best | None]:
-    load = _session_load
+    def load(group: list[LoggedSet]) -> int:
+        return volume(category, group).load_g
+
     if category == STRENGTH:
         return {"session_volume": _best_of(_per_session(sets, load))}
     if category == KETTLEBELL:
@@ -496,18 +506,20 @@ def _add(first: int, second: int) -> int:
     return first + second
 
 
-def _strength_series(sets: list[LoggedSet], formula: str, measures: Iterable[RmMeasure]) -> list[Series]:
-    def e1rm(item: LoggedSet) -> int | None:
-        if not estimable(item):
-            return None
-        assert item.reps is not None and item.weight_g is not None
-        return estimate_1rm(formula, item.reps, item.weight_g)
+def _measured_1rm_sets(measures: Iterable[RmMeasure]) -> list[LoggedSet]:
+    """The measured 1RMs (n = 1 only) as sets dated by their test day, for the chart and table."""
+    return [LoggedSet(RM_TEST, weight_g=m.weight_g, local_date=m.local_date) for m in measures if m.n == 1]
 
-    measured = [
-        LoggedSet(RM_TEST, weight_g=m.weight_g, local_date=m.local_date) for m in measures if m.n == 1
-    ]
+
+def _strength_series(sets: list[LoggedSet], formula: str, measures: Iterable[RmMeasure]) -> list[Series]:
+    e1rm = tuple(
+        Point(day, value)
+        for day, group in sorted(_by_day(sets).items())
+        if (value := _day_e1rm(formula, group)) is not None
+    )
+    measured = _measured_1rm_sets(measures)
     return [
-        Series("e1rm", "weight", _daily(sets, e1rm, max)),
+        Series("e1rm", "weight", e1rm),
         Series("measured_1rm", "weight", _daily(measured, lambda i: i.weight_g, max), POINTS),
     ]
 
@@ -600,16 +612,14 @@ def _sum_of(values: Iterable[int | None]) -> int | None:
 
 
 def _strength_rows(days: dict[str, list[LoggedSet]], formula: str, measures: Sequence[RmMeasure]) -> DayTable:
-    measured = _by_day(LoggedSet(RM_TEST, weight_g=m.weight_g, local_date=m.local_date) for m in measures)
+    measured = _by_day(_measured_1rm_sets(measures))
     columns = [("e1rm", "weight")] + ([("measured", "weight")] if measured else []) + [("volume", "weight")]
     rows = []
     for day in sorted(set(days) | set(measured), reverse=True):
         group = days.get(day, [])
-        e1rm = _max_of(
-            estimate_1rm(formula, item.reps or 0, item.weight_g or 0) for item in group if estimable(item)
-        )
-        values = [e1rm] + ([_max_of(i.weight_g for i in measured.get(day, []))] if measured else [])
-        rows.append(DayRow(day, (*values, _session_load(group) or None)))
+        values = [_day_e1rm(formula, group)]
+        values += [_max_of(i.weight_g for i in measured.get(day, []))] if measured else []
+        rows.append(DayRow(day, (*values, volume(STRENGTH, group).load_g or None)))
     return DayTable(tuple(columns), tuple(rows))
 
 

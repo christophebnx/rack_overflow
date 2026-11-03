@@ -376,6 +376,20 @@ def test_strength_day_table_newest_first_with_measured_column() -> None:
     )
 
 
+def test_strength_day_table_measured_column_holds_1rm_only() -> None:
+    sets = [lift(5, 100, "2026-10-01")]
+    five_rm = [manual(5, 105, "2026-10-05"), RmMeasure(3, 120000, "2026-10-01", "rm_test", 9)]
+    table = day_table("strength", sets, "epley", {"reps", "weight"}, five_rm)
+    assert table.columns == (("e1rm", "weight"), ("volume", "weight"))
+    assert [(row.local_date, row.values) for row in table.rows] == [("2026-10-01", (116700, 500000))]
+    with_one = [*five_rm, manual(1, 112, "2026-10-05", measured_id=2)]
+    table = day_table("strength", sets, "epley", {"reps", "weight"}, with_one)
+    assert [(row.local_date, row.values) for row in table.rows] == [
+        ("2026-10-05", (None, 112000, None)),
+        ("2026-10-01", (116700, None, 500000)),
+    ]
+
+
 def test_kettlebell_day_table_per_load() -> None:
     table = day_table("kettlebell", [lift(10, 16), lift(12, 16), lift(8, 24)], "epley", {"reps", "weight"})
     assert [row.values for row in table.rows] == [(16000, 12), (24000, 8)]
