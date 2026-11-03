@@ -9,6 +9,13 @@ from rack_overflow.domain import units
 from rack_overflow.web.locale import Catalog
 
 VALUE_SEPARATOR = " · "
+# core quantity -> its word (the one map, used by `Display.quantity` and the exercise routes)
+QUANTITY_KEYS = {
+    "reps": "quantity.reps",
+    "weight": "quantity.weight",
+    "duration": "quantity.duration",
+    "distance": "quantity.distance",
+}
 TYPED_UNIT_KEYS = {"weight": units.UNIT_KG, "distance": units.UNIT_KM, "duration": units.UNIT_DURATION}
 
 
@@ -51,3 +58,7 @@ class Display:
         """The unit shown in a label or a list: kg, km, m:ss, or the free unit (empty when none)."""
         key = TYPED_UNIT_KEYS.get(kind)
         return self._catalog.text(key) if key else (free_unit or "")
+
+    def quantity(self, core_quantity: str) -> str:
+        """The word of a core quantity: « Répétitions », « Charge »…"""
+        return self._catalog.text(QUANTITY_KEYS[core_quantity])

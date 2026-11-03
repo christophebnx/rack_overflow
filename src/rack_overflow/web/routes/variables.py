@@ -16,6 +16,7 @@ from rack_overflow.domain.errors import NotFoundError
 from rack_overflow.domain.vocabulary import VARIABLE_TYPES
 from rack_overflow.services import exercises, variables
 from rack_overflow.services.variables import VariableDetail, VariableForm
+from rack_overflow.web.auth import device_user
 from rack_overflow.web.forms import NO_ERRORS, FormErrors, as_list, form_errors
 from rack_overflow.web.rendering import render
 
@@ -54,10 +55,6 @@ class VariableBody(BaseModel):
     exercice: str | None = Field(default=None, max_length=TEXT_MAX)
 
 
-def _user(request: Request) -> int:
-    return int(request.state.device.user_id)
-
-
 def _value_inputs(body: VariableBody) -> list[ValueInput]:
     """Existing values (label + hidden key, maybe removed), then the new lines of the textarea."""
     removed = set(as_list(body.value_remove))
@@ -84,7 +81,7 @@ def _exercise_name(request: Request, raw: str | None) -> tuple[int, str] | None:
     if raw is None or not raw.isdigit():
         return None
     try:
-        detail = exercises.get_detail(request.app.state.engine, _user(request), int(raw))
+        detail = exercises.get_detail(request.app.state.engine, device_user(request), int(raw))
     except NotFoundError:
         return None
     return detail.id, detail.draft.name
@@ -147,7 +144,9 @@ def _values_of_body(body: VariableBody, detail: VariableDetail | None) -> dict[s
 def list_variables(request: Request, archivees: str | None = None) -> HTMLResponse:
     """The variable list, grouped by role; archived ones with `?archivees=1`."""
     show_archived = archivees == "1"
-    found = variables.list_variables(request.app.state.engine, _user(request), include_archived=show_archived)
+    found = variables.list_variables(
+        request.app.state.engine, device_user(request), include_archived=show_archived
+    )
     context = {
         "title_key": "variables.title",
         "section": "variables",
@@ -181,7 +180,7 @@ def create_variable(request: Request, body: VariableBody) -> Response:
     """Create the variable; success → its page, or back to the exercise with it preselected."""
     for_exercise = _exercise_name(request, body.exercice)
     try:
-        variable_id = variables.create(request.app.state.engine, _user(request), _form(body))
+        variable_id = variables.create(request.app.state.engine, device_user(request), _form(body))
     except CatalogError as error:
         errors = form_errors(request.app.state.catalog, error, INPUT_IDS, FORM_LEVEL_ID)
         context = _form_context(
@@ -195,7 +194,7 @@ def create_variable(request: Request, body: VariableBody) -> Response:
 
 
 def _detail(request: Request, variable_id: int) -> VariableDetail:
-    return variables.get_detail(request.app.state.engine, _user(request), variable_id)
+    return variables.get_detail(request.app.state.engine, device_user(request), variable_id)
 
 
 @router.get(LIST_PATH + "/{variable_id}", response_class=HTMLResponse)
@@ -211,7 +210,7 @@ def update_variable(request: Request, variable_id: int, body: VariableBody) -> H
     """Save the shared variable; the form comes back with the saved state or the refusals."""
     detail = _detail(request, variable_id)
     try:
-        variables.update(request.app.state.engine, _user(request), variable_id, _form(body, detail))
+        variables.update(request.app.state.engine, device_user(request), variable_id, _form(body, detail))
     except CatalogError as error:
         ids = {**INPUT_IDS, "values": "valeurs-ajout"}
         errors = form_errors(request.app.state.catalog, error, ids, FORM_LEVEL_ID)
@@ -240,7 +239,7 @@ def _archive_block(
 def archive_variable(request: Request, variable_id: int) -> HTMLResponse:
     """Archive the variable (always allowed); the block shows « Restaurer »."""
     state = request.app.state
-    variables.set_archived(state.engine, _user(request), variable_id, state.clock())
+    variables.set_archived(state.engine, device_user(request), variable_id, state.clock())
     text = state.catalog.text("variable.announce_archived")
     return _archive_block(request, _detail(request, variable_id), focus="restore", announce=text)
 
@@ -249,7 +248,7 @@ def archive_variable(request: Request, variable_id: int) -> HTMLResponse:
 def restore_variable(request: Request, variable_id: int) -> HTMLResponse:
     """Restore the variable; the block shows « Archiver »."""
     state = request.app.state
-    variables.set_archived(state.engine, _user(request), variable_id, None)
+    variables.set_archived(state.engine, device_user(request), variable_id, None)
     text = state.catalog.text("variable.announce_restored")
     return _archive_block(request, _detail(request, variable_id), focus="archive", announce=text)
 
@@ -268,7 +267,7 @@ def delete_variable(request: Request, variable_id: int) -> Response:
     """Delete a variable without values (→ the list); with values, the block explains the refusal."""
     state = request.app.state
     try:
-        variables.delete(state.engine, _user(request), variable_id)
+        variables.delete(state.engine, device_user(request), variable_id)
     except CatalogError as error:
         errors = form_errors(state.catalog, error, ARCHIVE_IDS, ARCHIVE_IDS["delete"])
         detail = _detail(request, variable_id)

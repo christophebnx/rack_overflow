@@ -52,6 +52,11 @@ def is_public(path: str) -> bool:
     return path in PUBLIC_PATHS or path.startswith(STATIC_PREFIX)
 
 
+def device_user(request: Request) -> int:
+    """The user id of the paired device of a protected request (set by `DeviceAuthMiddleware`)."""
+    return int(request.state.device.user_id)
+
+
 def unpaired_response(request: Request) -> Response:
     """`303` to the pairing page for a navigation, else `401 not_paired` (`HX-Redirect` for htmx)."""
     if request.method in SAFE_METHODS and wants_page(request):

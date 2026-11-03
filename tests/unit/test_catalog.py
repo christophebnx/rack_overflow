@@ -219,6 +219,13 @@ def test_known_spelling() -> None:
     assert catalog.known_spelling(None, ["Squat"]) is None
 
 
+def test_with_known_spellings_rewrites_pattern_and_equipment_only() -> None:
+    draft = catalog.ExerciseDraft("Rowing", "strength", "tirage HORIZONTAL", "barre", "gym")
+    result = catalog.with_known_spellings(draft, ["Tirage horizontal"], ["Barre", "Haltères"])
+    assert result == catalog.ExerciseDraft("Rowing", "strength", "Tirage horizontal", "Barre", "gym")
+    assert catalog.with_known_spellings(draft, [], []) == draft
+
+
 @pytest.mark.parametrize(
     ("category", "expected"),
     [

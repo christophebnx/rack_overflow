@@ -1,6 +1,6 @@
 {% from "_form_status.html" import form_status %}
 {% from "_fields.html" import described, field_error, field_hint, oob_announce %}
-{% from "_labels.html" import QUANTITY_KEYS, GROUP_KEYS, SCOPE_KEYS %}
+{% from "_labels.html" import GROUP_KEYS, SCOPE_KEYS %}
 {% macro default_text(field) -%}
 {% set p = field.params %}
 {% if field.kind.kind == "enum" %}{% for value in field.variable.draft.enum_values if value.key == p.default_text %}{{ value.label }}{% endfor %}
@@ -53,7 +53,7 @@
           <optgroup label="{{ t(GROUP_KEYS['core']) }}">
             {% for quantity in detail.addable_quantities %}
             {% set value = "core:" ~ quantity %}
-            <option value="{{ value }}"{% if selected == value %} selected{% endif %}>{{ t(QUANTITY_KEYS[quantity]) }}</option>
+            <option value="{{ value }}"{% if selected == value %} selected{% endif %}>{{ show.quantity(quantity) }}</option>
             {% endfor %}
           </optgroup>
           {% endif %}

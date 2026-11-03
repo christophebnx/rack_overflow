@@ -16,6 +16,8 @@ from rack_overflow.domain.catalog import CatalogError, Problem
 from rack_overflow.domain.vocabulary import EXERCISE_CATEGORIES, LOCATIONS
 from rack_overflow.services import exercises
 from rack_overflow.services.exercises import ExerciseDetail, ExerciseForm, FieldForm, FieldView
+from rack_overflow.web.auth import device_user
+from rack_overflow.web.display import QUANTITY_KEYS
 from rack_overflow.web.forms import NO_ERRORS, FormErrors, checked, form_errors
 from rack_overflow.web.rendering import render
 
@@ -41,12 +43,6 @@ EXERCISE_IDS = {
 }
 ADD_ID = "champ-ajout"
 ALIAS_ID = "alias-nouveau"
-QUANTITY_KEYS = {
-    "reps": "quantity.reps",
-    "weight": "quantity.weight",
-    "duration": "quantity.duration",
-    "distance": "quantity.distance",
-}
 Many = str | list[str] | None
 
 
@@ -92,10 +88,6 @@ class AliasBody(BaseModel):
     alias: str | None = Field(default=None, max_length=TEXT_MAX)
 
 
-def _user(request: Request) -> int:
-    return int(request.state.device.user_id)
-
-
 def _engine(request: Request) -> Any:
     return request.app.state.engine
 
@@ -115,7 +107,7 @@ def field_name(request: Request, field: FieldView) -> str:
 
 
 def _results_context(request: Request, q: str, show_archived: bool) -> dict[str, Any]:
-    user, engine = _user(request), _engine(request)
+    user, engine = device_user(request), _engine(request)
     if q.strip():
         found = exercises.search_exercises(engine, user, q, include_archived=show_archived)
         groups: list[tuple[str | None, list[exercises.ExerciseSummary]]] = [(None, found)]
@@ -178,7 +170,7 @@ def _exercise_form_context(
     errors: FormErrors = NO_ERRORS,
     saved: bool = False,
 ) -> dict[str, Any]:
-    suggestions = exercises.suggestions(_engine(request), _user(request))
+    suggestions = exercises.suggestions(_engine(request), device_user(request))
     announce = errors.first_message or (_text(request, SAVED_KEY) if saved else None)
     return {
         "detail": detail,
@@ -204,7 +196,7 @@ def new_exercise(request: Request) -> HTMLResponse:
 def create_exercise(request: Request, body: ExerciseBody) -> Response:
     """Create the exercise with its default fields → its page."""
     try:
-        exercise_id = exercises.create(_engine(request), _user(request), body.form())
+        exercise_id = exercises.create(_engine(request), device_user(request), body.form())
     except CatalogError as error:
         errors = form_errors(request.app.state.catalog, error, EXERCISE_IDS, "nom")
         context = _exercise_form_context(request, detail=None, values=_form_values(body=body), errors=errors)
@@ -213,7 +205,7 @@ def create_exercise(request: Request, body: ExerciseBody) -> Response:
 
 
 def _detail(request: Request, exercise_id: int) -> ExerciseDetail:
-    return exercises.get_detail(_engine(request), _user(request), exercise_id)
+    return exercises.get_detail(_engine(request), device_user(request), exercise_id)
 
 
 @router.get(LIST_PATH + "/{exercise_id}", response_class=HTMLResponse)
@@ -235,7 +227,7 @@ def update_exercise(request: Request, exercise_id: int, body: ExerciseBody) -> H
     """Save the exercise's attributes; the form comes back saved or with its refusals."""
     detail = _detail(request, exercise_id)
     try:
-        exercises.update(_engine(request), _user(request), exercise_id, body.form())
+        exercises.update(_engine(request), device_user(request), exercise_id, body.form())
     except CatalogError as error:
         errors = form_errors(request.app.state.catalog, error, EXERCISE_IDS, "nom")
         context = _exercise_form_context(
@@ -255,14 +247,14 @@ def _archive_response(request: Request, exercise_id: int, focus: str, key: str) 
 @router.post(LIST_PATH + "/{exercise_id}/archive", response_class=HTMLResponse)
 def archive_exercise(request: Request, exercise_id: int) -> HTMLResponse:
     """Archive the exercise (history untouched)."""
-    exercises.set_archived(_engine(request), _user(request), exercise_id, request.app.state.clock())
+    exercises.set_archived(_engine(request), device_user(request), exercise_id, request.app.state.clock())
     return _archive_response(request, exercise_id, "restore", "exercise.announce_archived")
 
 
 @router.delete(LIST_PATH + "/{exercise_id}/archive", response_class=HTMLResponse)
 def restore_exercise(request: Request, exercise_id: int) -> HTMLResponse:
     """Restore the exercise."""
-    exercises.set_archived(_engine(request), _user(request), exercise_id, None)
+    exercises.set_archived(_engine(request), device_user(request), exercise_id, None)
     return _archive_response(request, exercise_id, "archive", "exercise.announce_restored")
 
 
@@ -317,7 +309,9 @@ def add_field(request: Request, exercise_id: int, body: AddFieldBody) -> HTMLRes
     """Link a core quantity or a variable; the new row opens on « Obligatoire »."""
     _detail(request, exercise_id)
     try:
-        field_id = exercises.add_field(_engine(request), _user(request), exercise_id, **_source(body.source))
+        field_id = exercises.add_field(
+            _engine(request), device_user(request), exercise_id, **_source(body.source)
+        )
     except CatalogError as error:
         errors = form_errors(request.app.state.catalog, error, {}, ADD_ID)
         return _fields_response(
@@ -352,7 +346,7 @@ def update_field(request: Request, exercise_id: int, field_id: int, body: FieldB
         default=body.default,
     )
     try:
-        exercises.update_field(_engine(request), _user(request), exercise_id, field_id, form)
+        exercises.update_field(_engine(request), device_user(request), exercise_id, field_id, form)
     except CatalogError as error:
         errors = form_errors(request.app.state.catalog, error, _field_ids(field_id), f"champ-{field_id}-pas")
         typed = {**body.model_dump(), "required": checked(body.required)}
@@ -366,7 +360,9 @@ def update_field(request: Request, exercise_id: int, field_id: int, body: FieldB
 @router.post(LIST_PATH + "/{exercise_id}/champs/{field_id}/deplacement", response_class=HTMLResponse)
 def move_field(request: Request, exercise_id: int, field_id: int, body: MoveBody) -> HTMLResponse:
     """Move a field up or down; focus stays on the same button (or the other one at an end)."""
-    index = exercises.move_field(_engine(request), _user(request), exercise_id, field_id, body.direction)
+    index = exercises.move_field(
+        _engine(request), device_user(request), exercise_id, field_id, body.direction
+    )
     detail = _detail(request, exercise_id)
     last = len(detail.fields) - 1
     button = "monter" if body.direction == exercises.UP else "descendre"
@@ -390,7 +386,7 @@ def remove_field(request: Request, exercise_id: int, field_id: int) -> HTMLRespo
     before = _detail(request, exercise_id)
     index = next((i for i, field in enumerate(before.fields) if field.id == field_id), None)
     try:
-        exercises.remove_field(_engine(request), _user(request), exercise_id, field_id)
+        exercises.remove_field(_engine(request), device_user(request), exercise_id, field_id)
     except CatalogError as error:
         errors = form_errors(
             request.app.state.catalog, error, _field_ids(field_id), f"champ-{field_id}-retirer"
@@ -433,7 +429,7 @@ def _aliases_response(
 def add_alias(request: Request, exercise_id: int, body: AliasBody) -> HTMLResponse:
     """Add an alias; the input comes back empty and focused (aliases often come in twos)."""
     try:
-        alias = exercises.add_alias(_engine(request), _user(request), exercise_id, body.alias)
+        alias = exercises.add_alias(_engine(request), device_user(request), exercise_id, body.alias)
     except CatalogError as error:
         errors = form_errors(request.app.state.catalog, error, {}, ALIAS_ID)
         return _aliases_response(
@@ -447,7 +443,7 @@ def add_alias(request: Request, exercise_id: int, body: AliasBody) -> HTMLRespon
 @router.delete(LIST_PATH + "/{exercise_id}/alias/{alias_id}", response_class=HTMLResponse)
 def remove_alias(request: Request, exercise_id: int, alias_id: int) -> HTMLResponse:
     """Remove an alias."""
-    alias = exercises.remove_alias(_engine(request), _user(request), exercise_id, alias_id)
+    alias = exercises.remove_alias(_engine(request), device_user(request), exercise_id, alias_id)
     return _aliases_response(
         request, exercise_id, announce=_text(request, "exercise.announce_alias_removed", alias=alias)
     )

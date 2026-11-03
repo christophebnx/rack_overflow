@@ -68,6 +68,7 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Text normalisation (search, aliases, name uniqueness, codes) | `domain/text` |
 | Canonical integers ↔ display and input text (kg, km / m, m:ss) | `domain/units` |
 | Catalog rules (variables, exercises, fields, aliases) | `domain/catalog` |
+| Movement pattern and equipment of an exercise in their first-seen spelling | `domain/catalog.with_known_spellings` |
 | Fuzzy ranking of exercises | `domain/search` |
 | Variable queries | `storage/variables` |
 | Exercise, field and alias queries | `storage/exercises` |
@@ -88,9 +89,11 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Build the web app | `web/app.create_app` |
 | HTTP request checks and security headers | `web/security.SecurityMiddleware` |
 | Request authentication by device and the device cookie | `web/auth` |
+| User id of the paired device in a route | `web/auth.device_user` |
 | User-facing strings | `web/locale.Catalog` (`web/locales/fr.json`) |
 | Render a page or fragment | `web/rendering.render` |
 | Values in display units in pages (number + unit text) | `web/display.Display` (`show` in templates) |
+| Word of a core quantity (quantity → string key) | `web/display.QUANTITY_KEYS` (`show.quantity` in templates) |
 | Refused catalog input → messages per input | `web/forms.form_errors` |
 | Show a failed htmx request (« Non enregistré, réessayer », focus back) | `web/static/js/request-errors.js` + `web/templates/_form_status.html` |
 | HTTP error → error page or JSON code | `web/errors` |

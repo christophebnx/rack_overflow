@@ -139,12 +139,8 @@ def _validated(
         location=form.location,
     )
     catalog.check_name(draft.name, queries.names(connection, user_id, except_id=except_id))
-    return ExerciseDraft(
-        draft.name,
-        draft.category,
-        catalog.known_spelling(draft.movement_pattern, queries.movement_patterns(connection, user_id)),
-        catalog.known_spelling(draft.equipment, queries.equipments(connection, user_id)),
-        draft.location,
+    return catalog.with_known_spellings(
+        draft, queries.movement_patterns(connection, user_id), queries.equipments(connection, user_id)
     )
 
 

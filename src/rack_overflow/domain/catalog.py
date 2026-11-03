@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from rack_overflow.domain import units
 from rack_overflow.domain.errors import DomainError
@@ -296,6 +296,17 @@ def known_spelling(value: str | None, existing: Iterable[str]) -> str | None:
         return None
     target = normalise(value)
     return next((known for known in existing if normalise(known) == target), value)
+
+
+def with_known_spellings(
+    draft: ExerciseDraft, patterns: Iterable[str], equipments: Iterable[str]
+) -> ExerciseDraft:
+    """The draft with its movement pattern and equipment in their first-seen spelling (D-054)."""
+    return replace(
+        draft,
+        movement_pattern=known_spelling(draft.movement_pattern, patterns),
+        equipment=known_spelling(draft.equipment, equipments),
+    )
 
 
 # --- fields ------------------------------------------------------------------------------------

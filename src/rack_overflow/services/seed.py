@@ -50,12 +50,8 @@ def _seed_exercise(connection: sa.Connection, user_id: int, item: Mapping[str, A
         return False
     fields = [_field(field) for field in item["fields"]]
     catalog.check_measures(catalog.FieldSource(core_quantity=quantity) for quantity, _ in fields)
-    draft = catalog.ExerciseDraft(
-        draft.name,
-        draft.category,
-        catalog.known_spelling(draft.movement_pattern, queries.movement_patterns(connection, user_id)),
-        catalog.known_spelling(draft.equipment, queries.equipments(connection, user_id)),
-        draft.location,
+    draft = catalog.with_known_spellings(
+        draft, queries.movement_patterns(connection, user_id), queries.equipments(connection, user_id)
     )
     exercise_id = queries.insert(connection, user_id, draft)
     for quantity, params in fields:
