@@ -157,13 +157,14 @@ def test_failed_field_save_says_not_saved(page: Page, live_server: str) -> None:
     expect(page.locator(f"{row} .field-row__summary")).to_contain_text("5\u00a0kg")
 
 
-def test_failed_move_focuses_the_first_visible_field(page: Page, live_server: str) -> None:
-    """The fields of closed <details> cannot take focus: the first visible one gets it."""
+def test_failed_move_keeps_focus_on_its_button(page: Page, live_server: str) -> None:
+    """A row action outside any <form> keeps focus after a failure: the user retries in place."""
     create_exercise(page, live_server, f"Curl {next(_COUNTER)}", "strength")
     page.route("**/deplacement", lambda route: route.abort())
-    page.locator(".field-row").first.locator("[id$=-descendre]").click()
+    button = page.locator(".field-row").first.locator("[id$=-descendre]")
+    button.click()
     expect(page.locator("#champs > [data-request-status]")).to_have_text(TEXT("error.not_saved"))
-    expect(page.locator("#champ-ajout")).to_be_focused()
+    expect(button).to_be_focused()
 
 
 def test_failed_search_says_search_failed(page: Page, live_server: str) -> None:

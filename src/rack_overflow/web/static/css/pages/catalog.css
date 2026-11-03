@@ -253,6 +253,11 @@
   .add-field__line > .button {
     width: 100%;
   }
+
+  /* a shown status box does not touch the heading or field right under it */
+  .form-status {
+    margin-bottom: var(--space-3);
+  }
 }
 
 .aliases {
