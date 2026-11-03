@@ -49,3 +49,6 @@ TODO(project): add the project's own decisions from D-012 on.
 
 **D-012 — No automatic CI until V1 is done; checks run locally.**
 GitHub Actions minutes cost money, so the workflow runs only on manual dispatch (`workflow_dispatch`). Until V1 is complete, the definition of done is checked locally: tests (`not live`), ruff and duplicate-code, run by the tester and reviewer agents and by pre-commit. Once V1 is done, a minimal CI is designed (which jobs, which OS) and recorded in a new decision. Refines D-001 and D-002 (the "runs in CI" parts apply only to manual runs). Rules out: automatic runs on push or pull request, the three-OS matrix as a default. Status: approved by the user on 2026-11-03.
+
+**D-013 — V1 is served over plain HTTP; transport security is deferred to V2.**
+The server listens directly on the port forwarded through the DDNS, without reverse proxy or certificate. Why: single user, unadvertised app, simpler deployment. Accepted risk: data and the session cookie travel in clear. Kept in V1: per-device authentication, `HttpOnly` / `SameSite=Strict` cookie, `Origin` check and JSON-only requests. The cookie `Secure` flag and HSTS depend on a configuration switch, so V2 enables HTTPS without code change. Status: approved by the user on 2026-11-03.

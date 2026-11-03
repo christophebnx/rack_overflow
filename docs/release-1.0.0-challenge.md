@@ -75,7 +75,7 @@ Once the user corrects the seeds (F.2), the next step is to rewrite `docs/releas
 
 | # | Question | Recommendation | Answer |
 |---|---|---|---|
-| 1 | Are the DSM reverse proxy, certificate and DynDNS already working? Otherwise L0 waits, or L1a runs first. | — | open |
+| 1 | Are the DSM reverse proxy, certificate and DynDNS already working? | Only DDNS + port forwarding. **User decision (2026-11-03): no reverse proxy and no HTTPS in V1**; single user, unadvertised app; transport security is deferred to V2. See section F.1 and D-013. |
 | 2 | Seeds (point 11.7): does the user supply the real exercise list and the content of "Salle 1", "Salle 2", "Maison", "Cardio bonus", or does Claude Code propose a list (Basic-Fit machines and home equipment) for correction? | — | open |
 | 3 | Remove the work / rest ratio of intervals from V1 (B3)? | Yes | open |
 | 4 | SQLAlchemy Core + Alembic (B2) and UUID v4 (B6)? | Yes | open |
@@ -124,14 +124,14 @@ B0 → **L1a** (FastAPI app, Jinja2 + htmx layout, config, database, migrations,
 
 ## F. Follow-ups of the answers
 
-### F.1 HTTPS on the NAS (user steps, before the end of L1b)
+### F.1 Plain HTTP in V1 (user decision, 2026-11-03)
 
-1. DSM → Control Panel → Security → Certificate: add a Let's Encrypt certificate for the DDNS host name (needs port 80 reachable during issuance and renewal).
-2. DSM → Control Panel → Login Portal → Advanced → Reverse Proxy: source `HTTPS`, DDNS host name, port 443 → destination `HTTP`, `localhost`, the `rack serve` port. Enable HSTS.
-3. Router: forward 443 (and 80 for the certificate) to the NAS; remove the forwarding straight to the app port.
-4. Check from the iPhone on 4G: `https://<ddns>/` answers with a valid certificate.
-
-The app reads its public host name from configuration (Host check, A.5) and trusts `X-Forwarded-Proto` only from `127.0.0.1`.
+- `rack serve` listens directly on the NAS port reached through the DDNS port forwarding; no reverse proxy, no certificate.
+- **Accepted risk**: traffic (pairing code, session cookie, training data) travels in clear, and the app is reachable by anyone who finds the address. The user accepts it for V1.
+- **Kept, because it costs little and the app is on the internet**: per-device pairing and the `HttpOnly`, `SameSite=Strict` cookie, the `Origin` / `Sec-Fetch-Site` check and the JSON-only rule (A.5). Without them, anyone reaching the port could write data.
+- The cookie `Secure` flag and HSTS are driven by configuration (`[server] https = false` in V1), so turning HTTPS on in V2 is a configuration change, not a code change.
+- The `Host` check uses the configured DDNS host name.
+- Option for later, noted only: a VPN such as Tailscale would encrypt traffic and remove the port forwarding, with no reverse proxy.
 
 ### F.2 Seed proposal (awaiting correction)
 
