@@ -60,8 +60,8 @@ def _backup_now(settings: Settings) -> Path:
 
 def run_migrate(settings: Settings, args: argparse.Namespace) -> None:
     """Create the data folder if needed, snapshot an existing database with pending revisions,
-    upgrade, then apply the pending catalog seed steps (D-057; noted on stderr, so the stdout line
-    stays the revision)."""
+    upgrade, then apply the pending catalog seed steps (D-057; a `seeded N exercises` line follows
+    the revision line on stdout)."""
     del args
     data_dir = settings.storage.data_dir
     try:
