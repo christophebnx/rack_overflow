@@ -78,6 +78,9 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Per-user settings (`app_setting`) | `storage/app_settings` |
 | Unique-constraint guard of a write (savepoint) | `storage/db.guarded_write` |
 | Unknown or foreign row | `domain/errors.NotFoundError` |
+| Template, slot and menu-option queries | `storage/templates` |
+| Template operations (templates, slots, menus, targets) | `services/templates` |
+| Exercises grouped by movement pattern for selects | `services/templates.exercise_groups` |
 | Variable operations | `services/variables` |
 | Exercise, field, alias and search operations | `services/exercises` |
 | Seed data (packaged JSON) | `storage/seed` |
