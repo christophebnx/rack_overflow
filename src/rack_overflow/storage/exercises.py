@@ -215,14 +215,13 @@ def insert_field(
     params: FieldParams,
 ) -> int:
     """Append a field (last position) and return its id; a source linked twice → `NameTakenError`."""
-    last = connection.execute(
-        sa.select(sa.func.max(exercise_field.c.position)).where(exercise_field.c.exercise_id == exercise_id)
-    ).scalar_one()
     values = {
         "exercise_id": exercise_id,
         "core_quantity": core_quantity,
         "variable_id": variable_id,
-        "position": 0 if last is None else last + 1,
+        "position": positions.next_position(
+            connection, exercise_field.c.position, exercise_field.c.exercise_id == exercise_id
+        ),
         **_params(params),
     }
     result = _guarded(

@@ -73,6 +73,7 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Template, menu, target and slot / option limit rules | `domain/templates` |
 | Fuzzy ranking of exercises | `domain/search` |
 | Reorder a list by « Monter » / « Descendre » (fields, templates, slots, options) | `domain/ordering.moved` + `storage/positions.set_positions` |
+| Position of a row appended at the end of an ordered list (fields, templates, slots, options) | `storage/positions.next_position` |
 | Variable queries | `storage/variables` |
 | Exercise, field and alias queries | `storage/exercises` |
 | Per-user settings (`app_setting`) | `storage/app_settings` |

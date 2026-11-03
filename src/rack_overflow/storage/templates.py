@@ -12,6 +12,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 
 from rack_overflow.domain.templates import Target, TemplateDraft
+from rack_overflow.storage import positions
 from rack_overflow.storage.db import guarded_write
 from rack_overflow.storage.errors import NameTakenError
 from rack_overflow.storage.schema import exercise, template, template_slot, template_slot_option
@@ -21,11 +22,6 @@ _EXERCISE_COLUMNS = (
     exercise.c.movement_pattern.label("exercise_pattern"),
     exercise.c.archived_at.label("exercise_archived_at"),
 )
-
-
-def _next(connection: sa.Connection, query: sa.Select[tuple[int | None]]) -> int:
-    last = connection.execute(query).scalar_one()
-    return 0 if last is None else int(last) + 1
 
 
 # --- templates
@@ -98,11 +94,8 @@ def active_ids(connection: sa.Connection, user_id: int) -> list[int]:
 
 def next_position(connection: sa.Connection, user_id: int) -> int:
     """The position after the user's last non-archived template."""
-    return _next(
-        connection,
-        sa.select(sa.func.max(template.c.position)).where(
-            template.c.user_id == user_id, template.c.archived_at.is_(None)
-        ),
+    return positions.next_position(
+        connection, template.c.position, template.c.user_id == user_id, template.c.archived_at.is_(None)
     )
 
 
@@ -165,11 +158,11 @@ def get_slot(connection: sa.Connection, template_id: int, slot_id: int) -> sa.Ro
 
 def next_slot_position(connection: sa.Connection, template_id: int) -> int:
     """The position after the template's last live slot."""
-    return _next(
+    return positions.next_position(
         connection,
-        sa.select(sa.func.max(template_slot.c.position)).where(
-            template_slot.c.template_id == template_id, template_slot.c.deleted_at.is_(None)
-        ),
+        template_slot.c.position,
+        template_slot.c.template_id == template_id,
+        template_slot.c.deleted_at.is_(None),
     )
 
 
@@ -237,11 +230,8 @@ def options_of(connection: sa.Connection, slot_ids: Sequence[int]) -> Sequence[s
 
 def insert_option(connection: sa.Connection, slot_id: int, exercise_id: int) -> int:
     """Append an option to the menu and return its id; the same exercise twice → `NameTakenError`."""
-    position = _next(
-        connection,
-        sa.select(sa.func.max(template_slot_option.c.position)).where(
-            template_slot_option.c.template_slot_id == slot_id
-        ),
+    position = positions.next_position(
+        connection, template_slot_option.c.position, template_slot_option.c.template_slot_id == slot_id
     )
     statement = sa.insert(template_slot_option).values(
         template_slot_id=slot_id, exercise_id=exercise_id, position=position
