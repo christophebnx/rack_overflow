@@ -110,7 +110,7 @@ def test_upgrade_of_a_populated_l2_database_through_rack_migrate(
     assert main(["migrate", "--config", str(settings_file)]) == 0
     out = capsys.readouterr().out
     assert out.startswith("backup ")  # snapshot before the pending revision
-    assert "at revision 0003" in out
+    assert "at revision 0004" in out
     assert out.endswith("seeded 4 templates\n") and "exercises" not in out.splitlines()[-1]
     engine = db.create_engine(settings.database_path)
     try:
@@ -253,14 +253,14 @@ def _exercises(engine: Engine) -> list[Any]:
 def test_invalid_seed_templates_fail_migrate_after_the_schema_upgrade(
     settings_file: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """Design note, error handling: exit 1, schema at 0003, the seed transaction rolled back."""
+    """Design note, error handling: exit 1, schema at the head, the seed transaction rolled back."""
     too_long = {"name": "Longue", "location": "gym", "slots": [{"exercise": "planche"}] * 31}
     monkeypatch.setattr(seed.seed, "load_templates", lambda: [too_long])
     assert main(["migrate", "--config", str(settings_file)]) == 1
     capsys.readouterr()
     engine = db.create_engine(settings_file.parent / "data" / "rack.sqlite")
     try:
-        assert migrate.current_revision(engine) == "0003"
+        assert migrate.current_revision(engine) == "0004"
         with engine.begin() as connection:
             assert app_settings.get(connection, USER, "seed.version") is None
             assert connection.execute(sa.select(sa.func.count()).select_from(s.exercise)).scalar_one() == 0

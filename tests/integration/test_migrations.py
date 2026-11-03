@@ -219,7 +219,7 @@ def test_0003_upgrades_a_0002_database_with_exercises(
                 "VALUES (1, 'reps', 0, 1)"
             )
         migrate.upgrade_to_head(engine)
-        assert migrate.current_revision(engine) == "0003"
+        assert migrate.current_revision(engine) == "0004"
         assert "deleted_at" in _columns(engine, "template_slot")
         assert "seed_key" in _columns(engine, "exercise")
         assert "uq_exercise_user_id_seed_key" in _unique_indexes(engine, "exercise")
@@ -262,4 +262,56 @@ def test_0003_downgrades_to_0002(migrated_engine: Engine) -> None:
     assert "seed_key" not in _columns(migrated_engine, "exercise")
     assert "uq_template_user_id_name" not in _unique_indexes(migrated_engine, "template")
     migrate.upgrade_to_head(migrated_engine)
+    assert migrate.current_revision(migrated_engine) == "0004"
+
+
+def _indexes(engine: Engine, table: str) -> dict[str, list[str]]:
+    return {index["name"]: index["column_names"] for index in sa.inspect(engine).get_indexes(table)}
+
+
+def test_0004_indexes_session_rows_by_exercise(migrated_engine: Engine) -> None:
+    assert _indexes(migrated_engine, "session_exercise")["ix_session_exercise_exercise_id"] == ["exercise_id"]
+
+
+def test_0004_upgrades_a_seeded_0003_database_with_sessions(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    engine = db.create_engine(settings.database_path)
+    try:
+        with monkeypatch.context() as patch:
+            patch.setattr(migrate.command, "upgrade", upgrade_to("0003"))
+            migrate.upgrade_to_head(engine)
+        assert migrate.current_revision(engine) == "0003"
+        with engine.begin() as connection:
+            connection.exec_driver_sql(
+                "INSERT INTO exercise (user_id, name, category, location) "
+                "VALUES (1, 'Squat', 'strength', 'gym')"
+            )
+            connection.exec_driver_sql(
+                "INSERT INTO session (user_id, local_date, time_zone, started_at, location, status) "
+                "VALUES (1, '2026-11-02', 'Europe/Brussels', '2026-11-02T17:00:00Z', 'gym', 'open')"
+            )
+            connection.exec_driver_sql(
+                "INSERT INTO session_exercise (session_id, exercise_id, position) VALUES (1, 1, 0)"
+            )
+            connection.exec_driver_sql(
+                "INSERT INTO set_entry (session_exercise_id, position, type, reps, weight_g) "
+                "VALUES (1, 0, 'work', 8, 60000)"
+            )
+        migrate.upgrade_to_head(engine)
+        assert migrate.current_revision(engine) == "0004"
+        assert "ix_session_exercise_exercise_id" in _indexes(engine, "session_exercise")
+        with engine.begin() as connection:
+            assert connection.exec_driver_sql("PRAGMA foreign_key_check").fetchall() == []
+            assert connection.execute(sa.select(schema.set_entry.c.weight_g)).scalars().all() == [60000]
+    finally:
+        engine.dispose()
+
+
+def test_0004_downgrades_to_0003(migrated_engine: Engine) -> None:
+    with migrated_engine.connect() as connection, connection.begin():
+        migrate.command.downgrade(migrate._config(connection), "0003")
     assert migrate.current_revision(migrated_engine) == "0003"
+    assert "ix_session_exercise_exercise_id" not in _indexes(migrated_engine, "session_exercise")
+    migrate.upgrade_to_head(migrated_engine)
+    assert "ix_session_exercise_exercise_id" in _indexes(migrated_engine, "session_exercise")

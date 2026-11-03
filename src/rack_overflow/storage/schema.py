@@ -236,6 +236,7 @@ session_exercise = sa.Table(
     _position(),
     _text("notes", nullable=True),
     sa.Index(None, "session_id"),
+    sa.Index(None, "exercise_id"),
 )
 
 exercise_setting = sa.Table(

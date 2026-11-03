@@ -89,10 +89,11 @@ def test_foreign_keys_are_enforced(migrated_engine: Engine) -> None:
 
 
 def test_head_revision_is_shipped() -> None:
-    assert migrate.head_revision() == "0003"
+    assert migrate.head_revision() == "0004"
     assert (migrate.MIGRATIONS / "versions" / "0001_initial_schema.py").is_file()
     assert (migrate.MIGRATIONS / "versions" / "0002_variable_decimal_scale_not_null.py").is_file()
     assert (migrate.MIGRATIONS / "versions" / "0003_template_slot_deleted_and_seed_keys.py").is_file()
+    assert (migrate.MIGRATIONS / "versions" / "0004_session_exercise_exercise_index.py").is_file()
 
 
 def test_engine_uses_an_absolute_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
