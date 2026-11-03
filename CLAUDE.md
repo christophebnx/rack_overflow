@@ -25,7 +25,7 @@ RACK_REQUIRE_BROWSER=1 uv run pytest -q tests/e2e        # fail instead of skip 
 uv run ruff check . && uv run ruff format --check .
 uv run pylint --disable=all --enable=duplicate-code src
 uv run rack --version                                  # the CLI
-uv run rack migrate --config config.example.toml       # create / upgrade the dev database (.local/dev-data/)
+uv run rack migrate --config config.example.toml       # create / upgrade the dev database (.local/dev-data/), then seed the exercise catalog (versioned, idempotent, D-057)
 uv run rack backup --config config.example.toml        # snapshot the dev database now, prune expired snapshots
 uv run rack serve --config config.example.toml         # dev server on http://127.0.0.1:8765 (run migrate first)
 uv run rack device add NAME --config config.example.toml     # print a one-time pairing code (also: list, revoke NAME)

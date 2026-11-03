@@ -69,6 +69,7 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Canonical integers ↔ display and input text (kg, km / m, m:ss) | `domain/units` |
 | Catalog rules (variables, exercises, fields, aliases) | `domain/catalog` |
 | Movement pattern and equipment of an exercise in their first-seen spelling | `domain/catalog.with_known_spellings` |
+| At least one measure per exercise (field removal, variable delete or scope change) | `domain/catalog.check_measures`, `check_linked_measures` |
 | Fuzzy ranking of exercises | `domain/search` |
 | Variable queries | `storage/variables` |
 | Exercise, field and alias queries | `storage/exercises` |
