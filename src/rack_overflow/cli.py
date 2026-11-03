@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import shutil
 import signal
 import sys
 import threading
@@ -22,12 +23,13 @@ from pathlib import Path
 import uvicorn
 from sqlalchemy.engine import Engine
 
+import rack_overflow
 from rack_overflow import __version__
 from rack_overflow.config import ConfigError, Settings, load_settings
 from rack_overflow.domain import devices as device_rules
 from rack_overflow.domain.errors import DomainError
 from rack_overflow.domain.timestamps import to_text
-from rack_overflow.ops import supervise
+from rack_overflow.ops import supervise, update
 from rack_overflow.ops.errors import OpsError
 from rack_overflow.ops.logs import utc_formatter
 from rack_overflow.services import backups, devices
@@ -157,6 +159,20 @@ def run_supervise(settings: Settings, args: argparse.Namespace) -> None:
         os.execv(command[0], command)
 
 
+def run_update(settings: Settings, args: argparse.Namespace) -> None:
+    """Update this deployed clone (pull, sync, migrate) and restart the supervised server."""
+    tools = update.UpdateTools(
+        run=update.run_command,
+        find_supervisor=supervise.running_supervisor_pid,
+        send_signal=os.kill,
+        out=print,
+        python=sys.executable,
+        uv=shutil.which("uv"),
+    )
+    repo = Path(rack_overflow.__file__).resolve().parents[2]
+    update.update(repo, args.config, settings.storage.data_dir, tools)
+
+
 def _pairing_url(settings: Settings) -> str:
     scheme = "https" if settings.server.https else "http"
     return f"{scheme}://{settings.server.public_host}:{settings.server.port}{PAIRING_PATH}"
@@ -241,6 +257,7 @@ COMMANDS: dict[str, Command] = {
     "backup": Command("snapshot the database now and prune expired snapshots", run_backup),
     "serve": Command("serve the web app (host and port from the settings file)", run_serve),
     "supervise": Command("run the server, restart it after a crash, write logs", run_supervise),
+    "update": Command("pull main, sync, migrate, then restart rack supervise", run_update),
     "device": Command(
         "add, list or revoke the devices allowed to use the app", run_device, _device_arguments
     ),
