@@ -8,17 +8,22 @@ Every command except `--version` reads the settings file given by `--config`.
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
+import time
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
+
+import uvicorn
 
 from rack_overflow import __version__
 from rack_overflow.config import ConfigError, Settings, load_settings
 from rack_overflow.domain.errors import DomainError
 from rack_overflow.services import backups
 from rack_overflow.storage import db, migrate
-from rack_overflow.storage.errors import StorageError
+from rack_overflow.storage.errors import MigrationError, StorageError
+from rack_overflow.web.app import create_app
 
 PROG = "rack"
 DEFAULT_CONFIG = Path("config.toml")
@@ -53,9 +58,41 @@ def run_backup(settings: Settings) -> None:
     print(_backup_now(settings))
 
 
+def configure_logging() -> None:
+    """Server logs on stderr, UTC timestamps, INFO; uvicorn's loggers propagate here."""
+    handler = logging.StreamHandler(sys.stderr)
+    formatter = logging.Formatter(
+        "%(asctime)s %(levelname)s %(name)s: %(message)s", datefmt="%Y-%m-%dT%H:%M:%SZ"
+    )
+    formatter.converter = time.gmtime
+    handler.setFormatter(formatter)
+    root = logging.getLogger()
+    root.handlers[:] = [handler]
+    root.setLevel(logging.INFO)
+
+
+def run_serve(settings: Settings) -> None:
+    """Serve the web app on the configured host and port (one worker), once the database is current."""
+    engine = db.create_engine(settings.database_path)
+    if not settings.database_path.is_file() or not migrate.is_up_to_date(engine):
+        engine.dispose()
+        raise MigrationError("database is not up to date; run rack migrate")
+    configure_logging()
+    app = create_app(settings, engine, clock=_now)
+    uvicorn.run(
+        app,
+        host=settings.server.host,
+        port=settings.server.port,
+        server_header=False,
+        proxy_headers=False,
+        log_config=None,
+    )
+
+
 COMMANDS: dict[str, tuple[str, Callable[[Settings], None]]] = {
     "migrate": ("create or upgrade the database to the latest schema", run_migrate),
     "backup": ("snapshot the database now and prune expired snapshots", run_backup),
+    "serve": ("serve the web app (host and port from the settings file)", run_serve),
 }
 
 

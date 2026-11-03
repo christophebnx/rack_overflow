@@ -19,6 +19,7 @@ ALLOWED: dict[str, set[str]] = {
     "domain": set(),
     "storage": {"domain"},
     "services": {"domain", "storage"},
+    "web": {"domain", "services", "config"},
 }
 # top-level module -> project packages / modules it may import (`cli` is unrestricted)
 MODULE_ALLOWED: dict[str, set[str]] = {

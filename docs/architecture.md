@@ -34,6 +34,7 @@ The packages `web/` and `services/` and the database part of `storage/` are crea
 | `domain/` | Pure business logic: models, rules, validation. No I/O, no clock, no environment (D-003). | nothing |
 | `storage/` | File system and persistence; the single atomic writer. | `domain` |
 | `services/` | Business operations, one use case each, shared by the CLI and the web layer. | `domain`, `storage` |
+| `web/` | FastAPI app factory, routes, Jinja2 templates, CSS, vendored htmx, string catalog, security middleware, daily backup task. | `domain`, `services`, `config` |
 | `config.py` | Load and validate the settings file and the secrets file beside it, once (D-044). | `domain` |
 | `cli.py` | Command-line entry point: parses arguments, calls the layers, maps errors to exit codes (D-004). | everything |
 
@@ -56,6 +57,12 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Snapshot naming, due-ness, retention | `domain/backups` |
 | Take, list and prune database snapshots | `storage/backup` |
 | Backup operation (snapshot then prune, or only when due) | `services/backups` |
+| Daily backup in the server | `web/scheduler` |
+| Build the web app | `web/app.create_app` |
+| HTTP request checks and security headers | `web/security.SecurityMiddleware` |
+| User-facing strings | `web/locale.Catalog` (`web/locales/fr.json`) |
+| Render a page or fragment | `web/rendering.render` |
+| HTTP error → error page or JSON code | `web/errors` |
 | Check a commit message | `tools/check_commit_message.problems` |
 | Block secrets, protected folders, commits and pushes on `main` (Claude Code) | `.claude/hooks/guard_paths.py` |
 | Format and lint-fix an edited file (Claude Code) | `.claude/hooks/format.py` |

@@ -3,14 +3,19 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from datetime import UTC, datetime
 from pathlib import Path
 
 import isolation
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy.engine import Engine
 
 from rack_overflow.config import Settings, load_settings
 from rack_overflow.storage import db, migrate
+from rack_overflow.web.app import create_app
+
+FIXED_NOW = datetime(2026, 11, 3, 18, 4, 5, tzinfo=UTC)
 
 SETTINGS_TEMPLATE = """\
 [server]
@@ -82,3 +87,11 @@ def migrated_engine(settings: Settings) -> Iterator[Engine]:
     migrate.upgrade_to_head(engine)
     yield engine
     engine.dispose()
+
+
+@pytest.fixture
+def client(settings: Settings, migrated_engine: Engine) -> Iterator[TestClient]:
+    """A TestClient on the app (host `testserver`, fixed clock, no backup scheduler)."""
+    app = create_app(settings, migrated_engine, clock=lambda: FIXED_NOW, run_scheduler=False)
+    with TestClient(app) as test_client:
+        yield test_client
