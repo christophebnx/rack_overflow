@@ -100,7 +100,7 @@ Spacing (4 px base): `--space-1` 0.25rem, `--space-2` 0.5rem, `--space-3` 0.75re
 
 ### L1a — Home (`GET /`, `templates/home.html`)
 
-Task: check the app answers. No business data before L2–L4; L4 replaces the content with starting a session.
+Task: check the app answers. No business data before L2–L4. **Replaced in L4** by « start or resume a session » (L4 — Home); kept here as the L1a record.
 
 ```
 360 px                               1280 px
@@ -1139,3 +1139,362 @@ Same typography as L2: typographic apostrophes; a no-break space (U+00A0) before
 Reused keys: `action.save`, `action.cancel`, `action.add`, `action.remove`, `action.archive`, `action.restore`, `action.move_up`, `action.move_down`, `action.edit`, `form.optional`, `form.choose`, `status.saved`, `tag.archived_m` (exercises), `tag.archived_f` (templates), `exercise.location.*` (location words), `unit.hint.duration`, `unit.hint.distance`, `catalog.error.required`, `catalog.error.too_long` (name 60, menu name 40, note 40), `catalog.error.invalid_choice`, the `domain/units` codes (`bad_duration`, `not_a_number`, `too_many_decimals`, `negative`, `too_large`, `must_be_positive`).
 
 Problem code for a taken template name: `template_name_taken` (not `name_taken`, whose text names an exercise); the template service raises it, including from the `NameTakenError` race branch. The target note's length refusal uses the existing `too_long` (`{max}` = 40), not a new `text_too_long`.
+
+### L4 — Components (`components.css`, `pages/session.css`)
+
+Design reasons: design note `docs/architecture/2026-11-03-l4-session-logging.md`, "UI design". No new token, no new breakpoint.
+
+| Component | Markup | Look |
+|---|---|---|
+| Choice chips | `<fieldset class="chips">` with a `<legend>`, then `<label class="chip"><input type="radio" class="chip__input"> text</label>` | the native radio is visually hidden (clip, still focusable and announced), the label is the target: `min-height` and `min-width: var(--target-min)`, padding 0 `--space-3`, 1 px `--color-border`, `--radius-md`, `--text-md` weight 600, centred text, tabular figures; gap `--target-gap`, `flex-wrap: wrap`. Checked (`:has(:checked)`): `--color-accent` background and border, `--color-on-accent` text. Focus: the 3 px ring on the chip through `:has(:focus-visible)`. One tab stop per group, arrows move inside (native radios). Used for location, set type, discrete values, `bool`, and `enum` fields with ≤ 12 values (a `<select class="input">` above) |
+| Stepper | `<div class="stepper">`: `<label for>` then `<div class="stepper__row">` `[button −] [input] [button +]` | label `.field__label`; buttons `.button.stepper__button` 56 × 56 px (`calc(var(--target-min) + var(--space-2))`), glyph « − » / « + » at `--text-xl`; input `.input.stepper__input`: flex 1, `min-width: 0`, height 56 px, `--text-2xl` / `--leading-2xl`, weight 600, centred, `tabular-nums`. Row gap `--target-gap`. Error and hint under the row |
+| Confirm button | `<button class="button button--primary button--confirm" id="exercice-{row}-valider">` | full width, `min-height` 56 px, `--text-lg`; a « ✓ » glyph before the text through `::before { content: "✓" / ""; margin-inline-end: var(--space-2) }` (decorative, the text names the action) |
+| Set row | `<li class="set-row" id="serie-{id}">` | number (muted, tabular, 2ch), the set text (`tabular-nums`), tags (type when not work, « Record »), then « Modifier » on the right; min-height 48 px; divider between rows. Below 40rem the tags wrap under the text; never an ellipsis |
+| Record tag | `<span class="tag tag--record">` « Record » | `.tag` with `--color-accent` text and border (6.84 / 8.28:1) and a « ★ » before it (`::before { content: "★" / "" }`): the word carries the meaning, the star and the colour repeat it |
+| Neutral confirmation | `.confirm.confirm--neutral` | the L2 in-place confirmation with a `--color-border` border, for a final but non-destructive choice (closing a session); the confirming button is primary, not danger |
+
+Field labels with a unit use `session.field_unit` (« Charge (kg) », « Durée (m:ss) », « Distance (km) »); fields without unit use the quantity word or the variable label. Inputs: `autocomplete="off"`, `spellcheck="false"`, `enterkeyhint="done"`, `inputmode` per the L2 units table, text ≥ 1rem.
+
+### L4 — Home: start or resume (`GET /`, `templates/home.html`)
+
+Task: start the right session in one tap, or return to the one running. Decision: which template (or none), at which place. Information: the place (preselected), the templates of that place in the user's order, which one was done last.
+
+```
+360 px, no open session                  1280 px, no open session
++------------------------------+         +--------------------------------------------------------------+
+| Rack Overflow                |         |    Rack Overflow          Exercices  Variables  Séances types |
+| Exercices Variables Séances t|         +--------------------------------------------------------------+
++------------------------------+         |    Nouvelle séance                    (column max 40rem)      |
+| Nouvelle séance              |         |    Lieu                                                      |
+| Lieu                         |         |    [■ Salle ] [ Maison ]                                     |
+| [■ Salle ] [ Maison ]        |         |    Séance type                                               |
+| Séance type                  |         |    [ Salle A — Squat & poussée horizontale   Dernière séance ]|
+| +--------------------------+ |         |    [ Salle B — Charnière & poussée verticale                ]|
+| | Salle A — Squat &        | | 64px    |    [ Cardio — Course 30 min                                 ]|
+| | poussée horizontale      | |         |    [ Séance libre ]                                          |
+| | [Dernière séance]        | |         |    Sans séance type : vous ajoutez les exercices un à un.    |
+| +--------------------------+ |         +--------------------------------------------------------------+
+| | Salle B — Charnière &    | |
+| | poussée verticale        | |         360 px, a session is open
+| +--------------------------+ |         +------------------------------+
+| | Cardio — Course 30 min   | |         | Séance en cours              |
+| +--------------------------+ |         | Salle A — Squat & poussée    |
+| [       Séance libre       ] |         | horizontale                  |
+| Sans séance type : vous      |         | Salle · commencée à 18:42    |
+| ajoutez les exercices un à un|         | Exercices : 2 · Séries : 7   |
++------------------------------+         | [   Reprendre la séance    ] |
+                                         +------------------------------+
+```
+
+No open session — one form `<form class="start" hx-post="/seances" hx-disabled-elt="find button">` (status slot first):
+
+- h1 « Nouvelle séance ».
+- `fieldset.chips` legend « Lieu »: radios `name="location"` « Salle » (`gym`) / « Maison » (`home`), the default checked (last session's place, else Salle). Changing it sends nothing: the template buttons are filtered by CSS `:has()` (`.start:has([name=location][value=home]:checked) .start__template[data-location=gym] { display: none }` and the reverse; `both` always shown), the L2 / L3 switch pattern.
+- Legend-like heading `<h2 id="start-templates">` « Séance type », then one `<button class="button start__template" name="template_id" value="{id}" data-location="{gym|home|both}">` per non-archived template in template order: full width, left aligned, `min-height` 64 px, name weight 600 (wraps, never an ellipsis); the template of the latest session carries the tag « Dernière séance » (the user alternates A / B). json-enc sends the submitter's `template_id` and the checked `location`.
+- `<button class="button" name="template_id" value="">` « Séance libre » (secondary, full width below 40rem), hint « Sans séance type : vous ajoutez les exercices un à un. ».
+- No template for the checked place: a muted line per place, shown by the same switch: « Aucune séance type pour la salle. » / « Aucune séance type pour la maison. » and a link « Nouvelle séance type » → `/seances-types/nouvelle`. « Séance libre » stays.
+- Started → `HX-Redirect: /seances/{id}`. A session already open (double tap, other device) → the same redirect to it. Refused (`template_unavailable`, `invalid_choice`) → form re-rendered `200`, the message under the template heading, announced. Failure → slot « Non enregistré, réessayer », buttons enabled again.
+
+Open session — no form, nothing to start (one open session at a time): h1 « Séance en cours », the template name or « Séance libre » (weight 600), muted « Salle · commencée à 18:42 » and « Exercices : 2 · Séries : 7 » (rows with a live set; live sets), then the primary link-button « Reprendre la séance » → `/seances/{id}` (full width below 40rem). The phone page uses `main--message` + `.actions--thumb` with the header height of the two-row header (`.main--nav` sets `min-height: calc(100dvh - 2 * var(--target-min) - 1px)` below 40rem), so « Reprendre la séance » sits at the bottom of the screen.
+
+Tab order: skip link, brand, nav, location chips, template buttons, « Séance libre ». Tab title `home.title` (« Accueil »). The L1a empty state (`home.empty_title`, `home.empty_text`) is removed.
+
+### L4 — Session page (`GET /seances/{id}`, `templates/session.html`, `session_exercise.html`, `session_set_form.html`, `session_pending_menu.html`, `session_search.html`, `session_search_results.html`, `session_close_confirm.html`)
+
+Task: log the set just done, exactly, then the next. Decision per set: confirm as prefilled, or adjust then confirm. Information: exercise and set number, prefilled values, set type, settings, sets already done today with their records.
+
+**One current item.** The page is the plan in display order (template slots, then added exercises); every item is a one-line card except the current one, expanded in place. Current = `?exercice={row_id}` or `?menu={slot_id}` when valid, else the row of the latest live set, else the first item. A card is a link `/seances/{id}?exercice={row_id}#exercice-{row_id}` (menu: `?menu={slot_id}#menu-{slot_id}`).
+
+```
+360 px, current = Développé couché, 2 sets done        1280 px (one column, max 40rem)
++------------------------------+                       +--------------------------------------------------------------+
+| Salle A — Squat & poussée    |  h1                   |    Salle A — Squat & poussée horizontale                     |
+| horizontale                  |                       |    Salle · commencée à 18:42                                 |
+| Salle · commencée à 18:42    |                       |    1 Squat au rack (barre)                                   |
+| ---------------------------- |                       |      4 × 6–8 · Séries : 4 · Records : 1                      |
+| 1 Squat au rack (barre)      |  card (link)          |    2 Développé couché (barre)                                |
+|   4 × 6–8 · Séries : 4 ·     |                       |      4 × 6–8                                                 |
+|   Records : 1                |                       |      Réglages : Banc 3                                ▸      |
+| ---------------------------- |                       |      1  8 × 60 kg                        [ Modifier ]        |
+| 2 Développé couché (barre)   |  current, h2          |      2  8 × 62,5 kg   ★ Record           [ Modifier ]        |
+|   4 × 6–8                    |                       |      Série 3                                                 |
+| Réglages : Banc 3          ▸ |  <details>            |      [Échauffement] [■ Travail] [Test RM]                    |
+| 1  8 × 60 kg      [Modifier] |                       |      Répétitions          Charge (kg)                        |
+| 2  8 × 62,5 kg    [Modifier] |                       |      [−] [   8   ] [+]    [−] [ 62,5 ] [+]                   |
+|    ★ Record                  |                       |      Autres valeurs ▸                                        |
+| Série 3                      |  h3                   |      [ ✓ Valider la série 3                              ]   |
+| [Échauffement][■Travail]     |  chips                |      [ Suivant : Tirage horizontal                       ]   |
+| [Test RM]                    |                       |    3 Tirage horizontal [Menu]                                |
+| Répétitions                  |                       |      À choisir · 3 × 8–10                                    |
+| [ − ] [      8      ] [ + ] |  56 px                 |    ...                                                       |
+| Charge (kg)                  |                       |    [ Ajouter un exercice ]                                   |
+| [ − ] [    62,5     ] [ + ] |                        |    [ Terminer la séance ]                                    |
+| Autres valeurs             ▸ |  only with optional    +--------------------------------------------------------------+
+| [ ✓ Valider la série 3     ] |  56 px, primary
+| [ Suivant : Tirage horizon.] |  secondary link
+| ---------------------------- |
+| 3 Tirage horizontal  [Menu]  |
+|   À choisir · 3 × 8–10       |
+| 4 Jambes unilatéral  [Menu]  |
+| 5 Curl barre EZ · 3 × 10–12  |
+| 6 Gainage  [Menu]            |
+| [   Ajouter un exercice  ▸ ] |
+| [   Terminer la séance     ] |
++------------------------------+
+```
+
+At 1280 px the stepper fields of a block sit two per row from 40rem (`grid-template-columns: repeat(2, minmax(0, 1fr))`, gap `--space-4`); below 40rem one per row. Everything else is the same DOM.
+
+**Page head.** h1 = template name, or « Séance libre »; muted `session.meta` « Salle · commencée à 18:42 » (local time in the session's zone).
+
+**Plan** `<ol class="session-plan" id="seance-plan">` (the fragment answered by pick, add and change). Each `<li>`:
+
+- Card of a row: `<a class="row session-card">` number (muted tabular, display order 1..n), name (weight 600, « Archivé » tag when archived), meta (muted `--text-sm`) parts joined by « · »: target (`Display.target`, slot rows only), « Séries : {n} » when n > 0, « Records : {n} » when n > 0.
+- Card of a pending menu: number, menu name + tag « Menu », meta « À choisir » · target.
+- The current item: `<li aria-current="step">` holding the expanded block below.
+
+**Current exercise block** `<section class="session-block" id="exercice-{row}" aria-labelledby="exercice-{row}-titre">` (`session_exercise.html`, the fragment of ✓, edit and delete):
+
+1. h2 `exercice-{row}-titre` the exercise name (+ « Archivé » tag); muted target line when the row comes from a slot with a target.
+2. « Changer d’exercice » — only while the row holds no fact (no set, deleted included, no setting): `<details class="session-change">` with summary `.button` « Changer d’exercice »; inside, a `[data-request-scope]` with its slot, muted « Aucune série enregistrée : vous pouvez choisir un autre exercice. » and, for a menu row, the other available options as full-width buttons (`hx-patch …/exercices/{row}`, `name="exercise_id"`); for an added row, the search of « Ajouter un exercice » in change mode (`?ligne={row}`). Answer: the plan, this row current with the new exercise, focus on its ✓, « Exercice choisi : {name}. ». Refusal `exercise_has_sets` (a set was logged from another device): message in the slot area under the summary, focus on the summary.
+3. Settings — only when the exercise has non-archived setting variables: `<details class="session-settings">`, summary (48 px, full width, chevron) « Réglages : Siège 4 · Dossier 2 » (`session.settings_summary`; a variable without value shows « — »). Inside, `<form hx-patch="/seances/{id}/exercices/{row}/reglages" hx-trigger="change" hx-target="this" hx-swap="outerHTML">`, slot first, hint « Enregistrés à chaque changement et repris à la prochaine séance. », then per variable: chips (`enum` ≤ 12 values, `bool`, discrete values) or a plain input (numbers, text: saved on `change`, i.e. when the field is left). No save button: a changed but unsaved setting would otherwise be replaced by the server's prefill at the first ✓. Saved → the form re-rendered with slot « Réglages enregistrés. » (`kind="ok"`), the summary text updated out of band, focus kept (same ids), same text announced. Refused → message under the input. The settings are prefilled values (D-062): they are shown, not asked.
+4. Sets of today `<ol class="set-list">` (absent when none), heading visually hidden « Séries de la séance ». Each set row: number, `Display.set_text`, type tag « Échauffement » / « Test RM » (work sets carry none), « Record » tag when ⭐ (recomputed on every render), and `<details class="set-row__edit">` with `<summary class="button" id="serie-{id}-modifier">` « Modifier » + visually hidden « la série {n} ».
+5. Next-set form (`session_set_form.html`, below), ending with the block's action bar.
+
+**Set texts** (`Display.set_text`, values through `Display.value`, durations `m:ss`):
+
+| Fields of the set | Text |
+|---|---|
+| reps and load | « 8 × 62,5 kg » (no-break spaces around ×) |
+| reps only | « 12 rép. » |
+| duration (hold, round) | « 0:45 » |
+| duration and distance (cardio) | « 30:00 · 5,2 km » |
+| load only | « 24 kg » |
+| + measure variables | « 30:00 · 5,2 km · Résistance 8 » (`session.set.variable`; `enum` by label, `bool` « Oui » / « Non ») |
+
+**Next-set form** `<form class="set-form" id="exercice-{row}-serie" hx-post="/seances/{id}/series" hx-target="#exercice-{row}" hx-swap="outerHTML show:#exercice-{row}-actions:bottom" hx-disabled-elt="find button">`, children in order:
+
+1. Status slot (D-053).
+2. Hidden `session_exercise_id`. h3 « Série {n} » (`intervals`: « Tour {n} »), `n` = live sets + 1.
+3. Set type: `fieldset.chips.chips--row`, legend visually hidden « Type de série », radios `name="type"` « Échauffement » (`warmup`) / « Travail » (`work`) / « Test RM » (`rm_test`, `strength` only), checked from the prefill. (« Échauffement » + « Travail » + « Test RM » ≈ 321 px of 328 at 360 px; a wider font wraps the third chip.)
+4. Fields in `exercise_field` order, required fields and core quantities visible:
+   - numeric with an increment → stepper; « − » `id="exercice-{row}-{field}-moins"`, « + » `…-plus`, `type="button"`, `name="pas" value="{field}:down|up"`, `hx-get="/seances/{id}/exercices/{row}/serie"`, `hx-include="closest form"`, `hx-target="#exercice-{row}-serie"`, `hx-swap="outerHTML"`, `hx-sync="closest form:replace"`, `hx-disabled-elt="#exercice-{row}-valider"`, `aria-label` « Diminuer {field} de {step} » / « Augmenter {field} de {step} » (« Augmenter Charge de 2,5 kg »). « − » is `disabled` at 0.
+   - discrete values → chips (« 16 », « 20 », « 24 », legend « Charge (kg) »); a prefilled value outside the list is an extra checked chip at its sorted place.
+   - numeric with neither → plain `.input` (keyboard).
+   - `bool`, `enum` → chips (or select); `text` → input, `maxlength="40"`.
+   - Field names: `{field}` = `reps`, `weight`, `duration`, `distance` or `var_{id}`; input ids `exercice-{row}-{field}`.
+   - A required field left empty by the prefill (first use, no default) carries the hint « Première fois : saisissez la valeur. »: the keyboard fallback of D-062.
+5. Optional variables in `<details class="set-form__more">`, summary « Autres valeurs » or « Autres valeurs : Résistance 8 » (the current values); rendered `open` when the step that produced it targeted one of its fields or a refusal is inside.
+6. Action bar, last child of the form, `<div class="session-block__actions" id="exercice-{row}-actions">`: the ✓ `<button type="submit" class="button button--primary button--confirm" id="exercice-{row}-valider">` « Valider la série {n} » (`intervals`: « Valider le tour {n} »), then the secondary link-button « Suivant : {name} » (the next item's card URL) or, on the last item, the secondary `type="button"` « Terminer la séance » (`hx-get="/seances/{id}/cloture" hx-target="#fin-de-seance" hx-swap="outerHTML show:#fin-de-seance:bottom"`).
+
+Layout by category (template branches only):
+
+| Category | Form fields (usual) | Set row | Heading / ✓ |
+|---|---|---|---|
+| `strength`, `kettlebell` | Répétitions stepper, Charge stepper or chips (16 · 20 · 24 kg) | « 8 × 62,5 kg » | « Série 3 » / « Valider la série 3 » |
+| `bodyweight` | Répétitions stepper (+ Charge when weighted) or Durée stepper (plank) | « 12 rép. », « 10 × 10 kg », « 0:45 » | same |
+| `cardio` | Durée stepper, Distance stepper (+ Résistance in « Autres valeurs ») | « 30:00 · 5,2 km » | same |
+| `intervals` | Durée (work) stepper | « 0:30 » with number = round | « Tour 4 » / « Valider le tour 4 » |
+
+**Edit / delete a confirmed set** (inside `set-row__edit`, open state full width under the row as L3's `.slot` flow-root pattern): `<form hx-patch="/series/{id}" hx-target="#exercice-{row}" hx-swap="outerHTML" hx-disabled-elt="find button">`, slot first, type chips, every field as plain input or chips (no steppers: a correction is rare and the keyboard is accepted there), optional fields visible, `.actions--inline` primary « Enregistrer » and danger « Supprimer la série » (`hx-delete="/series/{id}"`, same target; no confirmation: soft delete, the set can be logged again, D-061/§6). Saved → `<details>` closed, row text and stars recomputed, focus on its « Modifier », « Série 2 modifiée. ». Deleted → row gone, rows renumbered, next form's number updated, focus on the next row's « Modifier » (else the previous one's, else the ✓), « Série 2 supprimée. ». Refused → the row's `<details open>`, messages under the inputs, focus on the first invalid one.
+
+**Current pending menu** `<section class="session-block" id="menu-{slot}">` (`session_pending_menu.html`): h2 menu name + tag « Menu », muted target, muted « Choisissez l’exercice du jour. », then `<form class="menu-pick" hx-post="/seances/{id}/exercices" hx-target="#seance-plan" hx-swap="outerHTML show:.session-block:top" hx-disabled-elt="find button">` (slot first, hidden `slot_id`) with one full-width submit button per available option in menu order (`name="exercise_id" value="{id}"`: json-enc sends the submitter, as the home start form), name weight 600, 56 px. The plan has a single `.session-block` (the current item), so `show:.session-block:top` scrolls the new block to the top. One tap. Then « Suivant : {name} » as for a row (skipping a menu is allowed: it stays « À choisir »). Refused (`slot_already_picked`: picked from another device; `exercise_unavailable`) → the plan re-rendered with the message in this menu's slot and focus on its first button (or on the row now holding the slot).
+
+**Add an exercise** `<details class="session-add" id="ajout">` after the plan (rendered `open` when the plan is empty): summary `.button` full width « Ajouter un exercice ». Inside:
+
+- Search form as L2 (`role="search"`, plain `GET` fallback, `hx-get="/seances/{id}/recherche"`, `hx-target="#ajout-resultats"`, same triggers, slot with `data-message` = `error.search_failed`), label « Rechercher un exercice », hint `exercises.search_hint`. No autofocus (it would open the keyboard: the nominal path is the list).
+- `<div id="ajout-resultats" data-request-scope>` (outside the search form, so a failed add shows « Non enregistré, réessayer », not the search text): slot first; q empty → h3 « Récents » (up to 20, newest first) then h3 « Tous les exercices » (the rest by name), each hidden when empty; q not empty → one ranked list. Each result is a `<button class="row session-result" name="exercise_id" value="{id}" hx-post="/seances/{id}/exercices" hx-target="#seance-plan" hx-swap="outerHTML show:.session-block:top" hx-disabled-elt="this">`: name (600), meta category · equipment. Rendered with the page for q empty (no request to open it). Change mode (`?ligne={row}`): same rows, `hx-patch="…/exercices/{row}"`.
+- No match: `exercises.no_match` + `exercises.no_match_hint`; empty catalog: `exercises.empty_title` and a link « Nouvel exercice » → `/exercices/nouveau`. Results count announced as L2.
+- Added → the plan with the new row current (last), focus on its ✓, « Exercice ajouté : {name}. », `<details>` closed.
+
+**Close** `<section id="fin-de-seance" class="section" data-request-scope>` at the end: slot, secondary « Terminer la séance » (full width below 40rem), `hx-get="/seances/{id}/cloture"`, `hx-target="#fin-de-seance"`, `hx-swap="outerHTML show:#fin-de-seance:bottom"`. The confirmation (`.confirm.confirm--neutral`, `role="group"`): « Terminer la séance ? », « Vous ne pourrez plus y ajouter de séries. », when some items have no live set « Exercices sans série : {count}. », then « Annuler » (`autofocus`, `?annuler=1` puts the block back, focus on « Terminer la séance ») and primary « Terminer » (`hx-post="/seances/{id}/cloture"` → `HX-Redirect: /seances/{id}`, the summary).
+
+States of the session page:
+
+| State | What the user sees | Focus / announcement |
+|---|---|---|
+| Fresh from a template | first item current, no set; fixed slots as cards, menus « À choisir » | — |
+| Free session / no item | `.empty` « Aucun exercice pour l’instant. » + muted « Ajoutez un exercice ci-dessous. »; « Ajouter un exercice » open | — |
+| Resumed (reload, home) | the same state rebuilt from the database; current = row of the latest set | — |
+| Stepping | the value changes in place; ✓ disabled until the answer (< 100 ms on the LAN) | focus kept on « + » / « − » |
+| Confirming | every button of the form disabled (50 %), labels unchanged | — |
+| Confirmed | new set row (with « Record » when ⭐), form for set n + 1 prefilled, action bar scrolled to the bottom of the viewport | the ✓; « Série 3 enregistrée : 8 × 62,5 kg. » (+ « Nouveau record. ») |
+| Refused input | block re-rendered `200`, values kept, message under each field (`aria-invalid`, `aria-describedby`), « Renseignez au moins une valeur. » for an empty set (under the h3, on the form) | first invalid input; first message |
+| Request failed (5xx, network, 10 s timeout, 404 of a row deleted elsewhere) | nothing changed, values as typed, « Non enregistré, réessayer » in the form's slot above « Série {n} », ✓ enabled again | D-053: first visible field of the form; same text |
+| Session closed meanwhile (other device) | `HX-Redirect: /seances/{id}?terminee=1`: the summary with the notice « Cette séance est terminée : la dernière action n’a pas été enregistrée. » | notice `role="alert"` |
+| Archived exercise in a row | « Archivé » tag; logging works | — |
+| Archived variable | hidden, never sent | — |
+| Unknown, foreign or deleted session | L1a 404 page | — |
+| Page failure | L1a 500 page | — |
+
+Tab order: skip link, brand, nav, cards and the current block in plan order (inside the block: « Changer d’exercice », settings summary, each « Modifier », type chips, each field (−, input, +), « Autres valeurs », ✓, « Suivant »), « Ajouter un exercice », « Terminer la séance ». Tab title: the h1 text (`{page}`).
+
+### L4 — Session summary (`GET /seances/{id}` of a closed session, `templates/session_summary.html`)
+
+Task: see what was done. Information: when and how long, per exercise the counted sets, volume and records, the totals.
+
+```
+360 px                                   1280 px
++------------------------------+         +--------------------------------------------------------------+
+| Salle A — Squat & poussée    |         |    Salle A — Squat & poussée horizontale                     |
+| horizontale                  |         |    Séance terminée · Salle                                   |
+| Séance terminée · Salle      |         |    03/11/2026 · 18:42–19:51 · 1 h 09                          |
+| 03/11/2026 · 18:42–19:51 ·   |         |    +-----------+-----------+-------------+-----------+       |
+| 1 h 09                       |         |    | 6         | 22        | 8450 kg     | 2         |       |
+| +-----------+-----------+    |         |    | Exercices | Séries    | Volume      | Records   |       |
+| | 6         | 22        |    |         |    +-----------+-----------+-------------+-----------+       |
+| | Exercices | Séries    |    |         |    Squat au rack (barre)                                     |
+| +-----------+-----------+    |         |    Séries : 4 · Échauffements : 2 · Volume : 1920 kg ·     |
+| | 8450 kg   | 2         |    |         |    Records : 1                                               |
+| | Volume    | Records   |    |         |    1 8 × 40 kg [Échauffement] ...                            |
+| +-----------+-----------+    |         |    ...                                                       |
+| Squat au rack (barre)        |         |    [ Retour à l’accueil ]                                    |
+| Séries : 4 · Échauffements : |         +--------------------------------------------------------------+
+| 2 · Volume : 1920 kg ·       |
+| Records : 1                  |
+| 1 8 × 40 kg   [Échauffement] |
+| 3 8 × 62,5 kg  ★ Record      |
+| ...                          |
+| [   Retour à l’accueil     ] |
++------------------------------+
+```
+
+- h1 template name or « Séance libre »; muted « Séance terminée · Salle »; muted `Display.local_date` · start–end `Display.local_time` · duration (`Display.duration_compact`: summaries are read at a glance like targets; set rows keep `m:ss`).
+- Totals `<dl class="summary-totals">`: tiles (2 × 2 below 40rem, 4 in a row from 40rem; `--color-surface`, `--radius-md`, padding `--space-3`): figure `--text-2xl` weight 600 tabular, label muted `--text-sm` under it: « Exercices » (rows with at least one live set), « Séries » (live work and RM-test sets), « Volume » (Σ load volume, `Display.value` kg; tile absent when 0), « Records ».
+- Per exercise with a live set, in plan order, `<section>` h2 name, muted meta parts joined by « · »: « Séries : {n} », « Échauffements : {n} » (when > 0), the volume of its category, « Records : {n} » (when > 0). Then the read-only set rows (number, text, tags; no « Modifier »: correction is L5).
+
+| Category | Volume meta |
+|---|---|
+| `strength`, `kettlebell` | « Volume : 1920 kg » |
+| `bodyweight` | « Répétitions : 36 », + « Volume : 360 kg » when weighted, « Durée : 1 min 30 » for holds |
+| `cardio` | « Distance : 5,2 km · Durée : 30 min » |
+| `intervals` | « Tours : 8 · Durée : 4 min » |
+
+- No set at all: `.empty` « Aucune série enregistrée. ».
+- `?terminee=1`: the notice `.form-status[data-kind="error"]` `role="alert"` under the meta.
+- Action: primary link-button « Retour à l’accueil » (`.actions`, full width below 40rem). Tab title `session.summary_title` « Séance terminée ».
+
+### L4 — Tap counts (browser test, WebKit 360 px)
+
+Counted by the `Taps` helper (every click; any `fill` / `type` / `press` fails the nominal path). Preconditions: one earlier « Salle A » session at the gym with history and settings on « Presse à cuisses ».
+
+| Action | Taps | Sequence | Target |
+|---|---|---|---|
+| Start « Salle A », place preselected | 1 | template button | ≤ 3 |
+| Start with the other place | 2 | « Maison », template | ≤ 3 |
+| Resume from home | 1 | « Reprendre la séance » | — |
+| Confirm an unchanged set | 1 | ✓ | 1 |
+| Confirm after one step | 2 | « + », ✓ | ≤ 3 |
+| Confirm after two steps or two fields | 3 | « + », « + », ✓ | ≤ 3 |
+| Confirm with another discrete load | 2 | chip, ✓ | ≤ 3 |
+| Confirm a warm-up set (type changed) | 2 | « Échauffement », ✓ | ≤ 3 |
+| Go to the next exercise | 1 | « Suivant : … » | — |
+| Go to a pending menu and pick | 2 | « Suivant : … », option | — |
+| Pick in the current menu | 1 | option | — |
+| Add a recent exercise | 2 | « Ajouter un exercice », result | — |
+| Change a setting chip | 2 | settings summary, chip | — |
+| Delete a set | 2 | « Modifier », « Supprimer la série » | — |
+| Edit a set (keyboard allowed: correction) | 3 + typing | « Modifier », field, « Enregistrer » | — |
+| Close from the last exercise | 2 | « Terminer la séance », « Terminer » | — |
+
+The test also checks at 360 × 640: after each ✓ the next ✓ is inside the viewport's lower half; every target ≥ 48 × 48 px; no horizontal scroll; during the ✓ request the ✓ is disabled; on an aborted ✓ (`page.route` abort) the values stay, « Non enregistré, réessayer » is shown and the ✓ is enabled.
+
+### L4 — Style (`components.css`, `pages/home.css`, `pages/session.css`)
+
+- `components.css`: `.chips`, `.chip`, `.chip__input` (visually hidden radio), `.confirm--neutral` (`--color-border` border).
+- `pages/home.css` (replaces the L1a rules): `.start` (column, gap `--space-4`, max `--text-max`), `.start__template` (full width, `justify-content: flex-start`, text left, `min-height: 4rem`, padding `--space-3` `--space-4`, wraps), the place switch, `.main--nav` (below 40rem `min-height: calc(100dvh - 2 * var(--target-min) - 1px)`, flex column) for the resume state with `.actions--thumb`.
+- `pages/session.css`: `.session-plan` (list, divider between items), `.session-card` (L2 `.row`), `.session-block` (column, gap `--space-4`, padding-block `--space-4`), `.set-list`, `.set-row` (grid `2ch minmax(0, 1fr) auto`, gap `--space-2`, `align-items: center`; the edit form full width below), `.set-form` (column, gap `--space-4`; fields in a 2-column grid from 40rem), `.stepper`, `.stepper__row`, `.stepper__button`, `.stepper__input`, `.button--confirm`, `.session-block__actions` (column, gap `--target-gap`, full width), `.tag--record`, `.session-add` and `.session-result` (button reset to the `.row` look, full width, left aligned), `.summary-totals` (grid 2 columns, 4 from 40rem, gap `--space-2`).
+- Page width: home and session pages one column, `max-width: var(--text-max)`. Long names wrap (`overflow-wrap: anywhere`); never an ellipsis.
+- 360 px check: the longest seed names (« Tirage horizontal poulie », « Relevé de jambes suspendu », « Salle B — Charnière & poussée verticale »), three set-type chips, a 10-value « Siège » chip group (two rows) and an open set edit fit without horizontal scroll.
+
+### L4 — Strings (`web/locales/fr.json`)
+
+Same typography as L2 / L3: typographic apostrophes; a no-break space (U+00A0) before « : », « ? », « ! », inside « » guillemets, between a number and its unit, and on both sides of « × ». Times are joined by an en dash without spaces (« 18:42–19:51 »).
+
+| Key | Text |
+|---|---|
+| `home.start_title` | Nouvelle séance |
+| `home.location_legend` | Lieu |
+| `home.templates_heading` | Séance type |
+| `home.last_used` | Dernière séance |
+| `home.free_session` | Séance libre |
+| `home.free_session_hint` | Sans séance type : vous ajoutez les exercices un à un. |
+| `home.no_template_gym` | Aucune séance type pour la salle. |
+| `home.no_template_home` | Aucune séance type pour la maison. |
+| `home.open_title` | Séance en cours |
+| `home.open_counts` | Exercices : {exercises} · Séries : {sets} |
+| `home.resume` | Reprendre la séance |
+| `session.free_title` | Séance libre |
+| `session.meta` | {location} · commencée à {time} |
+| `session.item_sets` | Séries : {count} |
+| `session.item_records` | Records : {count} |
+| `session.menu_pending` | À choisir |
+| `session.menu_intro` | Choisissez l’exercice du jour. |
+| `session.change_exercise` | Changer d’exercice |
+| `session.change_intro` | Aucune série enregistrée : vous pouvez choisir un autre exercice. |
+| `session.settings_summary` | Réglages : {values} |
+| `session.no_value` | — |
+| `session.settings_hint` | Enregistrés à chaque changement et repris à la prochaine séance. |
+| `session.settings_saved` | Réglages enregistrés. |
+| `session.sets_heading` | Séries de la séance |
+| `session.set_named` | la série {n} |
+| `session.set.reps_weight` | {reps} × {weight} |
+| `session.set.reps` | {reps} rép. |
+| `session.set.variable` | {label} {value} |
+| `session.set_type_legend` | Type de série |
+| `session.set_type.warmup` | Échauffement |
+| `session.set_type.work` | Travail |
+| `session.set_type.rm_test` | Test RM |
+| `session.record` | Record |
+| `session.next_set` | Série {n} |
+| `session.next_round` | Tour {n} |
+| `session.field_unit` | {field} ({unit}) |
+| `session.step_down` | Diminuer {field} de {step} |
+| `session.step_up` | Augmenter {field} de {step} |
+| `session.first_value_hint` | Première fois : saisissez la valeur. |
+| `session.more_fields` | Autres valeurs |
+| `session.more_fields_values` | Autres valeurs : {values} |
+| `session.confirm_set` | Valider la série {n} |
+| `session.confirm_round` | Valider le tour {n} |
+| `session.next_item` | Suivant : {name} |
+| `session.delete_set` | Supprimer la série |
+| `session.add_exercise` | Ajouter un exercice |
+| `session.recent_heading` | Récents |
+| `session.all_heading` | Tous les exercices |
+| `session.empty_title` | Aucun exercice pour l’instant. |
+| `session.empty_text` | Ajoutez un exercice ci-dessous. |
+| `session.close` | Terminer la séance |
+| `session.close_confirm_title` | Terminer la séance ? |
+| `session.close_confirm_text` | Vous ne pourrez plus y ajouter de séries. |
+| `session.close_unlogged` | Exercices sans série : {count}. |
+| `session.close_confirm` | Terminer |
+| `session.announce_set_saved` | Série {n} enregistrée : {text}. |
+| `session.announce_set_record` | Série {n} enregistrée : {text}. Nouveau record. |
+| `session.announce_set_updated` | Série {n} modifiée. |
+| `session.announce_set_deleted` | Série {n} supprimée. |
+| `session.announce_picked` | Exercice choisi : {name}. |
+| `session.announce_added` | Exercice ajouté : {name}. |
+| `session.summary_title` | Séance terminée |
+| `session.summary_meta` | Séance terminée · {location} |
+| `session.summary_when` | {date} · {start}–{end} · {duration} |
+| `session.total_exercises` | Exercices |
+| `session.total_sets` | Séries |
+| `session.total_volume` | Volume |
+| `session.total_records` | Records |
+| `session.summary.sets` | Séries : {count} |
+| `session.summary.warmups` | Échauffements : {count} |
+| `session.summary.records` | Records : {count} |
+| `session.summary.volume` | Volume : {value} |
+| `session.summary.reps` | Répétitions : {count} |
+| `session.summary.duration` | Durée : {value} |
+| `session.summary.distance` | Distance : {value} |
+| `session.summary.rounds` | Tours : {count} |
+| `session.summary_empty` | Aucune série enregistrée. |
+| `session.closed_notice` | Cette séance est terminée : la dernière action n’a pas été enregistrée. |
+| `date.numeric` | {day}/{month}/{year} |
+| `catalog.error.empty_set` | Renseignez au moins une valeur. |
+| `catalog.error.template_unavailable` | Séance type archivée ou introuvable : choisissez-en une autre. |
+| `catalog.error.slot_already_picked` | Un exercice est déjà choisi pour ce menu. |
+| `catalog.error.exercise_has_sets` | Des séries ou réglages sont enregistrés : l’exercice ne peut plus être changé. |
+
+Removed: `home.empty_title`, `home.empty_text` (L1a placeholder). Reused: `home.title`, `exercise.location.gym` / `.home` (place words), `template.tag_menu`, `tag.archived_m`, `action.edit`, `action.save`, `action.cancel`, `action.home`, `templates.new`, `exercises.search_label`, `exercises.search_hint`, `exercises.no_match`, `exercises.no_match_hint`, `exercises.empty_title`, `exercises.new`, `exercises.results`, `error.search_failed`, `error.not_saved`, `quantity.*`, `unit.*`, `field.yes` / `field.no`, `duration.compact.*`, `catalog.error.required`, `catalog.error.too_long`, `catalog.error.invalid_choice`, `catalog.error.exercise_unavailable`, the `domain/units` codes. Problem codes of L4 use the one `catalog.error.<code>` prefix of `web/forms.form_errors` (the design note's `session.error.*` placeholder is not used). `date.numeric` takes two-digit `{day}` and `{month}`. `session_closed` has no message: it is a redirect, and the summary shows `session.closed_notice`.

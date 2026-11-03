@@ -199,4 +199,73 @@ Every htmx form or action group carries the `_form_status.html` slot (the existi
 7. `test(e2e): log a full Salle A session with counted taps` — browser flow and page checks.
 8. `docs(docs): close milestone L4` — `docs/architecture.md` map, root `CLAUDE.md` if commands change, `CHANGELOG.md`, `docs/progress.md`.
 
-<!-- ui-designer adds a "UI design" section here: wireframes of home (start / resume), session page (exercise blocks, pending menus, search, thumb-zone ✓), set row edit / delete, close confirmation, summary; texts and keys; focus after confirm (the next form's ✓), after a pick, after a step (the same stepper button), after delete; how the 97 px two-row header and a sticky ✓ coexist at 360 px. -->
+## UI design
+
+Status: APPROVED FOR AUTONOMOUS MODE. Every choice below either applies a rule of the brief (§4 speed targets, « no silent loss »), D-053, D-061 to D-064 and the L1a–L3 ui-spec, or is a presentation detail left to the ui-designer. The full screen specification, every French string and its key, and the tap count table of the browser test are in `docs/ui-spec.md` "L4 — …" (one copy; this section gives the reasons and the deltas the developer must know).
+
+### Task and decision
+
+- **Home** (`GET /`): task « start the right session, or get back to the one running ». Decision: which template (or none), at which place. Information: the place (preselected), the templates of that place in the user's order, which one was done last (the user alternates A / B), or the session already open.
+- **Session** (`GET /seances/{id}`): task « log the set I just did, exactly, then the next ». Decision per set: confirm as prefilled, or adjust first. Information: which exercise and set number, the prefilled values, the set type, the machine settings, the sets already done today with ⭐. Every other element (plan, search, close) is secondary and stays out of the way.
+- **Summary** (closed session): task « see what I did ». Information: duration, per exercise the counted sets, volume and records, session totals.
+
+### Main layout choice: one current exercise, the rest as a plan
+
+The session page is an ordered plan (`display_sequence`): every item is a one-line card (number, name, target, « Séries : 3 », records) except **the current item, shown expanded in place**: its settings, its sets of today, and the next-set form ending with the large ✓. A pending menu, when current, shows its options as full-width buttons.
+
+- Why: one form on screen means one ✓ on screen, so a set can never be confirmed on the wrong exercise (the main error the brief guards against), and the ✓ sits at a predictable place. Six expanded forms would make a page of ~3 000 px at 360 px where the right ✓ has to be found by scrolling.
+- Current item: the query `?exercice={row_id}` or `?menu={slot_id}` when present (and valid), else the row of the latest live set of the session, else the first item. Pure rule, `domain/sessions.current_item(sequence, latest_set_row_id, requested)` (new, beside `display_sequence`; unit tested). Picking, adding or changing an exercise makes that row current.
+- Moving between exercises: each card is a plain link `/seances/{id}?exercice={row_id}#exercice-{row_id}` (full page, works without htmx; the anchor scrolls the expanded block to the top of the viewport, above the header). Under the ✓ of the current block, a secondary link « Suivant : {name} » goes to the next item; on the last item it is replaced by « Terminer la séance » (opens the close confirmation at the bottom of the page).
+- Rejected: exclusive `<details name>` accordion (open state not known by the server, so a confirmation or reload could re-open the wrong one; `name` needs Safari 17.2); a sticky bottom bar holding the ✓ (covers set rows and the iOS toolbar area, needs a « current » notion anyway, and `position: sticky` inside swapped fragments jumps in WebKit).
+
+### Header and thumb zone at 360 px
+
+The two-row header (97 px) stays, not sticky, as on every protected page (L3). Nothing is fixed at the bottom. The ✓ reaches the thumb zone by scrolling, never by overlay:
+
+- after a page load on an item (link with `#exercice-{row_id}`): the block starts at the top of the viewport, the header is scrolled away; a strength block with no set yet is ~420 px high, so its ✓ lands in the lower half of a 640 px viewport;
+- after each confirmation: the swap `hx-swap="outerHTML show:#exercice-{row_id}-actions:bottom"` aligns the block's action bar (✓ and « Suivant ») with the bottom of the viewport; the latest set row and the prefilled form stay visible just above it;
+- after a start (`HX-Redirect: /seances/{id}`), the first item is current right under the page title: ✓ at ~560 px of a 640 px viewport.
+
+The ✓ is the one primary button of the block, full width, 56 px high (`calc(var(--target-min) + var(--space-2))`).
+
+### Components and reused helpers
+
+- Status slot (`_form_status.html`) first in: the start form, each set form, each set edit form, the settings form, each menu block, the change-exercise block, the search form (`data-message` = `error.search_failed`), the close block. Field pieces `_fields.html` (`described`, `field_error`, `field_hint`, `oob_announce`). In-place confirmation (L2) for the close. `.rows` / `.row` for plan cards and search results; `.tag` for « Menu », « Archivé », set types and « Record »; `.empty` for empty states; `Display.value` / `input_text` / `target` / `duration_compact`; `LOCATION_KEYS`, `CATEGORY_KEYS`.
+- New shared component **choice chips** (`components.css`, `.chips` / `.chip`): a native radio inside its label, the radio visually hidden but focusable, the label a 48 × 48 px minimum chip; checked = accent fill and on-accent text (fill and weight, not hue alone); focus ring on the chip through `:has(:focus-visible)`. Used for the location (home), the set type, discrete values, `bool` and `enum` fields (≤ 12 values; a `<select class="input">` above that).
+- New **stepper** (`pages/session.css`, `.stepper`): label above, then `[ − ] [ value ] [ + ]` on one row, buttons 56 × 56, input `--text-2xl` tabular figures centred. Only for numeric fields with an increment; discrete fields get chips; numeric fields with neither get a plain input.
+- New `Display` helpers (web): `set_text(set, fields)` (« 8 × 60 kg », « 12 rép. », « 30:00 · 5,2 km », « 0:30 », measures appended « · Résistance 8 »), `local_time(utc_text, tz_name)` (« 18:42 », from the note), `local_date(local_date_text)` (« 03/11/2026 »), `volume(Volume)` (from the note).
+
+### Deltas to sections 2 to 10 (developer)
+
+| Where | Change | Why |
+|---|---|---|
+| `services.sessions.start_page` | also returns `last_template_id` (template of the latest non-deleted session; same query as `last_location`) | the « Dernière séance » tag on home: the user alternates templates |
+| `GET /seances/{id}` | accepts `?exercice={row_id}` / `?menu={slot_id}` (unknown or foreign → ignored, default rule) and `?terminee=1` | current item; closed-session notice |
+| closed-session redirects | `HX-Redirect: /seances/{id}?terminee=1` for every write refused with `session_closed`; a plain navigation to a closed session gets no notice | « no silent loss »: the summary says the last action was not saved |
+| `GET /seances/{id}/recherche` | result groups « Récents » / « Tous les exercices » when `q` is empty (the service marks which results are recent); `?ligne={row_id}` renders result buttons that change that added row (`PATCH`) instead of adding | the empty query is the no-keyboard path; an added exercise tapped by mistake is corrected in place |
+| `POST /seances/{id}/exercices`, `PATCH …/exercices/{row_id}` | answer the plan fragment `#seance-plan` with the new row current | the picked exercise is ready for its first ✓ |
+| `PATCH …/reglages` | sent on each `change` of the settings form (no save button) | a setting changed but not saved would be silently replaced by the server's prefill at the first ✓ |
+| set form fragment | `session_exercise.html` renders the whole current block; `session_set_form.html` the `<form id="exercice-{row_id}-serie">` alone (stepper answers) | stepper answers replace only the form |
+| `services.sessions.close` | the confirmation fragment shows « Exercices sans série : {count}. » (rows without live set + pending menus) when > 0 | a forgotten exercise is seen before the session is final |
+
+### Request, focus and announcement rules
+
+| Action | Request | During the request | Focus after | `#annonce` |
+|---|---|---|---|---|
+| Start | `POST /seances` (submitter `template_id`) | every start button disabled | new page | — |
+| Step « − » / « + » | `GET …/serie` with `name="pas" value="<field>:<up\|down>"`, `hx-include="closest form"`, `hx-target="#exercice-{row}-serie"`, `hx-swap="outerHTML"`, `hx-sync="closest form:replace"` | ✓ disabled (`hx-disabled-elt="#exercice-{row}-valider"`) so a step still running is never confirmed with the old value | same stepper button (stable id `exercice-{row}-{field}-plus` / `-moins`) | — (the value is visible; announcing every step chatters) |
+| ✓ | `POST /seances/{id}/series`, `hx-disabled-elt="find button"` on the form | every button of the form disabled (✓ 50 % opacity) | the next form's ✓ (`autofocus`) | « Série 3 enregistrée : 8 × 62,5 kg. » (+ « Nouveau record. ») |
+| ✓ refused | same | — | first invalid input | first message |
+| ✓ failed (5xx, network, 10 s) | — | — | D-053: first visible field of the form (the first set-type chip); the ✓ enabled again, values kept, « Non enregistré, réessayer » above the form | same text |
+| Pick an option | `POST …/exercices` | that menu's option buttons disabled | the new block's ✓ | « Exercice choisi : {name}. » |
+| Add from search | `POST …/exercices` | the tapped result disabled | the new block's ✓ | « Exercice ajouté : {name}. » |
+| Edit a set | `PATCH /series/{id}` | that form's buttons disabled | that row's « Modifier » | « Série 2 modifiée. » |
+| Delete a set | `DELETE /series/{id}` | same | next row's « Modifier », else the previous row's, else the ✓ | « Série 2 supprimée. » |
+| Change a setting | `PATCH …/reglages` on `change` | — | kept on the chip / input (same ids) | « Réglages enregistrés. » |
+| Close | `GET` / `POST …/cloture` | buttons disabled | « Annuler » in the confirmation; then the summary page | — |
+
+Keyboard order on the session page: skip link, brand, nav, h1, the plan in order (cards are links; inside the current block: « Changer d’exercice » when offered, the settings summary, each set's « Modifier », the set-type chips (one tab stop, arrows inside), each field (−, input, +), « Autres valeurs », ✓, « Suivant »), « Ajouter un exercice », « Terminer la séance ». Enter in a field submits the set form (= ✓) on desktop.
+
+### Style changes
+
+No new token, no new breakpoint. `components.css`: `.chips`, `.chip`. New `pages/session.css` (session page and summary) and `pages/home.css` rewritten (start and resume; L1a empty-state classes removed). Session pages also link `pages/catalog.css` (`.empty`, search). At 1280 px the home and session pages are one column of `--text-max` (logging on the desktop is rare; the same DOM serves both), the summary totals are four tiles on one row.
