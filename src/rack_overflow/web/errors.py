@@ -14,6 +14,7 @@ from starlette.exceptions import HTTPException
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from rack_overflow.web.rendering import render
+from rack_overflow.web.security import PAYLOAD_TOO_LARGE, UNSUPPORTED_MEDIA_TYPE
 
 logger = logging.getLogger(__name__)
 
@@ -23,8 +24,8 @@ CODES: dict[int, str] = {
     403: "forbidden",
     404: "not_found",
     405: "method_not_allowed",
-    413: "payload_too_large",
-    415: "unsupported_media_type",
+    413: PAYLOAD_TOO_LARGE,
+    415: UNSUPPORTED_MEDIA_TYPE,
     422: "invalid_request",
     500: "internal",
 }
@@ -33,8 +34,8 @@ MESSAGE_KEYS: dict[str, str] = {
     "not_found": "error.not_found",
     "internal": "error.internal",
     "method_not_allowed": "error.method_not_allowed",
-    "payload_too_large": "error.payload_too_large",
-    "unsupported_media_type": "error.unsupported_media_type",
+    PAYLOAD_TOO_LARGE: "error.payload_too_large",
+    UNSUPPORTED_MEDIA_TYPE: "error.unsupported_media_type",
 }
 TITLE_KEYS: dict[int, str] = {404: "error.title.not_found", 500: "error.title.internal"}
 GENERIC_CODE = "error"
@@ -56,13 +57,18 @@ def error_response(request: Request, status: int) -> Response:
         "title_key": TITLE_KEYS.get(status, GENERIC_TITLE_KEY),
         "message_key": MESSAGE_KEYS.get(code, GENERIC_MESSAGE_KEY),
         "status": status,
-        "retry_path": _safe_path(request.url.path) if status >= 500 else None,
+        "retry_path": _retry_path(request) if status >= 500 else None,
     }
     return render(request, "error.html", context, status=status)
 
 
-def _safe_path(path: str) -> str:
-    """The current path as a same-origin link (`//host` would leave the site)."""
+def _retry_path(request: Request) -> str:
+    """The current path as sent (still percent-encoded, no query) as a same-origin link.
+
+    The raw path keeps `%3F` encoded, so retrying goes to the same address; `//host` would leave the site.
+    """
+    raw = request.scope.get("raw_path")
+    path = raw.decode("latin-1") if isinstance(raw, bytes) else request.url.path
     return "/" + path.lstrip("/")
 
 

@@ -16,10 +16,10 @@
 | Module | Owns |
 |---|---|
 | `app.py` | `create_app(settings, engine, *, clock, run_scheduler=True)`: static mount, routes, error handling, security middleware (outermost), lifespan (backup scheduler, engine dispose); `app.state` holds settings, engine, catalog, clock, templates |
-| `security.py` | `SecurityMiddleware` (pure ASGI: `Host`, `Origin` / `Sec-Fetch-Site`, JSON-only, 64 KiB body limit; CSP and security headers on every response), `hostname(host)` |
+| `security.py` | `SecurityMiddleware` (pure ASGI: `Host`, `Origin` / `Sec-Fetch-Site`, JSON-only, 64 KiB body limit; CSP and security headers on every response, `no-store` outside `/static/` and on every error status), the rejection codes (`INVALID_HOST`, `FORBIDDEN_ORIGIN`, `UNSUPPORTED_MEDIA_TYPE`, `PAYLOAD_TOO_LARGE`, reused by `errors.py`), `hostname(host)` |
 | `locale.py` | `load_catalog(path)`, `Catalog.text(key, **params)`, `LocaleError`; imports no other project module |
 | `rendering.py` | `create_environment(catalog)` (Jinja2, autoescape, `t` global) and `render(request, template, context, status)` |
-| `errors.py` | Status → code → message key maps, `error_response(request, status)`, `UnhandledErrorMiddleware` (500 inside the security headers), `install(app)` |
+| `errors.py` | Status → code → message key maps, `error_response(request, status)` (« Réessayer » links to the raw path), `UnhandledErrorMiddleware` (500 inside the security headers), `install(app)` |
 | `scheduler.py` | `backup_once(settings, clock)`, `run_daily_backup(settings, clock, interval_s)`: daily backup through `services.backups.backup_if_due` |
 | `routes/home.py` | `GET /` → `home.html` |
 | `templates/` | `base.html` (layout), `home.html`, `error.html` |

@@ -94,7 +94,8 @@ Spacing (4 px base): `--space-1` 0.25rem, `--space-2` 0.5rem, `--space-3` 0.75re
 - Header on `--color-surface`, bottom `--color-divider` line; the brand « Rack Overflow » is a link to `/` (text `--text-lg`, weight 700, text colour, no underline, ≥ 48 px high), `aria-current="page"` on home. No navigation in L1a: the `nav` block is empty and the `<nav>` element is rendered only when a page fills it.
 - Permanent live region at the end of the body: `<div id="annonce" role="status" aria-live="polite" aria-atomic="true">`, visually hidden, empty on load, filled by the server with `hx-swap-oob` (from L2).
 - Page title in the tab: `layout.title`.
-- Focus ring 3 px `--color-focus`, offset 2 px, on `:focus-visible`. Links in text are underlined.
+- Focus ring 3 px `--color-focus`, offset 2 px, on `:focus-visible` of interactive elements only; `<main>`, focused by the skip link, gets no ring. Links in text are underlined.
+- Thumb-zone actions: `.actions--thumb` puts the actions at the bottom of the viewport below 40rem only inside a full-height flex `<main>`, so a page using it also sets `{% block main_class %}main--message{% endblock %}` (`.main--message`). The two always go together; later screens reuse the pair.
 - Buttons (`.button`, `.button--primary`, also on `<a>`): ≥ 48 × 48 px, 8 px apart, text `--text-md` weight 600; disabled at 50 % opacity.
 
 ### L1a — Home (`GET /`, `templates/home.html`)
@@ -138,7 +139,7 @@ Shown for a browser navigation only; requests refused by the security middleware
 +----------------------------+       +--------------------------------------------------------+
 ```
 
-Below 40rem the actions sit at the bottom of the viewport (thumb zone), stacked, full width, primary first; from 40rem they follow the text in a row. « Réessayer » is a link to the current path (GET), primary; « Retour à l’accueil » is primary when alone, secondary otherwise.
+Below 40rem the actions sit at the bottom of the viewport (thumb zone), stacked, full width, primary first; from 40rem they follow the text in a row. « Réessayer » is a link to the current path as sent (still percent-encoded, query dropped; GET), primary; « Retour à l’accueil » is primary when alone, secondary otherwise.
 
 | Case | Title | Message | Actions |
 |---|---|---|---|

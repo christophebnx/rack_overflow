@@ -8,7 +8,7 @@ Outermost application middleware, applied to every request (static files and err
 4. bodies above `MAX_BODY_BYTES` are refused (413 `payload_too_large`), from `Content-Length`
    before reading, or while counting a streamed body.
 Every response gets the CSP, `Referrer-Policy`, `nosniff`, `Cache-Control: no-store` outside
-`/static/`, and HSTS only when HTTPS is configured. Never a CORS header.
+`/static/` and on every error status (>= 400), and HSTS only when HTTPS is configured. Never a CORS header.
 """
 
 from __future__ import annotations
@@ -37,6 +37,11 @@ COMMON_HEADERS = {
     "X-Content-Type-Options": "nosniff",
 }
 NO_STORE = "no-store"
+# stable error codes of the rejections (JSON `{"error": code}`); `errors.py` reuses them
+INVALID_HOST = "invalid_host"
+FORBIDDEN_ORIGIN = "forbidden_origin"
+UNSUPPORTED_MEDIA_TYPE = "unsupported_media_type"
+PAYLOAD_TOO_LARGE = "payload_too_large"
 HSTS = "max-age=31536000"
 
 
@@ -75,26 +80,26 @@ class SecurityMiddleware:
         headers = Headers(scope=scope)
         host = headers.get("host", "")
         if hostname(host) not in self.allowed_hosts:
-            raise _RejectedError(400, "invalid_host")
+            raise _RejectedError(400, INVALID_HOST)
         method = scope["method"]
         if method not in SAFE_METHODS or scope["path"].startswith(API_PREFIX):
             self._check_origin(headers, host)
         if method not in SAFE_METHODS:
             media_type = headers.get("content-type", "").split(";", 1)[0].strip().lower()
             if media_type != JSON_MEDIA_TYPE:
-                raise _RejectedError(415, "unsupported_media_type")
+                raise _RejectedError(415, UNSUPPORTED_MEDIA_TYPE)
             length = headers.get("content-length")
             if length is not None and (not length.isdigit() or int(length) > MAX_BODY_BYTES):
-                raise _RejectedError(413, "payload_too_large")
+                raise _RejectedError(413, PAYLOAD_TOO_LARGE)
 
     def _check_origin(self, headers: Headers, host: str) -> None:
         origin = headers.get("origin")
         scheme = "https" if self.https else "http"
         if origin is not None and origin.lower() != f"{scheme}://{host.lower()}":
-            raise _RejectedError(403, "forbidden_origin")
+            raise _RejectedError(403, FORBIDDEN_ORIGIN)
         site = headers.get("sec-fetch-site")
         if site is not None and site.lower() not in ALLOWED_FETCH_SITES:
-            raise _RejectedError(403, "forbidden_origin")
+            raise _RejectedError(403, FORBIDDEN_ORIGIN)
 
     def _with_headers(self, scope: Scope, send: Send) -> Send:
         static = scope["path"].startswith(STATIC_PREFIX)
@@ -104,7 +109,7 @@ class SecurityMiddleware:
                 headers = MutableHeaders(scope=message)
                 for name, value in COMMON_HEADERS.items():
                     headers[name] = value
-                if not static:
+                if not static or message["status"] >= 400:
                     headers["Cache-Control"] = NO_STORE
                 if self.https:
                     headers["Strict-Transport-Security"] = HSTS
@@ -133,7 +138,7 @@ async def _bounded_body(receive: Receive) -> Receive:
         body = message.get("body", b"")
         size += len(body)
         if size > MAX_BODY_BYTES:
-            raise _RejectedError(413, "payload_too_large")
+            raise _RejectedError(413, PAYLOAD_TOO_LARGE)
         chunks.append(body)
         more = message.get("more_body", False)
     return _replay({"type": "http.request", "body": b"".join(chunks), "more_body": False}, receive)

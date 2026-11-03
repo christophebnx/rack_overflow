@@ -148,3 +148,16 @@ def test_hsts_only_with_https(settings: Settings, migrated_engine: object) -> No
     with TestClient(app, base_url="https://testserver") as https_client:
         response = https_client.get("/")
     assert response.headers["strict-transport-security"].startswith("max-age=")
+
+
+def test_retry_link_keeps_an_encoded_question_mark(client: TestClient) -> None:
+    router = APIRouter()
+
+    @router.get("/panne/{rest:path}")
+    def broken(rest: str) -> None:
+        raise RuntimeError(rest)
+
+    client.app.include_router(router)  # type: ignore[attr-defined]
+    response = client.get("/panne/a%3Fb?x=1", headers=PAGE)
+    assert response.status_code == 500
+    assert 'href="/panne/a%3Fb"' in response.text

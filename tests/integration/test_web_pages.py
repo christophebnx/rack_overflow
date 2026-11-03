@@ -131,7 +131,7 @@ def test_vendored_scripts_are_served_as_javascript(client: TestClient) -> None:
         assert "javascript" in response.headers["content-type"]
 
 
-@pytest.mark.parametrize(("path", "no_store"), [("/nulle-part", True), ("/static/absent.css", False)])
+@pytest.mark.parametrize(("path", "no_store"), [("/nulle-part", True), ("/static/absent.css", True)])
 def test_not_found_pages_follow_the_rules(client: TestClient, path: str, no_store: bool) -> None:
     assert_secure_page(client.get(path, headers=PAGE), 404, no_store=no_store)
 
