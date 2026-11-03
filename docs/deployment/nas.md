@@ -74,7 +74,7 @@ uv sync --frozen
 .venv/bin/rack migrate --config config.toml
 ```
 
-**Check**: `rack 0.1.0` (or the current version), then `database /volume1/rack/data/rack.sqlite at revision 0002` (or the current head), then `seeded 41 exercises` on the first run (the exercise catalog, D-057; later runs add nothing).
+**Check**: `rack 0.1.0` (or the current version), then `database /volume1/rack/data/rack.sqlite at revision 0003` (or the current head), then `seeded 41 exercises` and `seeded 4 templates` on the first run (the exercise catalog and the session templates, D-057, D-060; later runs add nothing).
 
 ## 7. Start at boot
 

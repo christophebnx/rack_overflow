@@ -4,6 +4,13 @@ All notable changes are listed here, newest first. Format: [Keep a Changelog](ht
 
 ## [Unreleased]
 
+- Session templates (`/seances-types`): name unique after case and accent folding, location, order with « Monter » / « Descendre »; archive and restore, no delete (D-058) (L3).
+- Template blocs: a fixed exercise or a menu (user label + up to 12 proposed exercises), at most 30 per template, reordered, removed by soft delete; archived exercises stay listed and tagged (D-058) (L3).
+- Indicative targets per bloc (sets, reps or range, duration, distance, note), shown as « 4 × 6–8 », « 3 × 30 s / 12 · par côté »; compact target durations (D-059, D-055) (L3).
+- Migration `0003`: `template_slot.deleted_at`, `exercise.seed_key` and unique indexes on `(user_id, seed_key)` and template `(user_id, name)` (L3).
+- `rack migrate` seeds the four templates of the brief (Salle A, Salle B, Maison, Cardio); seed exercises carry stable keys, same-name user exercises are adopted (D-060) (L3).
+- Navigation « Séances types »; below 40rem the nav takes its own row under the brand (L3).
+- Ids beyond the database integer range return 404 on every route instead of a server error (L3).
 - Variables: shared measures and settings created in the UI (`/variables`), code and enum keys derived once from labels and never reused, type / scope / scale frozen once values exist, archive always, delete only without stored values (D-054) (L2).
 - Exercises (`/exercices`): name unique after case and accent folding, category, free-text movement pattern and equipment with suggestions, location; archive and restore, no delete (D-054) (L2).
 - Exercise fields: core quantities or variables, required flag, step or proposed values, default, order with « Monter » / « Descendre »; values typed and shown in display units (kg, m / km, m:ss) (D-055) (L2).

@@ -27,7 +27,7 @@ Main flows:
 - **Page**: GET → route → service reads → Jinja2 page with strings from `locales/fr.json`.
 - **Action** (e.g. confirm a set): htmx POST/PATCH with a JSON body → Pydantic validation → service (one transaction, domain rules) → HTML fragment swapped in place; a refused user input re-renders the form with `200` (D-050).
 - **Pairing**: `rack device add NAME` prints a one-time code → the browser posts it to `/appairage` → hashed token stored, `rack_device` cookie set (D-040, D-049).
-- **Operations**: `rack migrate` (upgrade, then the pending catalog seed steps, D-057), `rack backup`, `rack device …`, `rack serve` (CLI calls the same services and storage); `rack supervise` runs `rack serve` as a child; `rack update` pulls `main`, syncs, migrates in a new process, then sends SIGHUP to the supervisor, which re-executes itself (D-051, D-052). Install guide: `docs/deployment/nas.md`.
+- **Operations**: `rack migrate` (upgrade, then the pending seed steps: exercises, then templates; D-057, D-060), `rack backup`, `rack device …`, `rack serve` (CLI calls the same services and storage); `rack supervise` runs `rack serve` as a child; `rack update` pulls `main`, syncs, migrates in a new process, then sends SIGHUP to the supervisor, which re-executes itself (D-051, D-052). Install guide: `docs/deployment/nas.md`.
 
 ## Layers
 
@@ -70,6 +70,7 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Catalog rules (variables, exercises, fields, aliases) | `domain/catalog` |
 | Movement pattern and equipment of an exercise in their first-seen spelling | `domain/catalog.with_known_spellings` |
 | At least one measure per exercise (field removal, variable delete or scope change) | `domain/catalog.check_measures`, `check_linked_measures` |
+| Name uniqueness after normalisation (exercises, templates; error code as a parameter) | `domain/catalog.check_name` |
 | Template, menu, target and slot / option limit rules | `domain/templates` |
 | Fuzzy ranking of exercises | `domain/search` |
 | Reorder a list by « Monter » / « Descendre » (fields, templates, slots, options) | `domain/ordering.moved` + `storage/positions.set_positions` |
