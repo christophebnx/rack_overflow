@@ -12,7 +12,7 @@ import socket
 import sys
 import threading
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -23,7 +23,8 @@ from playwright.sync_api import Browser, BrowserType, Playwright, sync_playwrigh
 from sqlalchemy.engine import Engine
 
 from rack_overflow.config import load_settings
-from rack_overflow.services import devices
+from rack_overflow.domain.users import SINGLE_USER_ID as USER
+from rack_overflow.services import devices, seed
 from rack_overflow.storage import db, migrate
 from rack_overflow.web.app import create_app
 from rack_overflow.web.auth import COOKIE_NAME
@@ -79,16 +80,17 @@ def live_server(live_app: LiveApp) -> str:
     return live_app.url
 
 
-@pytest.fixture(scope="session")
-def live_app(tmp_path_factory: pytest.TempPathFactory) -> Iterator[LiveApp]:
-    """The app served by uvicorn on a free loopback port, on a temp migrated database."""
-    folder = tmp_path_factory.mktemp("live")
+def _served(folder: Path, prepare: Callable[[Engine], None] | None = None) -> Iterator[LiveApp]:
+    """The app served by uvicorn on a free loopback port, on a new migrated database in `folder`
+    (`prepare` runs on it before the server starts)."""
     settings_path = folder / "settings.toml"
     settings_path.write_text(SERVER_SETTINGS.format(port=_free_port()), encoding="utf-8")
     settings = load_settings(settings_path)
     settings.storage.data_dir.mkdir()
     engine = db.create_engine(settings.database_path)
     migrate.upgrade_to_head(engine)
+    if prepare is not None:
+        prepare(engine)
     app = create_app(settings, engine, clock=lambda: datetime.now(UTC), run_scheduler=False)
     config = uvicorn.Config(app, host="127.0.0.1", port=settings.server.port, log_config=None, lifespan="on")
     server = uvicorn.Server(config)
@@ -102,6 +104,19 @@ def live_app(tmp_path_factory: pytest.TempPathFactory) -> Iterator[LiveApp]:
     yield LiveApp(f"http://127.0.0.1:{settings.server.port}", engine)
     server.should_exit = True
     thread.join(timeout=10)
+
+
+@pytest.fixture(scope="session")
+def live_app(tmp_path_factory: pytest.TempPathFactory) -> Iterator[LiveApp]:
+    """The app served by uvicorn on a free loopback port, on a temp migrated database."""
+    yield from _served(tmp_path_factory.mktemp("live"))
+
+
+@pytest.fixture(scope="module")
+def seeded_live_app(tmp_path_factory: pytest.TempPathFactory) -> Iterator[LiveApp]:
+    """A second live app whose database holds the seed catalog (41 exercises, 4 templates), for
+    the session logging flows; the shared `live_app` stays empty for the catalog tests."""
+    yield from _served(tmp_path_factory.mktemp("seeded"), lambda engine: seed.seed_catalog(engine, USER))
 
 
 @pytest.fixture(scope="module")

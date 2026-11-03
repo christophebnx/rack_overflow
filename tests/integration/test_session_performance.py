@@ -94,7 +94,10 @@ def test_set_confirmation_median_below_100_ms(client: TestClient, migrated_engin
         picked = sessions.pick(engine, USER, session_id, None, exercise_id)
         assert isinstance(picked, SessionView) and picked.block is not None
         rows.append(picked.block.id)
-    timings: list[float] = []
+    warm_up = {"session_exercise_id": str(rows[-1]), "type": "work", "reps": "8", "weight": "60"}
+    headers = {"hx-request": "true"}
+    assert client.post(f"/seances/{session_id}/series", json=warm_up, headers=headers).is_success
+    timings: list[float] = []  # after one untimed request: templates compiled, caches warm
     for index in range(CONFIRMATIONS):
         row = rows[index % len(rows)]
         body = {"session_exercise_id": str(row), "type": "work", "reps": "8", "weight": "62,5"}
@@ -104,7 +107,7 @@ def test_set_confirmation_median_below_100_ms(client: TestClient, migrated_engin
         assert response.status_code == 200
     with engine.begin() as connection:
         total = connection.execute(sa.select(sa.func.count()).select_from(s.set_entry)).scalar_one()
-    assert total >= 5000 + CONFIRMATIONS
+    assert total >= 5000 + CONFIRMATIONS + 1
     median = statistics.median(timings)
     assert median < MEDIAN_LIMIT_S, f"median {median * 1000:.1f} ms"
     assert max(timings) < EACH_LIMIT_S, f"slowest {max(timings) * 1000:.1f} ms"
