@@ -1,6 +1,6 @@
 """Catalog edge cases on a migrated, unseeded database: enum key stability, measures kept, field
 order at the ends, duplicates, units through the services, concurrent creation (D-032, D-054,
-D-055). Known product bugs are strict xfails."""
+D-055)."""
 
 from __future__ import annotations
 
@@ -138,11 +138,6 @@ def test_removing_the_default_value_clears_the_default_of_its_links(migrated_eng
     assert params.default_text is None and params.required
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="product bug: a removed enum key is handed out again to a new value (D-032 / design note §1: "
-    "'A key is never reused'); enum_values only knows the keys still stored",
-)
 def test_a_removed_enum_key_is_never_reused(migrated_engine: Engine) -> None:
     seat = variables.create(migrated_engine, USER, enum_form("Siège", [ValueInput("1"), ValueInput("2")]))
     variables.update(
@@ -155,6 +150,17 @@ def test_a_removed_enum_key_is_never_reused(migrated_engine: Engine) -> None:
         migrated_engine, USER, seat, enum_form("Siège", [ValueInput("1", key="1"), ValueInput("2")])
     )
     assert keys_labels(migrated_engine, seat)[-1][0] != "2"
+
+
+def test_retired_keys_survive_later_edits_and_stay_hidden(migrated_engine: Engine) -> None:
+    seat = variables.create(migrated_engine, USER, enum_form("Siège", [ValueInput("1"), ValueInput("2")]))
+    variables.update(migrated_engine, USER, seat, enum_form("Siège", [ValueInput("1", key="1")]))
+    variables.update(migrated_engine, USER, seat, enum_form("Siège", [ValueInput("Un", key="1")]))
+    variables.update(
+        migrated_engine, USER, seat, enum_form("Siège", [ValueInput("Un", key="1"), ValueInput("2")])
+    )
+    assert keys_labels(migrated_engine, seat) == [("1", "Un"), ("2_2", "2")]
+    assert variables.get_detail(migrated_engine, USER, seat).draft.retired_keys == ("2",)
 
 
 def test_a_used_key_cannot_be_removed_even_when_soft_hidden(migrated_engine: Engine) -> None:
@@ -171,11 +177,6 @@ def test_a_used_key_cannot_be_removed_even_when_soft_hidden(migrated_engine: Eng
 # --- at least one measure (D-054)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="product bug: deleting a variable without values removes its links even when it is an "
-    "exercise's last measure (services/variables.py delete; check_measures not applied)",
-)
 def test_deleting_a_variable_keeps_a_measure_on_every_exercise(migrated_engine: Engine) -> None:
     exercise_id, variable_id = only_variable_measure(migrated_engine, "Tenue")
     with contextlib.suppress(CatalogError):
@@ -183,16 +184,38 @@ def test_deleting_a_variable_keeps_a_measure_on_every_exercise(migrated_engine: 
     assert measures(migrated_engine, exercise_id) != []
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="product bug: changing a variable's scope from set to setting (no values yet) leaves an "
-    "exercise whose last measure it was without any measure (services/variables.py update)",
-)
 def test_scope_change_keeps_a_measure_on_every_exercise(migrated_engine: Engine) -> None:
     exercise_id, variable_id = only_variable_measure(migrated_engine, "Tenue")
     with contextlib.suppress(CatalogError):
         variables.update(migrated_engine, USER, variable_id, VariableForm("Tenue", "int", "setting"))
     assert measures(migrated_engine, exercise_id) != []
+
+
+def test_variable_delete_and_scope_change_name_the_exercises_left_without_measure(
+    migrated_engine: Engine,
+) -> None:
+    exercise_id, variable_id = only_variable_measure(migrated_engine, "Tenue")
+    with pytest.raises(CatalogError) as refused_delete:
+        variables.delete(migrated_engine, USER, variable_id)
+    assert [(p.field, p.code) for p in refused_delete.value.problems] == [("delete", "variable_last_measure")]
+    assert refused_delete.value.problems[0].params == {"exercises": "Gainage Tenue"}
+    with pytest.raises(CatalogError) as refused_scope:
+        variables.update(migrated_engine, USER, variable_id, VariableForm("Tenue 2", "int", "setting"))
+    assert [(p.field, p.code) for p in refused_scope.value.problems] == [("scope", "variable_last_measure")]
+    detail = variables.get_detail(migrated_engine, USER, variable_id)
+    assert (detail.draft.label, detail.draft.scope) == ("Tenue", "set")
+    assert measures(migrated_engine, exercise_id) == ["Tenue"]
+
+
+def test_variable_delete_and_scope_change_allowed_when_another_measure_remains(
+    migrated_engine: Engine,
+) -> None:
+    exercise_id = new_exercise(migrated_engine, "Gainage lesté", "bodyweight")
+    variable_id = variables.create(migrated_engine, USER, VariableForm("Tenue", "int", "set"))
+    exercises.add_field(migrated_engine, USER, exercise_id, variable_id=variable_id)
+    variables.update(migrated_engine, USER, variable_id, VariableForm("Tenue", "int", "setting"))
+    variables.delete(migrated_engine, USER, variable_id)
+    assert measures(migrated_engine, exercise_id) == ["reps"]
 
 
 def test_removing_the_last_measure_is_refused_and_nothing_changes(migrated_engine: Engine) -> None:

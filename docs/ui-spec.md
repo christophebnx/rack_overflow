@@ -791,6 +791,7 @@ Typographic apostrophes (’); a no-break space (U+00A0) before « : », « ? »
 | `catalog.error.enum_value_in_use` | Valeur utilisée dans l’historique : elle ne peut pas être retirée. |
 | `catalog.error.frozen_after_use` | Ne peut plus changer : des valeurs sont enregistrées. |
 | `catalog.error.last_measure` | Un exercice garde au moins une mesure : ce champ ne peut pas être retiré. |
+| `catalog.error.variable_last_measure` | Seule mesure de : {exercises}. Ajoutez-leur d’abord une autre mesure. |
 | `catalog.error.already_linked` | Ce champ est déjà dans l’exercice. |
 | `catalog.error.alias_taken` | Cet alias existe déjà pour cet exercice. |
 | `catalog.error.alias_is_name` | L’alias est identique au nom de l’exercice. |

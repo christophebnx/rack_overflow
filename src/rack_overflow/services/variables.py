@@ -14,7 +14,7 @@ import sqlalchemy as sa
 from sqlalchemy.engine import Engine
 
 from rack_overflow.domain import catalog
-from rack_overflow.domain.catalog import CatalogError, Problem, ValueInput, VariableDraft
+from rack_overflow.domain.catalog import CatalogError, FieldSource, Problem, ValueInput, VariableDraft
 from rack_overflow.domain.errors import NotFoundError
 from rack_overflow.domain.timestamps import to_text
 from rack_overflow.storage import exercises as exercise_queries
@@ -72,7 +72,7 @@ def _row(connection: sa.Connection, user_id: int, variable_id: int) -> sa.Row:
     return row
 
 
-def _draft(form: VariableForm, existing: Sequence[catalog.EnumValue] = ()) -> VariableDraft:
+def _draft(form: VariableForm, current: VariableDraft | None = None) -> VariableDraft:
     return catalog.variable_draft(
         label=form.label,
         var_type=form.var_type,
@@ -80,8 +80,23 @@ def _draft(form: VariableForm, existing: Sequence[catalog.EnumValue] = ()) -> Va
         unit=form.unit,
         scale=form.scale,
         values=form.values,
-        existing=existing,
+        existing=current.enum_values or () if current is not None else (),
+        retired=current.retired_keys if current is not None else (),
     )
+
+
+def _check_links(connection: sa.Connection, variable_id: int, field_name: str, scope: str | None) -> None:
+    """Every exercise linking the variable keeps a measure once its scope is `scope` (None: the
+    variable is deleted), checked in the caller's transaction before any write (D-054)."""
+    linked = []
+    for link in queries.linked_exercises(connection, variable_id):
+        sources = [
+            FieldSource(row.core_quantity, scope if row.variable_id == variable_id else row.scope)
+            for row in exercise_queries.fields_of(connection, link.id)
+            if row.variable_id != variable_id or scope is not None
+        ]
+        linked.append((link.name, sources))
+    catalog.check_linked_measures(field_name, linked)
 
 
 def create(engine: Engine, user_id: int, form: VariableForm) -> int:
@@ -99,13 +114,14 @@ def update(engine: Engine, user_id: int, variable_id: int, form: VariableForm) -
     """Edit the shared variable; field parameters its new kind refuses are cleared on its links."""
     with engine.begin() as connection:
         current = queries.draft_of(_row(connection, user_id, variable_id))
-        draft = _draft(form, current.enum_values or ())
+        draft = _draft(form, current)
         catalog.variable_change(
             current,
             draft,
             has_values=queries.has_values(connection, variable_id),
             used_enum_keys=queries.used_enum_keys(connection, variable_id),
         )
+        _check_links(connection, variable_id, "scope", draft.scope)
         queries.update(connection, variable_id, draft)
         kind = catalog.variable_kind(draft)
         for field in exercise_queries.fields_of_variable(connection, variable_id):
@@ -129,6 +145,7 @@ def delete(engine: Engine, user_id: int, variable_id: int) -> None:
         _row(connection, user_id, variable_id)
         if queries.has_values(connection, variable_id):
             raise CatalogError([Problem("delete", "variable_in_use")])
+        _check_links(connection, variable_id, "delete", None)
         queries.delete(connection, variable_id)
 
 

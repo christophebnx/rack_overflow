@@ -124,6 +124,7 @@ class VariableDraft:
     unit: str | None = None
     decimal_scale: int | None = None
     enum_values: tuple[EnumValue, ...] | None = None
+    retired_keys: tuple[str, ...] = ()
 
 
 def variable_draft(
@@ -135,8 +136,11 @@ def variable_draft(
     scale: str | None = None,
     values: Sequence[ValueInput] = (),
     existing: Sequence[EnumValue] = (),
+    retired: Iterable[str] = (),
 ) -> VariableDraft:
-    """Validate a variable form; only the attributes of the chosen type are read."""
+    """Validate a variable form; only the attributes of the chosen type are read. `existing` are
+    the stored enum values, `retired` the keys already removed: a removed key is kept retired so
+    it is never handed out again (D-032, D-054)."""
     problems: list[Problem] = []
     clean_label = _text(problems, "label", label, LABEL_MAX, required=True)
     clean_type = _choice(problems, "type", var_type, VARIABLE_TYPES)
@@ -148,11 +152,23 @@ def variable_draft(
     if clean_type == units.DECIMAL:
         clean_scale = _scale(problems, scale)
     enum = None
+    retired_keys: tuple[str, ...] = ()
     if clean_type == ENUM:
-        enum = _enum_values(problems, values, existing)
+        enum = _enum_values(problems, values, existing, retired)
+        retired_keys = retired_after(existing, enum, retired)
     _raise_if(problems)
     assert clean_label is not None and clean_type is not None and clean_scope is not None
-    return VariableDraft(clean_label, clean_type, clean_scope, clean_unit, clean_scale, enum)
+    return VariableDraft(clean_label, clean_type, clean_scope, clean_unit, clean_scale, enum, retired_keys)
+
+
+def retired_after(
+    existing: Sequence[EnumValue], kept: Sequence[EnumValue], retired: Iterable[str]
+) -> tuple[str, ...]:
+    """Retired keys after an edit: the previous ones, then the existing keys no longer kept."""
+    result = list(dict.fromkeys(retired))
+    kept_keys = {value.key for value in kept}
+    result.extend(value.key for value in existing if value.key not in kept_keys and value.key not in result)
+    return tuple(result)
 
 
 def _scale(problems: list[Problem], raw: str | None) -> int | None:
@@ -161,7 +177,10 @@ def _scale(problems: list[Problem], raw: str | None) -> int | None:
 
 
 def _enum_values(
-    problems: list[Problem], values: Sequence[ValueInput], existing: Sequence[EnumValue]
+    problems: list[Problem],
+    values: Sequence[ValueInput],
+    existing: Sequence[EnumValue],
+    retired: Iterable[str],
 ) -> tuple[EnumValue, ...]:
     known = {value.key for value in existing}
     kept: list[ValueInput] = []
@@ -182,7 +201,7 @@ def _enum_values(
         seen.add(normalise(label or ""))
     if problems:
         return ()
-    return enum_values(kept, known)
+    return enum_values(kept, known | set(retired))
 
 
 def enum_values(values: Sequence[ValueInput], known_keys: Iterable[str] = ()) -> tuple[EnumValue, ...]:
@@ -525,6 +544,14 @@ def check_measures(fields: Iterable[FieldSource]) -> None:
     """An exercise keeps at least one measure (`last_measure` otherwise)."""
     if not any(source.is_measure for source in fields):
         raise _refuse("field", "last_measure")
+
+
+def check_linked_measures(field_name: str, linked: Iterable[tuple[str, Iterable[FieldSource]]]) -> None:
+    """A variable change or delete keeps a measure on every linked exercise: `linked` gives each
+    exercise's name and its fields after the change; `variable_last_measure` names the others."""
+    lacking = [name for name, fields in linked if not any(source.is_measure for source in fields)]
+    if lacking:
+        raise _refuse(field_name, "variable_last_measure", exercises=", ".join(lacking))
 
 
 # --- aliases -----------------------------------------------------------------------------------

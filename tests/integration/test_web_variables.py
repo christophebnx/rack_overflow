@@ -177,6 +177,24 @@ def test_archive_restore_and_delete(client: TestClient, migrated_engine: Engine)
     assert client.get(f"/variables/{variable_id}", headers=PAGE).status_code == 404
 
 
+def test_delete_of_a_last_measure_is_refused_in_the_archive_block(
+    client: TestClient, migrated_engine: Engine
+) -> None:
+    exercise_id = exercises.create(migrated_engine, USER, ExerciseForm("Planche", "bodyweight", "both"))
+    variable_id = variables.create(migrated_engine, USER, VariableForm("Tenue", "int", "set"))
+    exercises.add_field(migrated_engine, USER, exercise_id, variable_id=variable_id)
+    reps = exercises.get_detail(migrated_engine, USER, exercise_id).fields[0]
+    exercises.remove_field(migrated_engine, USER, exercise_id, reps.id)
+    refused = client.request("DELETE", f"/variables/{variable_id}", json={}, headers=HTMX)
+    assert refused.status_code == 200
+    assert TEXT("catalog.error.variable_last_measure", exercises="Planche") in refused.text
+    scope = client.patch(
+        f"/variables/{variable_id}", json={"label": "Tenue", "type": "int", "scope": "setting"}, headers=HTMX
+    )
+    assert TEXT("catalog.error.variable_last_measure", exercises="Planche") in scope.text
+    assert "role-set-erreur" in scope.text
+
+
 def test_unknown_and_foreign_ids_are_404(client: TestClient, migrated_engine: Engine) -> None:
     theirs = variables.create(migrated_engine, 2, VariableForm("X", "enum", "set", values=[ValueInput("a")]))
     assert client.get(f"/variables/{theirs}", headers=PAGE).status_code == 404

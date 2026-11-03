@@ -1,5 +1,6 @@
 """Variable queries (SQLAlchemy Core) on a caller's `Connection`. Enum values are stored as a JSON
-list of `{"key", "label"}` in their display order (D-032); no rule is decided here."""
+list of `{"key", "label"}` in their display order (D-032), followed by the retired keys as
+`{"key", "retired": true}` so a removed key is never reused (D-054); no rule is decided here."""
 
 from __future__ import annotations
 
@@ -18,11 +19,17 @@ from rack_overflow.storage.schema import (
     variable,
 )
 
+RETIRED = "retired"
+
 
 def _values(draft: VariableDraft) -> dict[str, object]:
     enum: object = sa.null()
     if draft.enum_values is not None:
-        enum = [{"key": value.key, "label": value.label} for value in draft.enum_values]
+        items: list[dict[str, object]] = [
+            {"key": value.key, "label": value.label} for value in draft.enum_values
+        ]
+        items.extend({"key": key, RETIRED: True} for key in draft.retired_keys)
+        enum = items
     return {
         "label": draft.label,
         "type": draft.type,
@@ -36,9 +43,14 @@ def _values(draft: VariableDraft) -> dict[str, object]:
 def draft_of(row: sa.Row) -> VariableDraft:
     """The domain view of a `variable` row (or of a row carrying the same column names)."""
     enum = None
+    retired: tuple[str, ...] = ()
     if row.enum_values is not None:
-        enum = tuple(EnumValue(str(item["key"]), str(item["label"])) for item in row.enum_values)
-    return VariableDraft(row.label, row.type, row.scope, row.unit, row.decimal_scale, enum)
+        items = list(row.enum_values)
+        enum = tuple(
+            EnumValue(str(item["key"]), str(item["label"])) for item in items if not item.get(RETIRED)
+        )
+        retired = tuple(str(item["key"]) for item in items if item.get(RETIRED))
+    return VariableDraft(row.label, row.type, row.scope, row.unit, row.decimal_scale, enum, retired)
 
 
 def insert(connection: sa.Connection, user_id: int, code: str, draft: VariableDraft) -> int:

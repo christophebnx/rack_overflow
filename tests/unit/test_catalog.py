@@ -472,3 +472,29 @@ def test_enum_labels_equal_after_folding_are_duplicates() -> None:
             values=[ValueInput("Pronation"), ValueInput("PRONATION ")],
         )
     assert [c for c in codes(refused) if c[1] == "duplicate_value"]
+
+
+def test_check_linked_measures_names_every_exercise_left_without_measure() -> None:
+    measure = catalog.FieldSource(core_quantity="reps")
+    setting = catalog.FieldSource(variable_scope="setting")
+    catalog.check_linked_measures("delete", [("Squat", [measure, setting])])
+    with pytest.raises(CatalogError) as caught:
+        catalog.check_linked_measures("scope", [("Planche", [setting]), ("Squat", [measure]), ("Pont", [])])
+    assert codes(caught) == [("scope", "variable_last_measure")]
+    assert caught.value.problems[0].params == {"exercises": "Planche, Pont"}
+
+
+def test_removed_enum_keys_are_retired_and_never_reused() -> None:
+    one, two = catalog.EnumValue("1", "1"), catalog.EnumValue("2", "2")
+    assert catalog.retired_after([one, two], [one], ["0"]) == ("0", "2")
+    assert catalog.retired_after([one], [one], ["2"]) == ("2",)
+    draft = catalog.variable_draft(
+        label="Siège",
+        var_type="enum",
+        scope="setting",
+        values=[ValueInput("1", key="1"), ValueInput("2")],
+        existing=[one],
+        retired=["2"],
+    )
+    assert [value.key for value in draft.enum_values or ()] == ["1", "2_2"]
+    assert draft.retired_keys == ("2",)
