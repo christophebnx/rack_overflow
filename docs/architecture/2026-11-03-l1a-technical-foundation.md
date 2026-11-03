@@ -242,3 +242,29 @@ Tab order: « Aller au contenu » (visually hidden until focused, then shown top
 4. `feat(web): add app factory, layout, security middleware and rack serve` — `web/` package (app, security, locale, rendering, errors, scheduler, routes, templates, CSS, `fr.json`), vendored htmx + json-enc with manifest, `rack serve`, logging, deps `fastapi`, `uvicorn`, `pydantic`, `jinja2`, `httpx` (dev), layering row, `web/CLAUDE.md`, ui-spec L1a section.
 5. `test(web): add Playwright browser checks on Chromium and WebKit` — `tests/e2e/`, dev dep `playwright`, `browser` marker docs.
 6. `docs(docs): close milestone L1a` — architecture map and layers, root `CLAUDE.md` commands, `CHANGELOG.md`, `docs/progress.md`, roadmap notes.
+
+## UI review
+
+Reviewed 2026-11-03 against "UI design" above and `docs/ui-spec.md` (L1a). Browser check run on Chromium only: `tests/e2e` 12 passed, 12 skipped (WebKit not installed, so iOS Safari rendering is still unchecked), plus a manual pass on home, 404, 405 and 500 at 360 and 1280 px, light and dark. Results: no horizontal scroll, no vertical overflow (header 56 px with its border included), every button and the brand link are 48 px high, tab order is skip link, brand, actions, a 3 px ring is visible on each, the skip link moves focus to `#contenu`, the stacked full-width actions sit at the bottom at 360 px and in a row at 1280 px, tab titles match `layout.title`. The token contrast ratios recomputed here match the ui-spec table, and every `fr.json` string matches the spec, including U+2019 and the U+00A0 before « : ».
+
+No BLOCKING and no TO FIX items.
+
+- SUGGESTION — `src/rack_overflow/web/static/css/base.css:115-118`: after the skip link, the whole `<main>` gets a 3 px ring, a full-page frame on a non-interactive target. The design limits the ring to interactive elements, so drop the `main:focus-visible` rule and keep `main:focus { outline: none; }`. Focus still lands in `<main>`.
+- SUGGESTION — `src/rack_overflow/web/static/css/base.css:82-91` and `:104-109`: at 1280 px the brand sits at x = 24 while the content column starts at x = 88. This matches the spec wireframe, but an inner wrapper with `max-width: var(--content-max); margin: 0 auto` in the header would line them up. Decide this with the L2 navigation.
+- SUGGESTION — `src/rack_overflow/web/static/css/components.css:41-58`: `.actions--thumb` only reaches the thumb zone inside a full-height flex `<main>` (`.main--message`, set through the `main_class` block, `templates/base.html:25`). Record that pairing in `docs/ui-spec.md` (L1a, Base layout) so later screens can reuse the pattern.
+- SUGGESTION — design note, "Home": the note says both lines are muted, but `templates/home.html:6-7` keeps the first line in body text and only the second muted. The implementation reads better, so align the note.
+- SUGGESTION — `src/rack_overflow/web/errors.py:59,64-66`: the « Réessayer » `href` is built from the decoded path, so an encoded `%3F` in the path becomes a query and retry goes to a different address. Prefer the raw path (`scope["raw_path"]`).
+
+## Review (reviewer, loop 1)
+
+Checks: pytest 428 passed, 12 skipped (WebKit), 4 xfailed; ruff and format clean; pylint duplicate-code 10.00.
+
+1. **BLOCKING** (duplication) `services/backups.py:302` takes the newest snapshot as `snapshots[-1]` and `storage/backup.py:117-118` sorts snapshots by path string, while `domain/backups.py` (`_parse`, `newest`) already orders by rank (`_100` after `_99`). Use the domain ordering in both places.
+2. **BLOCKING** `storage/schema.py:91-94` and migration `0001_initial_schema.py:103-106`: `ck_variable_decimal_scale` lets a decimal variable without scale pass (NULL check). 0001 is frozen (D-046): add revision `0002` (down_revision 0001) recreating the check with `op.batch_alter_table("variable")` as `(type = 'decimal' AND decimal_scale IS NOT NULL AND decimal_scale BETWEEN 1 AND 6) OR (type != 'decimal' AND decimal_scale IS NULL)`; same text in `schema.py`; remove the xfail.
+3. **TO FIX** `cli.py:44,48,76`, `storage/migrate.py:235-263`: `sqlalchemy.exc.DatabaseError`, alembic `CommandError` (unknown revision) and `OSError` from `mkdir` escape as tracebacks. Wrap them as `MigrationError` in `migrate.py` (and handle the `mkdir` error).
+4. **TO FIX** `storage/backup.py:125-126,152-153`: `OSError` from `mkdir`, `iterdir`, `unlink` not wrapped in `BackupError`. Add tests.
+5. **TO FIX** `config.py:101-111`: a non-UTF-8 settings file raises `UnicodeDecodeError`; map it to `ConfigError`.
+6. **SUGGESTION** `web/security.py:100-108`: add `Cache-Control: no-store` on `/static/` responses with status >= 400; update `tests/integration/test_web_pages.py:134`.
+7. **TO FIX** (definition of done): milestone docs commit missing (CHANGELOG, progress, root CLAUDE.md commands) — done by the orchestrator at the end.
+8. **SUGGESTION** `storage/backup.py:84`: `check_integrity` opens a possibly corrupt database through `create_engine` (WAL, creates -wal/-shm). Open it read-only, sharing the open path with `_copy_is_sound` (`:104-110`).
+9. **SUGGESTION** error codes 413/415 written twice (`web/security.py:78-88`, `web/errors.py:187-196`): keep them as constants in one module.
