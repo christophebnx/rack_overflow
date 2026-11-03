@@ -9,10 +9,12 @@ from __future__ import annotations
 
 import tomllib
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import tzinfo
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from dotenv import dotenv_values
 
@@ -20,6 +22,7 @@ SECRETS_FILE_NAME = ".env"
 DATABASE_FILE_NAME = "rack.sqlite"
 BACKUPS_FOLDER_NAME = "backups"
 DEFAULT_RETENTION_DAYS = 30
+DEFAULT_TIME_ZONE = "Europe/Brussels"
 PORT_RANGE = (1, 65535)
 
 _SECTIONS: dict[str, dict[str, tuple[type, bool]]] = {
@@ -27,6 +30,7 @@ _SECTIONS: dict[str, dict[str, tuple[type, bool]]] = {
     "server": {"host": (str, True), "port": (int, True), "public_host": (str, True), "https": (bool, False)},
     "storage": {"data_dir": (str, True)},
     "backup": {"retention_days": (int, False)},
+    "calendar": {"time_zone": (str, False)},
 }
 _REQUIRED_SECTIONS = frozenset({"server", "storage"})
 
@@ -60,6 +64,18 @@ class BackupSettings:
 
 
 @dataclass(frozen=True)
+class CalendarSettings:
+    """`[calendar]`: the IANA time zone giving a session its local date and times (D-065)."""
+
+    time_zone: str = DEFAULT_TIME_ZONE
+
+    @property
+    def tz(self) -> tzinfo:
+        """The zone as a `tzinfo`; the name was checked when the settings were loaded."""
+        return ZoneInfo(self.time_zone)
+
+
+@dataclass(frozen=True)
 class Settings:
     """Everything the application needs from the machine, immutable once loaded."""
 
@@ -67,6 +83,7 @@ class Settings:
     storage: StorageSettings
     backup: BackupSettings
     secrets: Mapping[str, str]
+    calendar: CalendarSettings = field(default_factory=CalendarSettings)
 
     @property
     def database_path(self) -> Path:
@@ -95,6 +112,7 @@ def load_settings(config_path: Path) -> Settings:
         storage=StorageSettings(data_dir=_data_dir(raw["storage"]["data_dir"], base, config_path)),
         backup=BackupSettings(retention_days=_retention(raw.get("backup", {}), config_path)),
         secrets=_read_secrets(base / SECRETS_FILE_NAME),
+        calendar=CalendarSettings(time_zone=_time_zone(raw.get("calendar", {}), config_path)),
     )
 
 
@@ -161,6 +179,16 @@ def _retention(backup: dict[str, Any], config_path: Path) -> int:
     if days < 1:
         raise ConfigError(f"{config_path}: backup.retention_days must be at least 1")
     return days
+
+
+def _time_zone(calendar: dict[str, Any], config_path: Path) -> str:
+    """The configured IANA zone name, refused when `zoneinfo` does not know it."""
+    name = calendar.get("time_zone", DEFAULT_TIME_ZONE)
+    try:
+        ZoneInfo(name)
+    except (ZoneInfoNotFoundError, ValueError):
+        raise ConfigError(f"{config_path}: calendar.time_zone: unknown time zone {name!r}") from None
+    return name
 
 
 def _read_secrets(path: Path) -> Mapping[str, str]:

@@ -12,6 +12,7 @@ dependencies = [
     "pydantic>=2.8",
     "python-dotenv>=1.0",
     "sqlalchemy>=2.0",
+    "tzdata>=2026.6",
     "uvicorn>=0.30",
 ]
 

@@ -53,6 +53,7 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Write a file atomically (temp + fsync + rename) | `storage/files.atomic_write` (bytes), `storage/files.atomic_produce` (from a writer) |
 | Map an error to a CLI exit code and message | `cli.main` |
 | Load settings and secrets | `config.load_settings` |
+| Time zone of session local dates and times | `config.Settings.calendar` (`[calendar] time_zone`, D-065) |
 | Allowed values of enumerated columns | `domain/vocabulary` |
 | Open the database with the project pragmas | `storage/db.create_engine` |
 | Database schema | `storage/schema.metadata` |
@@ -115,4 +116,4 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 
 ## Configuration
 
-Settings live in a TOML settings file (D-044), given to every command by `--config PATH` (default `config.toml` in the current folder, git-ignored): `[server]` host, port, public host name, `https = false` in V1 (D-013); `[storage] data_dir` (relative to the settings file's folder); `[backup] retention_days`. The committed `config.example.toml` documents every key and is the development configuration (`uv run rack <command> --config config.example.toml`, data in `.local/dev-data/`). Secrets go in the `.env` file beside the settings file (git-ignored, template in `.env.example`); V1 needs none. `config.load_settings` reads both once, in `cli.py`, and the frozen `Settings` are passed down explicitly; no other layer reads the environment or these files. A missing or invalid file is an error, never a silent default.
+Settings live in a TOML settings file (D-044), given to every command by `--config PATH` (default `config.toml` in the current folder, git-ignored): `[server]` host, port, public host name, `https = false` in V1 (D-013); `[storage] data_dir` (relative to the settings file's folder); `[backup] retention_days`; `[calendar] time_zone` (IANA name, default `Europe/Brussels`, checked at load through `zoneinfo`, which the `tzdata` dependency guarantees on uv's Python and on DSM; `Settings.calendar.tz` is passed to the session services, D-065). The committed `config.example.toml` documents every key and is the development configuration (`uv run rack <command> --config config.example.toml`, data in `.local/dev-data/`). Secrets go in the `.env` file beside the settings file (git-ignored, template in `.env.example`); V1 needs none. `config.load_settings` reads both once, in `cli.py`, and the frozen `Settings` are passed down explicitly; no other layer reads the environment or these files. A missing or invalid file is an error, never a silent default.

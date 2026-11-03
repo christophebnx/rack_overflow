@@ -28,3 +28,9 @@ data_dir = ".local/dev-data"
 # Snapshots older than this many days are deleted (the newest one is always kept). Optional,
 # default 30, at least 1.
 retention_days = 30
+
+[calendar]
+# IANA time zone where the sessions take place: it gives each session its local date and the
+# times shown on its pages, fixed when the session starts (D-065). Optional, default
+# "Europe/Brussels"; an unknown name stops the command with an error.
+time_zone = "Europe/Brussels"

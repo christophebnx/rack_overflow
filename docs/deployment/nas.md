@@ -60,9 +60,12 @@ data_dir = "/volume1/rack/data"   # absolute, on a local volume
 
 [backup]
 retention_days = 30
+
+[calendar]
+time_zone = "Europe/Brussels"   # where the sessions take place (optional, this is the default)
 ```
 
-`public_host` must be exactly the host name typed in the browser: other `Host` headers are refused, and the device cookie is bound to that name.
+`public_host` must be exactly the host name typed in the browser: other `Host` headers are refused, and the device cookie is bound to that name. `time_zone` gives each session its local date and the times shown on its pages; it does not depend on the NAS's own zone (D-065).
 
 **Check**: `grep -E '^(host|public_host|data_dir)' config.toml` → the three values above.
 
