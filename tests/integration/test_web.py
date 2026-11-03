@@ -32,7 +32,9 @@ def test_home_page(client: TestClient) -> None:
     assert "<title>Accueil · Rack Overflow</title>" in response.text
     assert 'aria-current="page"' in response.text
     assert 'id="annonce"' in response.text
-    assert "<nav" not in response.text
+    nav = response.text.split('<nav class="site-nav"', 1)[1].split("</nav>", 1)[0]
+    assert 'href="/exercices"' in nav and 'href="/variables"' in nav
+    assert 'aria-current="page"' not in nav
     assert_security_headers(response)
 
 
