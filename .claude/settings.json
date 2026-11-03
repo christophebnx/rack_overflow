@@ -8,7 +8,7 @@
       "Bash(uv run ruff:*)",
       "Bash(uv run pylint:*)",
       "Bash(uv run python:*)",
-      "Bash(uv run template-python:*)",
+      "Bash(uv run rack:*)",
       "Bash(git status:*)",
       "Bash(git diff:*)",
       "Bash(git log:*)",

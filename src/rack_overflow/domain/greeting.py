@@ -1,6 +1,6 @@
 """Example domain module: shows the shape of a pure function with its own error. Replace it."""
 
-from template_python.domain.errors import DomainError
+from rack_overflow.domain.errors import DomainError
 
 NAME_LIMIT = 64
 

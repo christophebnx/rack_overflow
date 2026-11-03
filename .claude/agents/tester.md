@@ -11,6 +11,6 @@ You test. You write only under tests/. You never change application code: report
 3. Integration tests (tests/integration/): full flows through the public entry points (CLI `main([...])`, API test client…) on a temporary data folder, with fakes replaying recorded data from tests/fixtures/.
 4. Hunt edge cases: empty and boundary inputs, invalid formats, duplicates, data written by an older version, interrupted writes, concurrent access where relevant.
 5. Tests that call a real paid or remote service carry `@pytest.mark.live` and never run by default.
-6. Run `uv run pytest -q -n auto -m "not live" --cov=template_python`.
+6. Run `uv run pytest -q -n auto -m "not live" --cov=rack_overflow`.
 
 Return at most ten lines: tests added, failures with file and line, uncovered areas worth testing.

@@ -1,4 +1,4 @@
-# template_python
+# rack_overflow
 
 Python project template with a ready-made [Claude Code](https://claude.com/claude-code) workflow: project rules, specialised agents, skills that chain them, and hooks that keep secrets and `main` safe. Derived from the way of working built for `equinox_management`.
 
@@ -9,7 +9,7 @@ Python project template with a ready-made [Claude Code](https://claude.com/claud
    ```
    /init-project
    ```
-   It renames the package (`template_python` → yours), the distribution and the CLI, then fills the `TODO(project)` markers with you. Without Claude Code: `uv run python tools/init_project.py --name my_project --description "..."`.
+   It renames the package (`rack_overflow` → yours), the distribution and the CLI, then fills the `TODO(project)` markers with you. Without Claude Code: `uv run python tools/init_project.py --name my_project --description "..."`.
 3. Describe the milestones in `docs/roadmap.md`, then build them one by one with `/feature M1`, or all in a row with `/build-roadmap`.
 
 ## What is inside
@@ -17,7 +17,7 @@ Python project template with a ready-made [Claude Code](https://claude.com/claud
 | Path | Role |
 |---|---|
 | `CLAUDE.md` | Project rules read at the start of every session: invariants, commands, language, git workflow, definition of done |
-| `src/template_python/<package>/CLAUDE.md` | Rules and module table of each package |
+| `src/rack_overflow/<package>/CLAUDE.md` | Rules and module table of each package |
 | `.claude/agents/` | `architect` (design note), `ui-designer` (UI design and review), `developer`, `tester`, `reviewer` (read-only), `documentation` |
 | `.claude/skills/` | `/init-project`, `/feature` (chains the agents), `/build-roadmap` (autonomous, resumable), `/release`, `/add-fixture`, `/add-decision` |
 | `.claude/hooks/` | `guard_paths.py` blocks secrets, protected folders, commits and pushes on `main`; `format.py` runs ruff on each edited file |
@@ -48,7 +48,7 @@ uv run pre-commit install
 uv run pytest -q -n auto
 uv run ruff check . && uv run ruff format --check .
 uv run pylint --disable=all --enable=duplicate-code src
-uv run template-python hello Ada
+uv run rack hello Ada
 ```
 
 ## License

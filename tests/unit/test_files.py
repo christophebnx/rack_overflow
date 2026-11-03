@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from template_python.storage.files import atomic_write
+from rack_overflow.storage.files import atomic_write
 
 
 def test_atomic_write_creates_and_replaces(tmp_path: Path) -> None:

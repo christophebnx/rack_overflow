@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-PACKAGE_NAME = "template_python"
+PACKAGE_NAME = "rack_overflow"
 PACKAGE = Path(__file__).resolve().parents[2] / "src" / PACKAGE_NAME
 
 # package -> project packages it may import (itself always allowed)
@@ -39,7 +39,7 @@ def _imports(path: Path) -> set[str]:
 
 
 def _project_packages(path: Path) -> set[str]:
-    """Top-level project packages imported by `path` (`template_python.x.y` -> `x`)."""
+    """Top-level project packages imported by `path` (`rack_overflow.x.y` -> `x`)."""
     found = set()
     for name in _imports(path):
         parts = name.split(".")
