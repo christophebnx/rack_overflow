@@ -10,7 +10,7 @@ from datetime import datetime
 import sqlalchemy as sa
 from sqlalchemy.engine import Engine
 
-from rack_overflow.domain import catalog, search
+from rack_overflow.domain import catalog, ordering, search
 from rack_overflow.domain.catalog import (
     CatalogError,
     ExerciseDraft,
@@ -21,14 +21,13 @@ from rack_overflow.domain.catalog import (
     VariableDraft,
 )
 from rack_overflow.domain.errors import NotFoundError
+from rack_overflow.domain.ordering import DOWN as DOWN  # re-exported for the routes
+from rack_overflow.domain.ordering import UP as UP
 from rack_overflow.domain.timestamps import to_text
 from rack_overflow.domain.vocabulary import CORE_QUANTITIES
 from rack_overflow.storage import exercises as queries
 from rack_overflow.storage import variables as variable_queries
 from rack_overflow.storage.errors import NameTakenError
-
-UP = "up"
-DOWN = "down"
 
 
 @dataclass(frozen=True)
@@ -335,16 +334,10 @@ def remove_field(engine: Engine, user_id: int, exercise_id: int, field_id: int) 
 
 def move_field(engine: Engine, user_id: int, exercise_id: int, field_id: int, direction: str) -> int:
     """Swap the field with its neighbour (`up` / `down`) and renumber; its new index (0-based)."""
-    if direction not in (UP, DOWN):
-        raise CatalogError([Problem("direction", "invalid_choice")])
+    ordering.check_direction(direction)
     with engine.begin() as connection:
         _, fields = _field(connection, user_id, exercise_id, field_id)
-        ids = [f.id for f in fields]
-        index = ids.index(field_id)
-        target = index - 1 if direction == UP else index + 1
-        if 0 <= target < len(ids):
-            ids[index], ids[target] = ids[target], ids[index]
-            index = target
+        ids, index = ordering.moved([f.id for f in fields], field_id, direction)
         queries.set_positions(connection, ids)
     return index
 

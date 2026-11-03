@@ -12,6 +12,7 @@ import sqlalchemy as sa
 
 from rack_overflow.domain.catalog import AliasDraft, ExerciseDraft, FieldParams
 from rack_overflow.domain.search import Candidate
+from rack_overflow.storage import positions
 from rack_overflow.storage.db import guarded_write
 from rack_overflow.storage.errors import NameTakenError
 from rack_overflow.storage.schema import (
@@ -223,10 +224,7 @@ def delete_field(connection: sa.Connection, field_id: int) -> None:
 
 def set_positions(connection: sa.Connection, field_ids: Sequence[int]) -> None:
     """Renumber the fields `0..n-1` in the order of `field_ids`."""
-    for position, field_id in enumerate(field_ids):
-        connection.execute(
-            sa.update(exercise_field).where(exercise_field.c.id == field_id).values(position=position)
-        )
+    positions.set_positions(connection, exercise_field, field_ids)
 
 
 # --- aliases

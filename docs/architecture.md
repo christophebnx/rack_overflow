@@ -71,6 +71,7 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Movement pattern and equipment of an exercise in their first-seen spelling | `domain/catalog.with_known_spellings` |
 | At least one measure per exercise (field removal, variable delete or scope change) | `domain/catalog.check_measures`, `check_linked_measures` |
 | Fuzzy ranking of exercises | `domain/search` |
+| Reorder a list by « Monter » / « Descendre » (fields, templates, slots, options) | `domain/ordering.moved` + `storage/positions.set_positions` |
 | Variable queries | `storage/variables` |
 | Exercise, field and alias queries | `storage/exercises` |
 | Per-user settings (`app_setting`) | `storage/app_settings` |
