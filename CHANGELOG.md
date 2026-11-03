@@ -4,6 +4,14 @@ All notable changes are listed here, newest first. Format: [Keep a Changelog](ht
 
 ## [Unreleased]
 
+- History (`/historique`): sessions newest first, grouped by month, 20 per page with « Plus anciennes »; a 12-week chart of sessions per week with the average above (D-067, D-070) (L5).
+- Closed session detail: sets and settings corrected in place, every indicator recomputed; a session (open or closed) soft-deleted after confirmation, kept in the database (D-067) (L5).
+- Progress (`/progression`, `/progression/{id}`): per exercise the last performance, records by category, a chart of the main indicator drawn by vendored Chart.js 4.6.1 from `GET /api/progression/{id}`, and its data table (D-068) (L5).
+- RM measured or estimated: Epley, Brzycki, Lombardi, O'Conner or Wathan chosen in « Réglages » (`/reglages`); measured RMs entered or read from RM-test sets win on display, an estimate above an older test is flagged (D-069) (L5).
+- Navigation « Historique » / « Progression »; the phone header takes three rows (brand, tracking, catalog) (D-070) (L5).
+- Performance test: progress page plus chart JSON and history pages on one year of simulated history, median < 1 s (D-071) (L5).
+- Fixed: numbers in requests are read as ASCII digits only, so « ² » in an id, a count or `Content-Length` is refused (413 for the header) instead of a server error (L5).
+
 - Home page starts a session (place preselected from the last one, templates of that place, « Séance libre ») or resumes the open one; one open session at a time, a double start lands on the same session (D-061) (L4).
 - Session page (`/seances/{id}`): the template's plan in order, one current exercise expanded, menus picked in one tap, exercises added by search with recent ones first, a pick changed while it has no set (D-061) (L4).
 - Set logging: sets and settings prefilled from today's previous set, the last performance, the target or the field default; server-side « − » / « + » steppers, choice chips for discrete, yes / no and enum values, optional values collapsed under « Autres valeurs »; set types warm-up / work / RM test; one tap per unchanged set (D-062, D-063) (L4).

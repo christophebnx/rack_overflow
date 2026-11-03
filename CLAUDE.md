@@ -23,10 +23,11 @@ uv run pytest -q -n auto -m "not live and not browser"   # skip the Playwright b
 uv run pytest -q tests/e2e                # browser tests only; an engine not installed is skipped
 RACK_REQUIRE_BROWSER=1 uv run pytest -q tests/e2e        # fail instead of skip (Chromium and WebKit)
 uv run pytest -q tests/integration/test_session_performance.py   # time the set confirmation alone (median < 100 ms, D-066)
+uv run pytest -q tests/integration/test_progress_performance.py  # time progress page + chart JSON and history pages alone (median < 1 s, D-071)
 uv run ruff check . && uv run ruff format --check .
 uv run pylint --disable=all --enable=duplicate-code src
 uv run rack --version                                  # the CLI
-uv run rack migrate --config config.example.toml       # create / upgrade the dev database (.local/dev-data/), seed exercises and the four templates (D-057, D-060), then seed the exercise catalog (versioned, idempotent, D-057)
+uv run rack migrate --config config.example.toml       # create / upgrade the dev database (.local/dev-data/), seed the exercise catalog and the four templates (versioned, idempotent, D-057, D-060)
 uv run rack backup --config config.example.toml        # snapshot the dev database now, prune expired snapshots
 uv run rack serve --config config.example.toml         # dev server on http://127.0.0.1:8765 (run migrate first)
 uv run rack device add NAME --config config.example.toml     # print a one-time pairing code (also: list, revoke NAME)

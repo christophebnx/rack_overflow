@@ -27,6 +27,8 @@ Main flows:
 - **Page**: GET → route → service reads → Jinja2 page with strings from `locales/fr.json`.
 - **Action** (e.g. confirm a set): htmx POST/PATCH with a JSON body → Pydantic validation → service (one transaction, domain rules) → HTML fragment swapped in place; a refused user input re-renders the form with `200` (D-050).
 - **Session logging**: home (`GET /`) resumes the open session or starts one (`POST /seances` → `HX-Redirect`) → session page (`GET /seances/{id}`, whole state read from the database) → « − » / « + » are GETs re-rendering the set form (no write) → ✓ (`POST /seances/{id}/series`) writes the set and missing settings in one transaction, then returns the block with ⭐ and the next prefill, both recomputed from stored facts → close (`POST …/cloture`) → summary. Rules: `domain/sessions`, `domain/indicators`; design note `docs/architecture/2026-11-03-l4-session-logging.md` (D-061 to D-066).
+- **History**: `GET /historique` (sessions per week, then month groups of 20 sessions by keyset, « Plus anciennes » appends the next page) → a closed `GET /seances/{id}` is the detail: sets and settings corrected through the L4 paths with `require_open=False`, answer the exercise section and the totals out of band; `DELETE /seances/{id}` sets `session.deleted_at` only, every reader filters it out (D-067, D-070).
+- **Progress**: `GET /progression` (exercises with history) → `GET /progression/{id}` (last performance, RM table for strength, chart caption and data table, records) → `progress-chart.js` fetches `GET /api/progression/{id}` (display numbers and French labels from the server) and draws it with vendored Chart.js; `POST /rm/{id}` and `DELETE /rm/mesures/{id}` re-render the RM section; `PATCH /reglages` stores the 1RM formula (`app_setting` `rm.formula`). Every indicator is recomputed from stored facts on each request (D-068, D-069). Design note `docs/architecture/2026-11-03-l5-tracking.md`.
 - **Pairing**: `rack device add NAME` prints a one-time code → the browser posts it to `/appairage` → hashed token stored, `rack_device` cookie set (D-040, D-049).
 - **Operations**: `rack migrate` (upgrade, then the pending seed steps: exercises, then templates; D-057, D-060), `rack backup`, `rack device …`, `rack serve` (CLI calls the same services and storage); `rack supervise` runs `rack serve` as a child; `rack update` pulls `main`, syncs, migrates in a new process, then sends SIGHUP to the supervisor, which re-executes itself (D-051, D-052). Install guide: `docs/deployment/nas.md`.
 
@@ -37,7 +39,7 @@ Main flows:
 | `domain/` | Pure business logic: models, rules, validation. No I/O, no clock, no environment (D-003). | nothing |
 | `storage/` | File system and persistence; the single atomic writer. | `domain` |
 | `services/` | Business operations, one use case each, shared by the CLI and the web layer. | `domain`, `storage` |
-| `web/` | FastAPI app factory, routes, Jinja2 templates, CSS, vendored htmx, string catalog, security middleware, daily backup task. | `domain`, `services`, `config` |
+| `web/` | FastAPI app factory, routes, Jinja2 templates, CSS, vendored htmx and Chart.js (`static/vendor/manifest.json`), string catalog, security middleware, daily backup task. | `domain`, `services`, `config` |
 | `ops/` | Host process management: `rack supervise` (restart, rotating logs, single instance) and `rack update`. POSIX only. | `domain`, `storage` |
 | `config.py` | Load and validate the settings file and the secrets file beside it, once (D-044). | `domain` |
 | `cli.py` | Command-line entry point: parses arguments, calls the layers, maps errors to exit codes (D-004). | everything |
@@ -69,7 +71,7 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Device, pairing code and token rules | `domain/devices` |
 | Text normalisation (search, aliases, name uniqueness, codes) | `domain/text` |
 | Text read as a non-negative integer (ASCII digits only, before `int()`) | `domain/text.is_digits` |
-| Canonical integers ↔ display and input text (kg, km / m, m:ss; compact target durations; pace, speed, density and chart numbers, duration tick steps, data-table column numbers, L5) | `domain/units` |
+| Canonical integers ↔ display and input text (kg, km / m, m:ss; compact target durations; pace, speed, density, chart numbers `chart_number`, duration tick steps `chart_duration_step`, data-table numbers `column_number`, L5) | `domain/units` |
 | Catalog rules (variables, exercises, fields, aliases) | `domain/catalog` |
 | Movement pattern and equipment of an exercise in their first-seen spelling | `domain/catalog.with_known_spellings` |
 | At least one measure per exercise (field removal, variable delete or scope change) | `domain/catalog.check_measures`, `check_linked_measures` |
@@ -93,6 +95,7 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Session, row, set and setting queries; last performance, last settings, record history, recent exercises; history pages, session dates, exercises with history, session soft delete (L5) | `storage/sessions` |
 | Measured RM queries (`rm_measured`) | `storage/rm` |
 | Session logging operations (start, plan, pick, sets, settings, close, summary); closed-session corrections and session delete (L5) | `services/sessions` |
+| Number of exercises with a live set in a closed session (« Exercices » total) | `services/sessions.SummaryView.exercise_count` |
 | History operations (pages by month, sessions per week) | `services/history` |
 | Progress operations (progress page, chart data, RM entries, 1RM formula setting) | `services/progress` |
 | One year of simulated history for performance tests | `tests/support/history.py` |
