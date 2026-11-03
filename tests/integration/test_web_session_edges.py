@@ -663,3 +663,22 @@ def test_a_set_change_on_a_session_closed_meanwhile_redirects(
     response = client.request(method, fill("/series/{t}", ids), json=body, headers=HTMX)
     assert_closed(response, ids["s"])
     assert facts(migrated_engine)[1:] == before[1:]  # the set untouched, only the close
+
+
+def test_a_warm_up_only_exercise_shows_no_zero_part_in_the_summary(
+    client: TestClient, migrated_engine: Engine
+) -> None:
+    ids = open_session(migrated_engine)
+    curl = exercises.create(migrated_engine, USER, ExerciseForm("Curl", "strength", "gym"))
+    row = sessions.pick(migrated_engine, USER, ids["s"], None, curl).block
+    assert row is not None
+    sessions.confirm_set(
+        migrated_engine, USER, ids["s"], row.id, "warmup", {"reps": "10", "weight": "10"}, NOW
+    )
+    sessions.close(migrated_engine, USER, ids["s"], NOW + timedelta(minutes=5))
+    html = client.get(f"/seances/{ids['s']}", headers=PAGE).text
+    section = html[html.index(">Curl</h2>") :]
+    meta = section[section.index('<p class="muted">') : section.index("</p>")]
+    assert meta.endswith(TEXT("session.summary.warmups", count=1))
+    assert TEXT("session.summary.sets", count=0) not in html
+    assert TEXT("session.summary.volume", value=f"0{chr(0xA0)}kg") not in html

@@ -165,10 +165,13 @@ class Display:
     def volume(self, volume: Volume) -> str:
         """The volume of an exercise as its summary reads it (docs/ui-spec.md "L4 — Session
         summary"): load for strength and kettlebell, reps (+ load, durations) for bodyweight,
-        distance and duration for cardio, rounds and duration for intervals."""
+        distance and duration for cardio, rounds and duration for intervals. A zero part is left
+        out: no counted set (warm-ups only) gives an empty text."""
         parts: list[str] = []
+        if not volume.sets:
+            return ""
         load = self._catalog.text("session.summary.volume", value=self.value(units.WEIGHT, volume.load_g))
-        if volume.category in LOAD_CATEGORIES:
+        if volume.category in LOAD_CATEGORIES and volume.load_g:
             parts.append(load)
         elif volume.category == "bodyweight":
             if volume.reps:

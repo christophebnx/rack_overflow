@@ -1361,7 +1361,7 @@ Task: see what was done. Information: when and how long, per exercise the counte
 
 - h1 template name or « Séance libre »; muted « Séance terminée · Salle »; muted `Display.local_date` · start–end `Display.local_time` · duration (`Display.duration_compact`: summaries are read at a glance like targets; set rows keep `m:ss`).
 - Totals `<dl class="summary-totals">`: tiles (2 × 2 below 40rem, 4 in a row from 40rem; `--color-surface`, `--radius-md`, padding `--space-3`): figure `--text-2xl` weight 600 tabular, label muted `--text-sm` under it: « Exercices » (rows with at least one live set), « Séries » (live work and RM-test sets), « Volume » (Σ load volume, `Display.value` kg; tile absent when 0), « Records ».
-- Per exercise with a live set, in plan order, `<section>` h2 name, muted meta parts joined by « · »: « Séries : {n} », « Échauffements : {n} » (when > 0), the volume of its category, « Records : {n} » (when > 0). Then the read-only set rows (number, text, tags; no « Modifier »: correction is L5).
+- Per exercise with a live set, in plan order, `<section>` h2 name, muted meta parts joined by « · »: « Séries : {n} » (when > 0), « Échauffements : {n} » (when > 0), the volume of its category (only its non-zero parts, none without a counted set: a warm-up-only exercise reads « Échauffements : 2 »), « Records : {n} » (when > 0). Then the read-only set rows (number, text, tags; no « Modifier »: correction is L5).
 
 | Category | Volume meta |
 |---|---|

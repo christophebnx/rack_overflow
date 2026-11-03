@@ -75,6 +75,9 @@ def test_local_time_date_and_elapsed() -> None:
             f"Distance{NBSP}: 5,2{NBSP}km · Durée{NBSP}: 30{NBSP}min",
         ),
         (Volume("intervals", duration_s=240, sets=8), f"Tours{NBSP}: 8 · Durée{NBSP}: 4{NBSP}min"),
+        (Volume("strength"), ""),  # warm-ups only: no zero part
+        (Volume("intervals"), ""),
+        (Volume("kettlebell", reps=30, sets=3), ""),  # no load logged
     ],
 )
 def test_volume(volume: Volume, text: str) -> None:

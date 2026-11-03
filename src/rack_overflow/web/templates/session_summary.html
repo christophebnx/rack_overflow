@@ -17,7 +17,7 @@
     <div class="summary-totals__tile"><dt>{{ t("session.total_records") }}</dt><dd>{{ summary.total_records }}</dd></div>
   </dl>
   {% for row in summary.rows %}
-  {% set meta = [t("session.summary.sets", count=row.volume.sets)] %}
+  {% set meta = [t("session.summary.sets", count=row.volume.sets)] if row.volume.sets else [] %}
   {% if row.warmups %}{% set _ = meta.append(t("session.summary.warmups", count=row.warmups)) %}{% endif %}
   {% set vol = show.volume(row.volume) %}
   {% if vol %}{% set _ = meta.append(vol) %}{% endif %}
