@@ -4,6 +4,7 @@
 {% from "_form_status.html" import form_status %}
 {% from "_fields.html" import field_error, oob_announce %}
 {% import "_session_fields.html" as fields with context %}
+{% from "_set_list.html" import set_list with context %}
 {% set b = view.block %}
 {% set sid = view.session.id %}
 {% set row = b.id %}
@@ -34,34 +35,7 @@
   </details>
   {% endif %}
 
-  {% if b.sets %}
-  <h3 class="visually-hidden">{{ t("session.sets_heading") }}</h3>
-  <ol class="set-list">
-    {% for item in b.sets %}
-    {% set editing = edit and edit.set_id == item.id %}
-    {% set eprefix = "serie-" ~ item.id %}
-    {% set etexts = edit.texts if editing else b.set_texts(item) %}
-    {% set eerrors = edit.errors if editing else no_errors %}
-    <li class="set-row" id="{{ eprefix }}">
-      <span class="set-row__number">{{ item.number }}</span>
-      <span class="set-row__text">{{ show.set_text(item.facts, b.fields) }}{% if item.facts.type == "warmup" %}<span class="tag">{{ t("session.set_type.warmup") }}</span>{% elif item.facts.type == "rm_test" %}<span class="tag">{{ t("session.set_type.rm_test") }}</span>{% endif %}{% if item.record %}<span class="tag tag--record">{{ t("session.record") }}</span>{% endif %}</span>
-      <details class="set-row__edit"{% if editing and eerrors %} open{% endif %}>
-        <summary class="button" id="{{ eprefix }}-modifier"{% if focus == eprefix ~ "-modifier" %} autofocus{% endif %}>{{ t("action.edit") }}<span class="visually-hidden"> {{ t("session.set_named", n=item.number) }}</span></summary>
-        <form class="set-edit" id="{{ eprefix }}-form" hx-patch="/series/{{ item.id }}" hx-target="#{{ prefix }}" hx-swap="outerHTML" hx-disabled-elt="#{{ eprefix }}-form button">
-          {{ form_status() }}
-          {{ fields.type_chips(b.types, edit.type if editing else item.facts.type, eprefix ~ "-type", eerrors) }}
-          {{ field_error(eprefix ~ "-serie", eerrors) }}
-          {% for f in b.fields %}{{ fields.input(f, eprefix, etexts, eerrors) }}{% endfor %}
-          <div class="actions actions--inline">
-            <button class="button button--primary" type="submit">{{ t("action.save") }}</button>
-            <button class="button button--danger" type="button" hx-delete="/series/{{ item.id }}" hx-target="#{{ prefix }}" hx-swap="outerHTML" hx-disabled-elt="#{{ eprefix }}-form button">{{ t("session.delete_set") }}</button>
-          </div>
-        </form>
-      </details>
-    </li>
-    {% endfor %}
-  </ol>
-  {% endif %}
+  {% if b.sets %}{{ set_list(b, prefix, edit, focus, no_errors) }}{% endif %}
 
   {% include "session_set_form.html" %}
 </section>

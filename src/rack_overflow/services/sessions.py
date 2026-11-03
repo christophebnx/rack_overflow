@@ -1007,6 +1007,12 @@ def detail(engine: Engine, user_id: int, session_id: int, row_id: int | None = N
         return _summary(connection, user_id, session_row, keep_row=row_id)
 
 
+def info(engine: Engine, user_id: int, session_id: int) -> SessionInfo:
+    """A non-deleted session's own attributes (`NotFoundError` otherwise)."""
+    with engine.begin() as connection:
+        return session_info(connection, _session_row(connection, user_id, session_id, writable=False))
+
+
 def delete_session(engine: Engine, user_id: int, session_id: int, now: datetime) -> None:
     """Soft delete a session, open or closed (D-067): only `session.deleted_at` is written; every
     reader ignores it from now on (history, indicators, prefill, the one open session)."""

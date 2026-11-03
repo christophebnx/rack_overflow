@@ -50,7 +50,7 @@
   }
 
   .main--nav {
-    min-height: calc(100dvh - 2 * var(--target-min) - 1px);
+    min-height: calc(100dvh - 3 * var(--target-min) - 1px);
   }
 
   .main--nav > .resume {

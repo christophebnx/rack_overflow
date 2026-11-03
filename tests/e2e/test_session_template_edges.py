@@ -59,7 +59,9 @@ def fresh_template(live_app: LiveApp) -> tuple[int, int, int]:
     return created, fixed, menu
 
 
-def test_header_takes_two_rows_on_the_phone_without_overflow(watched: Watched, live_app: LiveApp) -> None:
+def test_header_takes_three_rows_on_the_phone_without_overflow(watched: Watched, live_app: LiveApp) -> None:
+    """L5 header (docs/ui-spec.md "L5 — Tokens, components and header", replacing the L3 phone
+    layout): brand, then the tracking links, then the catalog links on the phone; one row wide."""
     page = watched.page
     created, _, _ = fresh_template(live_app)
     for path in ("/seances-types", "/seances-types/nouvelle", f"/seances-types/{created}", "/exercices"):
@@ -73,9 +75,14 @@ def test_header_takes_two_rows_on_the_phone_without_overflow(watched: Watched, l
             assert nav["x"] + nav["width"] <= width, path
         else:
             assert abs(nav["y"] - brand["y"]) < brand["height"], path  # one row
-        links = page.locator(".site-nav__list a")
-        tops = {round(links.nth(i).bounding_box()["y"]) for i in range(links.count())}  # type: ignore[index]
-        assert len(tops) == 1, path  # the three links share one line
+        lists = page.locator(".site-nav__list")
+        rows = []
+        for index in range(lists.count()):
+            links = lists.nth(index).locator("a")
+            tops = {round(links.nth(i).bounding_box()["y"]) for i in range(links.count())}  # type: ignore[index]
+            assert len(tops) == 1, path  # the links of one group share one line
+            rows.append(tops.pop())
+        assert (rows[0] < rows[1]) if width < 640 else (rows[0] == rows[1]), path
         assert_clean(watched)
 
 

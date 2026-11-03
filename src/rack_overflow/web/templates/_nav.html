@@ -1,5 +1,12 @@
+{# Main navigation (docs/ui-spec.md "L5 — Tokens, components and header"): tracking links, then
+   the catalog; `section` marks the current one (`aria-current`). #}
+{% set current_section = section if section is defined else "" %}
+<ul class="site-nav__list site-nav__list--tracking">
+  <li><a class="site-nav__link" href="/historique"{% if current_section == "history" %} aria-current="page"{% endif %}>{{ t("nav.history") }}</a></li>
+  <li><a class="site-nav__link" href="/progression"{% if current_section == "progress" %} aria-current="page"{% endif %}>{{ t("nav.progress") }}</a></li>
+</ul>
 <ul class="site-nav__list">
-  <li><a class="site-nav__link" href="/exercices"{% if section is defined and section == "exercises" %} aria-current="page"{% endif %}>{{ t("nav.exercises") }}</a></li>
-  <li><a class="site-nav__link" href="/variables"{% if section is defined and section == "variables" %} aria-current="page"{% endif %}>{{ t("nav.variables") }}</a></li>
-  <li><a class="site-nav__link" href="/seances-types"{% if section is defined and section == "templates" %} aria-current="page"{% endif %}>{{ t("nav.templates") }}</a></li>
+  <li><a class="site-nav__link" href="/exercices"{% if current_section == "exercises" %} aria-current="page"{% endif %}>{{ t("nav.exercises") }}</a></li>
+  <li><a class="site-nav__link" href="/variables"{% if current_section == "variables" %} aria-current="page"{% endif %}>{{ t("nav.variables") }}</a></li>
+  <li><a class="site-nav__link" href="/seances-types"{% if current_section == "templates" %} aria-current="page"{% endif %}>{{ t("nav.templates") }}</a></li>
 </ul>

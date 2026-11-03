@@ -118,6 +118,8 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Values in display units in pages (number + unit text) | `web/display.Display` (`show` in templates) |
 | Text of an indicative target (« 4 × 6–8 ») | `web/display.Display.target` |
 | Text of a set, local time / date of a session, volume meta (L4) | `web/display.Display.set_text`, `local_time`, `local_date`, `volume` |
+| Short date, weekday, month name, one-decimal number (L5) | `web/display.Display.short_date`, `weekday`, `month`, `decimal1` |
+| Set rows and their edit forms (open block, closed detail, last performance) | `web/templates/_set_list.html` |
 | « Oui » / « Non » of a `bool` value; chip values of a discrete, `bool` or `enum` field | `web/display.Display.yes_no` (`BOOL_KEYS`), `Display.choices` |
 | Focus after a « Monter » / « Descendre » move, and its JSON body | `web/forms.move_focus`, `web/forms.MoveBody` |
 | Word of a core quantity (quantity → string key) | `web/display.QUANTITY_KEYS` (`show.quantity` in templates) |

@@ -1,0 +1,7 @@
+{# « Supprimer la séance » at the end of a session page, open or closed (docs/ui-spec.md "L5 —
+   Session detail and corrections"); the in-place confirmation is session_delete_confirm.html. #}
+{% from "_form_status.html" import form_status %}
+<section id="seance-suppression" class="section session-delete" data-request-scope>
+  {{ form_status() }}
+  <button type="button" class="button button--danger session-delete__button" id="seance-supprimer" hx-get="/seances/{{ session_id }}/suppression" hx-target="#seance-suppression" hx-swap="outerHTML" hx-disabled-elt="#seance-suppression button"{% if focus is defined and focus == "seance-supprimer" %} autofocus{% endif %}>{{ t("session.delete") }}</button>
+</section>

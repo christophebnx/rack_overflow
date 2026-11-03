@@ -1,3 +1,5 @@
+{# A closed session (docs/ui-spec.md "L4 — Session summary", "L5 — Session detail and
+   corrections"): totals, each exercise with its corrections, the session delete. #}
 {% extends "base.html" %}
 {% from "_labels.html" import LOCATION_KEYS %}
 {% block nav %}{% include "_nav.html" %}{% endblock %}
@@ -10,36 +12,14 @@
   <p class="muted">{{ t("session.summary_when", date=show.local_date(info.local_date), start=show.local_time(info.started_at, info.time_zone), end=show.local_time(info.ended_at, info.time_zone), duration=show.elapsed(info.started_at, info.ended_at)) }}</p>
   {% if closed_notice %}<p class="form-status" data-kind="error" role="alert">{{ t("session.closed_notice") }}</p>{% endif %}
   {% if summary.rows %}
-  <dl class="summary-totals">
-    <div class="summary-totals__tile"><dt>{{ t("session.total_exercises") }}</dt><dd>{{ summary.rows | length }}</dd></div>
-    <div class="summary-totals__tile"><dt>{{ t("session.total_sets") }}</dt><dd>{{ summary.total_sets }}</dd></div>
-    {% if summary.total_load_g %}<div class="summary-totals__tile"><dt>{{ t("session.total_volume") }}</dt><dd>{{ show.value("weight", summary.total_load_g) }}</dd></div>{% endif %}
-    <div class="summary-totals__tile"><dt>{{ t("session.total_records") }}</dt><dd>{{ summary.total_records }}</dd></div>
-  </dl>
-  {% for row in summary.rows %}
-  {% set meta = [t("session.summary.sets", count=row.volume.sets)] if row.volume.sets else [] %}
-  {% if row.warmups %}{% set _ = meta.append(t("session.summary.warmups", count=row.warmups)) %}{% endif %}
-  {% set vol = show.volume(row.volume) %}
-  {% if vol %}{% set _ = meta.append(vol) %}{% endif %}
-  {% if row.records %}{% set _ = meta.append(t("session.summary.records", count=row.records)) %}{% endif %}
-  <section class="section summary-exercise" aria-labelledby="bilan-{{ loop.index }}">
-    <h2 id="bilan-{{ loop.index }}">{{ row.exercise.name }}</h2>
-    <p class="muted">{{ meta | join(" · ") }}</p>
-    <ol class="set-list">
-      {% for item in row.sets %}
-      <li class="set-row set-row--read">
-        <span class="set-row__number">{{ item.number }}</span>
-        <span class="set-row__text">{{ show.set_text(item.facts, row.fields) }}{% if item.facts.type == "warmup" %}<span class="tag">{{ t("session.set_type.warmup") }}</span>{% elif item.facts.type == "rm_test" %}<span class="tag">{{ t("session.set_type.rm_test") }}</span>{% endif %}{% if item.record %}<span class="tag tag--record">{{ t("session.record") }}</span>{% endif %}</span>
-      </li>
-      {% endfor %}
-    </ol>
-  </section>
-  {% endfor %}
+  {% include "session_totals.html" %}
+  {% for r in summary.rows %}{% include "session_detail_exercise.html" %}{% endfor %}
   {% else %}
   <div class="empty"><p class="empty__title">{{ t("session.summary_empty") }}</p></div>
   {% endif %}
   <div class="actions">
     <a class="button button--primary" href="/">{{ t("action.home") }}</a>
   </div>
+  {% include "session_delete.html" %}
 </div>
 {% endblock %}

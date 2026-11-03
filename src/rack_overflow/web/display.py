@@ -27,6 +27,10 @@ QUANTITY_KEYS = {
 }
 LOAD_CATEGORIES = ("strength", "kettlebell")
 BOOL_KEYS = {1: "field.yes", 0: "field.no"}
+WEEKDAY_KEYS = tuple(f"date.weekday.{day}" for day in range(1, 8))
+"""Abbreviated weekday keys, ISO order (Monday first)."""
+MONTH_KEYS = tuple(f"date.month.{month}" for month in range(1, 13))
+"""Month name keys, January first."""
 TYPED_UNIT_KEYS = {"weight": units.UNIT_KG, "distance": units.UNIT_KM, "duration": units.UNIT_DURATION}
 
 
@@ -156,6 +160,25 @@ class Display:
         return self._catalog.text(
             "date.numeric", day=f"{day.day:02d}", month=f"{day.month:02d}", year=day.year
         )
+
+    def short_date(self, local_date_text: str) -> str:
+        """A local date `YYYY-MM-DD` as « 03/11 » (history weeks and items, chart labels; L5)."""
+        day = date.fromisoformat(local_date_text)
+        return self._catalog.text("date.short", day=f"{day.day:02d}", month=f"{day.month:02d}")
+
+    def weekday(self, local_date_text: str) -> str:
+        """The abbreviated weekday of a local date: « lun. » (ISO, Monday = 1)."""
+        return self._catalog.text(WEEKDAY_KEYS[date.fromisoformat(local_date_text).isoweekday() - 1])
+
+    def month(self, month_key: str) -> str:
+        """A month `YYYY-MM` as « novembre 2026 » (lowercase; headings capitalise through CSS)."""
+        year, month = month_key.split("-")
+        name = self._catalog.text(MONTH_KEYS[int(month) - 1])
+        return self._catalog.text("history.month_heading", month=name, year=year)
+
+    def decimal1(self, tenths: int) -> str:
+        """A number given in tenths with one decimal and a comma: 28 → « 2,8 »."""
+        return units.format(units.DECIMAL, tenths, scale=1).number_text
 
     def elapsed(self, start_text: str, end_text: str) -> str:
         """The compact duration between two stored timestamps: « 1 h 09 »."""

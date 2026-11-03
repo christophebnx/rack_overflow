@@ -1600,6 +1600,8 @@ States:
 
 Tab order: skip link, header, session links in order, « Plus anciennes ». The week chart has no tab stop (text, not controls). Tab title `history.title`.
 
+Implementation notes (L5 developer): « Régularité » is shown on the first page only (a plain-link page `?avant=` starts with its month heading and the list); each week `<li>` holds its accessible text in a visually hidden span, the count, bar and week label are `aria-hidden`; a malformed `?avant=` is a 422.
+
 ### L5 — Session detail and corrections (`GET /seances/{id}` closed, `session_summary.html`, `session_detail_exercise.html`, `session_delete_confirm.html`)
 
 Task: fix a set or a setting logged wrong; delete a session that should not exist. Decision: which set; delete or not. Information: every live set with type tag and ⭐, the settings, the totals.
@@ -1651,6 +1653,8 @@ States (added to L4 — Session summary):
 | Deleted session reopened (old tab, link) | L1a 404 page | — |
 
 Tab order: skip link, header, totals (no stops), per exercise « Voir la progression », settings summary, each « Modifier », then « Retour à l’accueil », « Supprimer la séance ».
+
+Implementation notes (L5 developer): a setting correction on a closed session answers the settings form itself (the L4 form targets `this`; summary text and announcement out of band), which keeps the focus on the changed input; set corrections answer the whole exercise section. The set rows and edit forms are one macro (`_set_list.html`) shared with the open block. A set changed from an open session's page while another device closed it keeps the L4 redirect (`?terminee=1`).
 
 ### L5 — Progress index (`GET /progression`, `templates/progress_index.html`)
 

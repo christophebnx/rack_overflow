@@ -97,3 +97,13 @@ def test_field_value() -> None:
     assert SHOW.field_value(STRAPS, 0) == "Non"
     assert SHOW.field_value(RESISTANCE, 8) == "8"
     assert SHOW.field_value(WEIGHT, 2500) == f"2,5{NBSP}kg"
+
+
+def test_l5_dates_and_decimal() -> None:
+    assert SHOW.short_date("2026-11-03") == "03/11"
+    assert SHOW.weekday("2026-11-03") == "mar."
+    assert SHOW.weekday("2026-11-08") == "dim."
+    assert SHOW.month("2026-11") == "novembre 2026"
+    assert SHOW.month("2027-01") == "janvier 2027"
+    assert SHOW.decimal1(28) == "2,8"
+    assert SHOW.decimal1(0) == "0,0"

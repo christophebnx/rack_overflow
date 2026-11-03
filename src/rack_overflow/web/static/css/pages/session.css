@@ -318,3 +318,18 @@ details[open] > .session-settings__summary::before {
   color: var(--color-muted);
   font-size: var(--text-sm);
 }
+
+/* L5: the session delete, a section gap below « Retour à l'accueil » / « Terminer la séance ». */
+.session-delete {
+  margin-top: var(--space-8);
+}
+
+@media (max-width: 39.999rem) {
+  .session-delete__button {
+    width: 100%;
+  }
+}
+
+.session-detail > .inline-link {
+  margin-top: var(--space-1);
+}

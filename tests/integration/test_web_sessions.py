@@ -383,21 +383,17 @@ def test_close_flow_summary_and_closed_redirects(client: TestClient, seeded: Eng
         client.post(f"/seances/{session_id}/exercices", json={"exercise_id": "1"}, headers=HTMX),
         client.get(f"/seances/{session_id}/exercices/{squat}/serie?pas=reps:up", headers=HTMX),
         client.get(f"/seances/{session_id}/cloture", headers=HTMX),
-        client.patch(f"/seances/{session_id}/exercices/{squat}/reglages", json={}, headers=HTMX),
         client.patch(f"/seances/{session_id}/exercices/{squat}", json={"exercise_id": "1"}, headers=HTMX),
     ):
         assert response.status_code == 204 and response.headers["HX-Redirect"] == redirect
+    # L5 (D-067): set and setting corrections of a closed session answer the detail, no redirect
+    settings = client.patch(f"/seances/{session_id}/exercices/{squat}/reglages", json={}, headers=HTMX)
+    assert settings.status_code == 200 and "HX-Redirect" not in settings.headers
     set_id = sessions.show(seeded, USER, session_id).rows[0].sets[0].id  # type: ignore[union-attr]
-    assert (
-        client.patch(f"/series/{set_id}", json={"type": "work", "reps": "1"}, headers=HTMX).headers[
-            "HX-Redirect"
-        ]
-        == redirect
-    )
-    assert (
-        client.request("DELETE", f"/series/{set_id}", json={}, headers=HTMX).headers["HX-Redirect"]
-        == redirect
-    )
+    corrected = client.patch(f"/series/{set_id}", json={"type": "work", "reps": "1"}, headers=HTMX)
+    assert corrected.status_code == 200 and "HX-Redirect" not in corrected.headers
+    deleted = client.request("DELETE", f"/series/{set_id}", json={}, headers=HTMX)
+    assert deleted.status_code == 200 and "HX-Redirect" not in deleted.headers
     assert client.post(f"/seances/{session_id}/cloture", json={}, headers=HTMX).status_code == 204
 
 

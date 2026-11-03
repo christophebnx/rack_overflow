@@ -155,16 +155,39 @@
   }
 }
 
-/* L3: below 40rem the nav always takes its own row under the brand (three links do not fit
-   beside it); the list still wraps as the last fallback for a very wide system font. */
+/* L5: two link groups (tracking, then catalog). Below 40rem the nav takes its own row under the
+   brand and is a column of the two lists, one 48 px row each (three header rows in all); each
+   list still wraps as the last fallback for a very wide system font. From 40rem both lists sit
+   on one row, --space-6 apart. */
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-6);
+}
+
 @media (max-width: 39.999rem) {
   .site-nav {
     flex-basis: 100%;
+    flex-direction: column;
   }
 
   .site-nav__list {
     gap: var(--space-4);
   }
+}
+
+/* L5: a text link made a 48 px target (« Voir la progression », date links). */
+.inline-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min);
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+
+/* L5: a success notice outside a form (after a redirect). */
+p.form-status[role="status"] {
+  margin-top: var(--space-3);
 }
 
 /* Status slot of an htmx form or scope (D-053): first child, above the first field (the next-set
