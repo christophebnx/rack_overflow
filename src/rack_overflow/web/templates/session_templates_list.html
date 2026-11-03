@@ -10,7 +10,7 @@
     {% set prefix = "seance-type-" ~ template.id %}
     {% set name = template.draft.name %}
     <li class="template-row" id="{{ prefix }}">
-      <a class="row row--template" href="/seances-types/{{ template.id }}">
+      <a class="row row--template" id="{{ prefix }}-lien" href="/seances-types/{{ template.id }}"{% if focus == prefix ~ "-lien" %} autofocus{% endif %}>
         <span class="row__title">{{ name }}</span>
         <span class="row__meta">{{ t(LOCATION_KEYS[template.draft.location]) }}</span>
         <span class="row__meta row__count">{{ t("templates.slot_count", count=template.slot_count) }}</span>

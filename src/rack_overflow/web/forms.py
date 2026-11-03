@@ -6,12 +6,13 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Annotated, Literal
+from typing import Annotated
 
 from fastapi import HTTPException
 from pydantic import AfterValidator, BaseModel
 
 from rack_overflow.domain.catalog import CatalogError, Problem
+from rack_overflow.domain.ordering import DIRECTIONS, DOWN, UP
 from rack_overflow.web.locale import Catalog
 
 ERROR_KEY_PREFIX = "catalog.error."
@@ -34,19 +35,32 @@ def row_id(value: int) -> int:
 RowId = Annotated[int, AfterValidator(row_id)]
 
 
+BUTTON_SUFFIXES = {UP: "monter", DOWN: "descendre"}  # id suffix of each move button
+
+
+def _direction(value: str) -> str:
+    if value not in DIRECTIONS:
+        raise ValueError("direction")
+    return value
+
+
 class MoveBody(BaseModel):
-    """JSON body of every « Monter » / « Descendre » button: `direction` `up` or `down` (else 422)."""
+    """JSON body of every « Monter » / « Descendre » button: `direction` one of
+    `domain.ordering.DIRECTIONS` (else 422)."""
 
-    direction: Literal["up", "down"]
+    direction: Annotated[str, AfterValidator(_direction)]
 
 
-def move_focus(prefix: str, direction: str, index: int, total: int) -> str:
-    """Id of the button that keeps the focus after a move: the same one (`{prefix}-monter` /
-    `{prefix}-descendre`), or the other one when the moved row reached that end (L2 rule)."""
-    up = direction == "up"
-    if (up and index == 0) or (not up and index == total - 1):
-        up = not up
-    return f"{prefix}-monter" if up else f"{prefix}-descendre"
+def move_focus(prefix: str, direction: str, index: int, total: int, *, alone: str | None = None) -> str:
+    """Id of the element that keeps the focus after a move: the same button (`{prefix}-monter` /
+    `{prefix}-descendre`), the other one when the moved row reached that end (L2 rule), or, when
+    the row is alone and has no enabled move button, `alone` (default: the row's « Modifier »,
+    `{prefix}-modifier`)."""
+    if total <= 1:
+        return alone or f"{prefix}-modifier"
+    if (direction == UP and index == 0) or (direction == DOWN and index == total - 1):
+        direction = DOWN if direction == UP else UP
+    return f"{prefix}-{BUTTON_SUFFIXES[direction]}"
 
 
 def as_list(value: str | Sequence[str] | None) -> list[str]:

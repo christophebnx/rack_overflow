@@ -131,7 +131,13 @@ def move_template(request: Request, template_id: RowId, body: MoveBody) -> HTMLR
         position=index + 1,
         total=len(active),
     )
-    focus = move_focus(f"seance-type-{template_id}", body.direction, index, len(active))
+    focus = move_focus(
+        f"seance-type-{template_id}",
+        body.direction,
+        index,
+        len(active),
+        alone=f"seance-type-{template_id}-lien",
+    )
     return render(request, "session_templates_list.html", {**context, "focus": focus, "announce": announce})
 
 
@@ -439,7 +445,9 @@ def move_option(
         position=index + 1,
         total=len(options),
     )
-    focus = move_focus(f"option-{option_id}", body.direction, index, len(options))
+    focus = move_focus(
+        f"option-{option_id}", body.direction, index, len(options), alone=_option_add_id(slot_id)
+    )
     context = _slots_context(request, detail, open_id=slot_id, focus=focus, announce=announce)
     return render(request, "session_template_slots.html", context)
 

@@ -236,6 +236,22 @@ def test_move_at_the_ends_through_the_page_keeps_focus_on_the_other_button(
     assert [f.id for f in exercises.get_detail(migrated_engine, USER, ids["e"]).fields] == [first, last]
 
 
+def test_moving_a_lone_field_keeps_focus_on_its_edit_button(
+    client: TestClient, migrated_engine: Engine
+) -> None:
+    ids = catalog_ids(migrated_engine)
+    fields = exercises.get_detail(migrated_engine, USER, ids["e"]).fields
+    for extra in fields[1:]:
+        exercises.remove_field(migrated_engine, USER, ids["e"], extra.id)
+    lone = fields[0].id
+    for direction in ("up", "down"):
+        moved = client.post(
+            f"/exercices/{ids['e']}/champs/{lone}/deplacement", json={"direction": direction}, headers=HTMX
+        )
+        assert moved.status_code == 200
+        assert re.findall(r'id="([^"]+)"[^>]*\sautofocus', moved.text) == [f"champ-{lone}-modifier"]
+
+
 def test_refused_field_input_keeps_typed_values_and_marks_the_input(
     client: TestClient, migrated_engine: Engine
 ) -> None:

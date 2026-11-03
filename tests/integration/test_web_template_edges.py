@@ -296,6 +296,22 @@ def test_template_moves_at_the_ends(client: TestClient, migrated_engine: Engine)
     assert [t.id for t in templates.list_templates(migrated_engine, USER)] == [last, first]
 
 
+def test_moving_a_lone_row_keeps_focus_on_a_live_control(client: TestClient, migrated_engine: Engine) -> None:
+    salle = templates.create(migrated_engine, USER, TemplateForm("Solo", "gym"))
+    only = exercise(migrated_engine, "Unique")
+    menu = templates.add_slot(migrated_engine, USER, salle, kind="menu", exercise_id=only, label="M")
+    option = templates.get_detail(migrated_engine, USER, salle).slot(menu).options[0].id
+    base = f"/seances-types/{salle}"
+    for direction in ("up", "down"):
+        body = {"direction": direction}
+        listed = client.post(f"{base}/deplacement", json=body, headers=HTMX)
+        assert _focus_on(listed.text, f"seance-type-{salle}-lien")
+        slot = client.post(f"{base}/blocs/{menu}/deplacement", json=body, headers=HTMX)
+        assert _focus_on(slot.text, f"bloc-{menu}-modifier")
+        moved = client.post(f"{base}/blocs/{menu}/options/{option}/deplacement", json=body, headers=HTMX)
+        assert _focus_on(moved.text, f"bloc-{menu}-option-ajout")  # a lone option has no « Retirer »
+
+
 def test_an_archived_template_cannot_move_and_restore_puts_it_last(
     client: TestClient, migrated_engine: Engine
 ) -> None:
