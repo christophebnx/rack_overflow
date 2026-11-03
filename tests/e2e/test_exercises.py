@@ -12,9 +12,12 @@ import pytest
 from conftest import LiveApp, pairing_code
 from playwright.sync_api import Browser, Locator, Page, expect
 from test_pages import SCHEMES, WIDTHS, Watched
-from test_variables import assert_clean
+from test_variables import assert_clean, create_variable
 
-from rack_overflow.services import devices
+from rack_overflow.domain.catalog import ValueInput
+from rack_overflow.services import devices, exercises, variables
+from rack_overflow.services.exercises import ExerciseForm
+from rack_overflow.services.variables import VariableForm
 from rack_overflow.web.app import CATALOG
 from rack_overflow.web.auth import COOKIE_NAME
 from rack_overflow.web.locale import load_catalog
@@ -22,6 +25,7 @@ from rack_overflow.web.locale import load_catalog
 pytestmark = pytest.mark.browser
 TEXT = load_catalog(CATALOG).text
 _COUNTER = itertools.count()
+USER = 1
 
 
 @pytest.fixture(params=[(w, s) for w in WIDTHS for s in SCHEMES], ids=lambda p: f"{p[0]}px-{p[1]}")
@@ -108,6 +112,20 @@ def test_seat_from_the_exercise_page(page: Page, live_server: str) -> None:
     expect(page.locator("#annonce")).to_have_text(TEXT("exercise.announce_field_added", field=label))
 
 
+def test_long_variable_label_and_alias_do_not_widen_the_page(watched: Watched, live_server: str) -> None:
+    """Regression (UI review L2 loop 1): the add-field select took the width of its longest option
+    and a long alias without spaces widened the page at 360 px."""
+    page = watched.page
+    label = f"Écartement maximal des poignées WW {next(_COUNTER)}"[:40]
+    create_variable(page, live_server, label)
+    create_exercise(page, live_server, f"Tirage {next(_COUNTER)}", "strength")
+    page.locator("#alias-nouveau").fill("Tiragehorizontalpoulieassisprisesserréeneutreavecpoignée"[:60])
+    page.get_by_role("button", name=TEXT("action.add"), exact=True).last.click()
+    expect(page.locator(".alias__text")).to_have_count(1)
+    expect(page.locator("#champ-ajout option", has_text=label)).to_have_count(1)
+    assert_clean(watched)
+
+
 def test_search_by_alias(page: Page, live_server: str) -> None:
     name = f"Développé couché (barre) {next(_COUNTER)}"
     create_exercise(page, live_server, name, "strength")
@@ -139,6 +157,15 @@ def test_failed_field_save_says_not_saved(page: Page, live_server: str) -> None:
     expect(page.locator(f"{row} .field-row__summary")).to_contain_text("5\u00a0kg")
 
 
+def test_failed_move_focuses_the_first_visible_field(page: Page, live_server: str) -> None:
+    """The fields of closed <details> cannot take focus: the first visible one gets it."""
+    create_exercise(page, live_server, f"Curl {next(_COUNTER)}", "strength")
+    page.route("**/deplacement", lambda route: route.abort())
+    page.locator(".field-row").first.locator("[id$=-descendre]").click()
+    expect(page.locator("#champs > [data-request-status]")).to_have_text(TEXT("error.not_saved"))
+    expect(page.locator("#champ-ajout")).to_be_focused()
+
+
 def test_failed_search_says_search_failed(page: Page, live_server: str) -> None:
     page.goto(live_server + "/exercices")
     page.route("**/exercices/recherche*", lambda route: route.fulfill(status=500, body="{}"))
@@ -159,4 +186,30 @@ def test_revoked_device_action_lands_on_pairing(browser: Browser, live_app: Live
     devices.revoke_device(live_app.engine, name, datetime.now(UTC))
     page.get_by_role("button", name=TEXT("action.archive")).click()
     page.wait_for_url(live_app.url + "/appairage")
+    context.close()
+
+
+def test_list_columns_align_across_rows_on_desktop(
+    browser: Browser, live_app: LiveApp, device_cookies: list[dict[str, object]]
+) -> None:
+    """Regression (UI review L2 loop 1): each row ended in an `auto` column, so the columns of the
+    exercise and variable lists did not line up at 1280 px."""
+    n = next(_COUNTER)
+    for name, pattern, equipment, location in (
+        (f"Zz court {n}", "Squat", "Barre", "gym"),
+        (f"Zz un nom bien plus long que les autres {n}", "Tirage horizontal", "Poulie basse", "both"),
+    ):
+        exercises.create(live_app.engine, USER, ExerciseForm(name, "cardio", location, pattern, equipment))
+    variables.create(live_app.engine, USER, VariableForm(f"Zz tenue {n}", "int", "set", unit="s"))
+    variables.create(live_app.engine, USER, VariableForm(f"Zz {n}", "enum", "set", values=[ValueInput("a")]))
+    context = browser.new_context(viewport={"width": 1280, "height": 800})
+    context.add_cookies(device_cookies)  # type: ignore[arg-type]
+    page = context.new_page()
+    for path, selector in (("/exercices", ".row--exercise"), ("/variables", ".row--variable")):
+        page.goto(live_app.url + path)
+        lefts = page.eval_on_selector_all(
+            selector,
+            "rows => rows.map(row => [...row.children].map(p => Math.round(p.getBoundingClientRect().left)))",
+        )
+        assert len(lefts) >= 2 and all(row == lefts[0] for row in lefts), (path, lefts)
     context.close()

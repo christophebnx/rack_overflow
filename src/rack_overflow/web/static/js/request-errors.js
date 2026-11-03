@@ -3,7 +3,8 @@
  * htmx swaps nothing on failure, so the form keeps its values; this script clears old refusal
  * messages in the form (or [data-request-scope]), shows the text of its [data-request-status]
  * slot (its data-message, else <body data-not-saved>), announces it in #annonce and moves
- * focus back to the form. No user-facing text and no business rule here.
+ * focus back to the first visible field of the form (a field in a closed <details> cannot take
+ * focus), else the trigger. No user-facing text and no business rule here.
  */
 (function () {
   "use strict";
@@ -49,6 +50,27 @@
     });
   }
 
+  function visible(field) {
+    var closed = field.closest("details:not([open])");
+    if (closed && !field.closest("summary")) {
+      return false;
+    }
+    if (field.checkVisibility) {
+      return field.checkVisibility();
+    }
+    return field.getClientRects().length > 0;
+  }
+
+  function firstVisibleField(scope) {
+    var fields = scope ? scope.querySelectorAll(FIELDS) : [];
+    for (var i = 0; i < fields.length; i += 1) {
+      if (visible(fields[i])) {
+        return fields[i];
+      }
+    }
+    return null;
+  }
+
   function redirected(detail) {
     var xhr = detail.xhr;
     return Boolean(xhr && xhr.getResponseHeader && xhr.getResponseHeader("HX-Redirect"));
@@ -82,7 +104,7 @@
     if (annonce) {
       annonce.textContent = message;
     }
-    var target = (scope && scope.querySelector(FIELDS)) || trigger;
+    var target = firstVisibleField(scope) || trigger;
     if (target && target.focus && target.isConnected) {
       target.focus();
     }

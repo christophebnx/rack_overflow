@@ -23,7 +23,8 @@
 @media (min-width: 40rem) {
   .row--variable {
     display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) auto;
+    /* fixed tracks (no auto column): every row of the list has the same columns */
+    grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1fr);
     gap: var(--space-4);
     align-items: baseline;
   }
@@ -102,7 +103,8 @@
 @media (min-width: 40rem) {
   .row--exercise {
     display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(0, 1.5fr) minmax(0, 1fr) auto;
+    /* fixed tracks (no auto column): columns align across rows; location stays left-aligned */
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr);
     gap: var(--space-4);
     align-items: baseline;
   }
@@ -233,6 +235,18 @@
 .alias-form__line > .input {
   flex: 1 1 12rem;
   width: auto;
+  min-width: 0; /* a select is otherwise as wide as its longest option */
+}
+
+@media (max-width: 39.999rem) {
+  /* the hint right under the label, before the input and button line */
+  .alias-form .field__label {
+    order: -2;
+  }
+
+  .alias-form .field__hint {
+    order: -1;
+  }
 }
 
 @media (max-width: 39.999rem) {
@@ -254,6 +268,8 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
+  min-width: 0;
+  max-width: 100%;
   padding-left: var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -265,6 +281,21 @@
   border-radius: 0 var(--radius-md) var(--radius-md) 0;
 }
 
+.alias__text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.alias > .button {
+  flex-shrink: 0;
+}
+
 .aliases-empty {
   margin-top: var(--space-3);
+}
+
+/* Archive blocks: space between the explanation and the buttons. */
+#exercice-archivage > .actions--inline,
+#variable-archivage > .actions--inline {
+  margin-top: var(--space-4);
 }
