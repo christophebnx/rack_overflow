@@ -39,11 +39,13 @@ def set_version(engine: Engine, value: str) -> None:
 def test_three_migrates_seed_once(settings_file: Path, capsys: pytest.CaptureFixture[str]) -> None:
     for _ in range(3):
         assert main(["migrate", "--config", str(settings_file)]) == 0
-    assert capsys.readouterr().out.count("seeded") == 1
+    out = capsys.readouterr().out
+    assert out.count("seeded 41 exercises") == out.count("seeded 4 templates") == 1
+    assert out.count("seeded") == 2
     engine = db.create_engine(settings_file.parent / "data" / "rack.sqlite")
     try:
         assert counts(engine)[0] == 41
-        assert stored_version(engine) == "1"
+        assert stored_version(engine) == "2"
         with engine.begin() as connection:
             rows = connection.execute(sa.select(sa.func.count()).select_from(s.app_setting)).scalar_one()
         assert rows == 1
@@ -56,28 +58,28 @@ def test_a_new_step_runs_once_and_only_it(migrated_engine: Engine) -> None:
     before = counts(migrated_engine)
     calls: list[int] = []
 
-    def step_two(connection: sa.Connection, user_id: int) -> int:
+    def step_three(connection: sa.Connection, user_id: int) -> seed.SeedReport:
         calls.append(user_id)
-        return 0
+        return seed.SeedReport()
 
-    steps = {**seed.STEPS, 2: step_two}
-    assert seed.seed_catalog(migrated_engine, USER, steps) == 0
-    assert seed.seed_catalog(migrated_engine, USER, steps) == 0
+    steps = {**seed.STEPS, 3: step_three}
+    assert seed.seed_catalog(migrated_engine, USER, steps) == seed.SeedReport()
+    assert seed.seed_catalog(migrated_engine, USER, steps) == seed.SeedReport()
     assert calls == [USER]
-    assert stored_version(migrated_engine) == "2"
+    assert stored_version(migrated_engine) == "3"
     assert counts(migrated_engine) == before
 
 
 def test_a_failing_new_step_keeps_the_old_version(migrated_engine: Engine) -> None:
     seed.seed_catalog(migrated_engine, USER)
 
-    def broken(connection: sa.Connection, user_id: int) -> int:
+    def broken(connection: sa.Connection, user_id: int) -> seed.SeedReport:
         exercises_table_insert(connection)
         raise RuntimeError("boom")
 
     with pytest.raises(RuntimeError):
-        seed.seed_catalog(migrated_engine, USER, {**seed.STEPS, 2: broken})
-    assert stored_version(migrated_engine) == "1"
+        seed.seed_catalog(migrated_engine, USER, {**seed.STEPS, 3: broken})
+    assert stored_version(migrated_engine) == "2"
     assert counts(migrated_engine)[0] == 41
 
 
@@ -89,7 +91,7 @@ def exercises_table_insert(connection: sa.Connection) -> None:
 
 def test_a_version_above_every_step_seeds_nothing(migrated_engine: Engine) -> None:
     set_version(migrated_engine, "9")
-    assert seed.seed_catalog(migrated_engine, USER) == 0
+    assert seed.seed_catalog(migrated_engine, USER) == seed.SeedReport()
     assert counts(migrated_engine) == (0, 0, 0)
     assert stored_version(migrated_engine) == "9"
 
@@ -115,7 +117,7 @@ def test_user_changes_survive_a_rerun(migrated_engine: Engine) -> None:
     exercises.set_archived(migrated_engine, USER, swing, datetime(2026, 11, 3, tzinfo=UTC))
     exercises.update(migrated_engine, USER, plank, ExerciseForm("Gainage ventral", "bodyweight", "both"))
     set_version(migrated_engine, "0")
-    created = seed.seed_catalog(migrated_engine, USER)
+    created = seed.seed_catalog(migrated_engine, USER).exercises
     # the archived one is still there (skipped); the renamed one comes back once under its seed name
     names = [e.draft.name for e in exercises.list_exercises(migrated_engine, USER, include_archived=True)]
     assert names.count("Kettlebell swing") == 1
@@ -125,7 +127,7 @@ def test_user_changes_survive_a_rerun(migrated_engine: Engine) -> None:
 
 def test_seed_is_per_user(migrated_engine: Engine) -> None:
     seed.seed_catalog(migrated_engine, USER)
-    assert seed.seed_catalog(migrated_engine, 2) == 41
+    assert seed.seed_catalog(migrated_engine, 2) == seed.SeedReport(exercises=41, templates=4)
     assert len(exercises.list_exercises(migrated_engine, 2)) == 41
     assert len(exercises.list_exercises(migrated_engine, USER)) == 41
 

@@ -1,5 +1,6 @@
 [
   {
+    "key": "squat_au_rack_barre",
     "name": "Squat au rack (barre)",
     "category": "strength",
     "movement_pattern": "Squat",
@@ -22,6 +23,7 @@
     ]
   },
   {
+    "key": "developpe_couche_barre",
     "name": "Développé couché (barre)",
     "category": "strength",
     "movement_pattern": "Poussée horizontale",
@@ -45,6 +47,7 @@
     ]
   },
   {
+    "key": "rowing_barre_au_rack",
     "name": "Rowing barre au rack",
     "category": "strength",
     "movement_pattern": "Tirage horizontal",
@@ -67,6 +70,7 @@
     ]
   },
   {
+    "key": "rowing_assis_machine",
     "name": "Rowing assis machine",
     "category": "strength",
     "movement_pattern": "Tirage horizontal",
@@ -89,6 +93,7 @@
     ]
   },
   {
+    "key": "tirage_horizontal_poulie",
     "name": "Tirage horizontal poulie",
     "category": "strength",
     "movement_pattern": "Tirage horizontal",
@@ -111,6 +116,7 @@
     ]
   },
   {
+    "key": "fentes_halteres",
     "name": "Fentes haltères",
     "category": "strength",
     "movement_pattern": "Jambes unilatéral",
@@ -133,6 +139,7 @@
     ]
   },
   {
+    "key": "split_squat_bulgare",
     "name": "Split squat bulgare",
     "category": "strength",
     "movement_pattern": "Jambes unilatéral",
@@ -155,6 +162,7 @@
     ]
   },
   {
+    "key": "presse_a_cuisses",
     "name": "Presse à cuisses",
     "category": "strength",
     "movement_pattern": "Squat",
@@ -177,6 +185,7 @@
     ]
   },
   {
+    "key": "curl_barre_ez",
     "name": "Curl barre EZ",
     "category": "strength",
     "movement_pattern": "Biceps",
@@ -199,6 +208,7 @@
     ]
   },
   {
+    "key": "planche",
     "name": "Planche",
     "category": "bodyweight",
     "movement_pattern": "Gainage",
@@ -217,6 +227,7 @@
     ]
   },
   {
+    "key": "crunch_poulie_haute",
     "name": "Crunch poulie haute",
     "category": "strength",
     "movement_pattern": "Gainage",
@@ -239,6 +250,7 @@
     ]
   },
   {
+    "key": "releve_de_jambes_suspendu",
     "name": "Relevé de jambes suspendu",
     "category": "bodyweight",
     "movement_pattern": "Gainage",
@@ -256,6 +268,7 @@
     ]
   },
   {
+    "key": "souleve_de_terre_roumain_rdl",
     "name": "Soulevé de terre roumain (RDL)",
     "category": "strength",
     "movement_pattern": "Charnière",
@@ -279,6 +292,7 @@
     ]
   },
   {
+    "key": "developpe_militaire_halteres",
     "name": "Développé militaire haltères",
     "category": "strength",
     "movement_pattern": "Poussée verticale",
@@ -302,6 +316,7 @@
     ]
   },
   {
+    "key": "tirage_vertical_poulie",
     "name": "Tirage vertical poulie",
     "category": "strength",
     "movement_pattern": "Tirage vertical",
@@ -324,6 +339,7 @@
     ]
   },
   {
+    "key": "tractions_assistees_machine",
     "name": "Tractions assistées machine",
     "category": "bodyweight",
     "movement_pattern": "Tirage vertical",
@@ -341,6 +357,7 @@
     ]
   },
   {
+    "key": "tractions",
     "name": "Tractions",
     "category": "bodyweight",
     "movement_pattern": "Tirage vertical",
@@ -363,6 +380,7 @@
     ]
   },
   {
+    "key": "developpe_incline_a_la_smith",
     "name": "Développé incliné à la Smith",
     "category": "strength",
     "movement_pattern": "Poussée inclinée",
@@ -385,6 +403,7 @@
     ]
   },
   {
+    "key": "leg_curl_allonge",
     "name": "Leg curl allongé",
     "category": "strength",
     "movement_pattern": "Ischios / fessiers",
@@ -407,6 +426,7 @@
     ]
   },
   {
+    "key": "hip_thrust_a_la_smith",
     "name": "Hip thrust à la Smith",
     "category": "strength",
     "movement_pattern": "Ischios / fessiers",
@@ -429,6 +449,7 @@
     ]
   },
   {
+    "key": "extension_lombaire",
     "name": "Extension lombaire",
     "category": "bodyweight",
     "movement_pattern": "Ischios / fessiers",
@@ -451,6 +472,7 @@
     ]
   },
   {
+    "key": "extension_triceps_poulie",
     "name": "Extension triceps poulie",
     "category": "strength",
     "movement_pattern": "Triceps",
@@ -473,6 +495,7 @@
     ]
   },
   {
+    "key": "barre_au_front_ez",
     "name": "Barre au front EZ",
     "category": "strength",
     "movement_pattern": "Triceps",
@@ -495,6 +518,7 @@
     ]
   },
   {
+    "key": "dips",
     "name": "Dips",
     "category": "bodyweight",
     "movement_pattern": "Triceps",
@@ -515,6 +539,7 @@
     "aliases": []
   },
   {
+    "key": "kettlebell_swing",
     "name": "Kettlebell swing",
     "category": "kettlebell",
     "movement_pattern": "Charnière",
@@ -542,6 +567,7 @@
     ]
   },
   {
+    "key": "goblet_squat_kettlebell",
     "name": "Goblet squat kettlebell",
     "category": "kettlebell",
     "movement_pattern": "Squat",
@@ -568,6 +594,7 @@
     ]
   },
   {
+    "key": "pompes",
     "name": "Pompes",
     "category": "bodyweight",
     "movement_pattern": "Poussée horizontale",
@@ -585,6 +612,7 @@
     ]
   },
   {
+    "key": "developpe_halteres_au_sol",
     "name": "Développé haltères au sol",
     "category": "strength",
     "movement_pattern": "Poussée horizontale",
@@ -607,6 +635,7 @@
     ]
   },
   {
+    "key": "developpe_militaire_kettlebell",
     "name": "Développé militaire kettlebell",
     "category": "kettlebell",
     "movement_pattern": "Poussée verticale",
@@ -633,6 +662,7 @@
     ]
   },
   {
+    "key": "rowing_haltere_un_bras",
     "name": "Rowing haltère un bras",
     "category": "strength",
     "movement_pattern": "Tirage horizontal",
@@ -655,6 +685,7 @@
     ]
   },
   {
+    "key": "curl_marteau_halteres",
     "name": "Curl marteau haltères",
     "category": "strength",
     "movement_pattern": "Biceps",
@@ -677,6 +708,7 @@
     ]
   },
   {
+    "key": "turkish_get_up_kettlebell",
     "name": "Turkish get-up kettlebell",
     "category": "kettlebell",
     "movement_pattern": "Gainage",
@@ -704,6 +736,7 @@
     ]
   },
   {
+    "key": "course_exterieure",
     "name": "Course extérieure",
     "category": "cardio",
     "movement_pattern": "Cardio",
@@ -727,6 +760,7 @@
     ]
   },
   {
+    "key": "tapis_de_course",
     "name": "Tapis de course",
     "category": "cardio",
     "movement_pattern": "Cardio",
@@ -749,6 +783,7 @@
     ]
   },
   {
+    "key": "velo",
     "name": "Vélo",
     "category": "cardio",
     "movement_pattern": "Cardio",
@@ -771,6 +806,7 @@
     ]
   },
   {
+    "key": "rameur",
     "name": "Rameur",
     "category": "cardio",
     "movement_pattern": "Cardio",
@@ -793,6 +829,7 @@
     ]
   },
   {
+    "key": "elliptique",
     "name": "Elliptique",
     "category": "cardio",
     "movement_pattern": "Cardio",
@@ -815,6 +852,7 @@
     ]
   },
   {
+    "key": "squat_a_la_smith",
     "name": "Squat à la Smith",
     "category": "strength",
     "movement_pattern": "Squat",
@@ -837,6 +875,7 @@
     ]
   },
   {
+    "key": "developpe_couche_halteres",
     "name": "Développé couché haltères",
     "category": "strength",
     "movement_pattern": "Poussée horizontale",
@@ -860,6 +899,7 @@
     ]
   },
   {
+    "key": "leg_extension",
     "name": "Leg extension",
     "category": "strength",
     "movement_pattern": "Squat",
@@ -880,6 +920,7 @@
     "aliases": []
   },
   {
+    "key": "mollets_debout_machine",
     "name": "Mollets debout machine",
     "category": "strength",
     "movement_pattern": "Mollets",

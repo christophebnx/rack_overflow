@@ -60,8 +60,8 @@ def _backup_now(settings: Settings) -> Path:
 
 def run_migrate(settings: Settings, args: argparse.Namespace) -> None:
     """Create the data folder if needed, snapshot an existing database with pending revisions,
-    upgrade, then apply the pending catalog seed steps (D-057; a `seeded N exercises` line follows
-    the revision line on stdout)."""
+    upgrade, then apply the pending catalog seed steps (D-057, D-060; `seeded N exercises` and
+    `seeded M templates` lines, each only when not zero, follow the revision line on stdout)."""
     del args
     data_dir = settings.storage.data_dir
     try:
@@ -75,11 +75,13 @@ def run_migrate(settings: Settings, args: argparse.Namespace) -> None:
             print(f"backup {_backup_now(settings)}")
         revision = migrate.upgrade_to_head(engine)
         print(f"database {settings.database_path} at revision {revision}")
-        created = seed.seed_catalog(engine, SINGLE_USER_ID)
+        report = seed.seed_catalog(engine, SINGLE_USER_ID)
     finally:
         engine.dispose()
-    if created:
-        print(f"seeded {created} exercises")
+    if report.exercises:
+        print(f"seeded {report.exercises} exercises")
+    if report.templates:
+        print(f"seeded {report.templates} templates")
 
 
 def run_backup(settings: Settings, args: argparse.Namespace) -> None:

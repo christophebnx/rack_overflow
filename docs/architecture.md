@@ -83,8 +83,8 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Exercises grouped by movement pattern for selects | `services/templates.exercise_groups` |
 | Variable operations | `services/variables` |
 | Exercise, field, alias and search operations | `services/exercises` |
-| Seed data (packaged JSON) | `storage/seed` |
-| Seeding the catalog (versioned steps) | `services/seed` (run by `cli.run_migrate`) |
+| Seed data (packaged JSON: exercises with keys, templates) | `storage/seed` |
+| Seeding the catalog: exercises, seed keys and adoption, templates (versioned steps) | `services/seed` (run by `cli.run_migrate`) |
 | Device and pairing-code queries | `storage/devices` |
 | Device operations (add, list, revoke, pair, authenticate) | `services/devices` |
 | Open the database only when it is at the head revision (CLI) | `cli._open_current_database` |

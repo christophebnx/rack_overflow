@@ -1,0 +1,231 @@
+[
+  {
+    "name": "Salle A — Squat & poussée horizontale",
+    "location": "gym",
+    "slots": [
+      {
+        "exercise": "squat_au_rack_barre",
+        "target": {
+          "sets": 4,
+          "reps_min": 6,
+          "reps_max": 8
+        }
+      },
+      {
+        "exercise": "developpe_couche_barre",
+        "target": {
+          "sets": 4,
+          "reps_min": 6,
+          "reps_max": 8
+        }
+      },
+      {
+        "menu": "Tirage horizontal",
+        "options": [
+          "rowing_barre_au_rack",
+          "rowing_assis_machine",
+          "tirage_horizontal_poulie"
+        ],
+        "target": {
+          "sets": 3,
+          "reps_min": 8,
+          "reps_max": 10
+        }
+      },
+      {
+        "menu": "Jambes unilatéral",
+        "options": [
+          "fentes_halteres",
+          "split_squat_bulgare",
+          "presse_a_cuisses"
+        ],
+        "target": {
+          "sets": 3,
+          "reps_min": 10,
+          "reps_max": 10
+        }
+      },
+      {
+        "exercise": "curl_barre_ez",
+        "target": {
+          "sets": 3,
+          "reps_min": 10,
+          "reps_max": 12
+        }
+      },
+      {
+        "menu": "Gainage",
+        "options": [
+          "planche",
+          "crunch_poulie_haute",
+          "releve_de_jambes_suspendu"
+        ],
+        "target": {
+          "sets": 3,
+          "reps_min": 12,
+          "reps_max": 12,
+          "duration_s": 30
+        }
+      }
+    ]
+  },
+  {
+    "name": "Salle B — Charnière & poussée verticale",
+    "location": "gym",
+    "slots": [
+      {
+        "exercise": "souleve_de_terre_roumain_rdl",
+        "target": {
+          "sets": 4,
+          "reps_min": 8,
+          "reps_max": 8
+        }
+      },
+      {
+        "exercise": "developpe_militaire_halteres",
+        "target": {
+          "sets": 4,
+          "reps_min": 8,
+          "reps_max": 8
+        }
+      },
+      {
+        "menu": "Tirage vertical",
+        "options": [
+          "tirage_vertical_poulie",
+          "tractions_assistees_machine",
+          "tractions"
+        ],
+        "target": {
+          "sets": 3,
+          "reps_min": 8,
+          "reps_max": 10
+        }
+      },
+      {
+        "exercise": "developpe_incline_a_la_smith",
+        "target": {
+          "sets": 3,
+          "reps_min": 8,
+          "reps_max": 10
+        }
+      },
+      {
+        "menu": "Ischios / fessiers",
+        "options": [
+          "leg_curl_allonge",
+          "hip_thrust_a_la_smith",
+          "extension_lombaire"
+        ],
+        "target": {
+          "sets": 3,
+          "reps_min": 10,
+          "reps_max": 12
+        }
+      },
+      {
+        "menu": "Triceps",
+        "options": [
+          "extension_triceps_poulie",
+          "barre_au_front_ez",
+          "dips"
+        ],
+        "target": {
+          "sets": 3,
+          "reps_min": 10,
+          "reps_max": 12
+        }
+      }
+    ]
+  },
+  {
+    "name": "Maison — Kettlebell, barre EZ, haltères",
+    "location": "home",
+    "slots": [
+      {
+        "exercise": "kettlebell_swing",
+        "target": {
+          "sets": 5,
+          "reps_min": 15,
+          "reps_max": 15
+        }
+      },
+      {
+        "exercise": "goblet_squat_kettlebell",
+        "target": {
+          "sets": 4,
+          "reps_min": 10,
+          "reps_max": 10
+        }
+      },
+      {
+        "menu": "Poussée",
+        "options": [
+          "pompes",
+          "developpe_halteres_au_sol",
+          "developpe_militaire_kettlebell"
+        ],
+        "target": {
+          "sets": 3,
+          "reps_min": 10,
+          "reps_max": 10
+        }
+      },
+      {
+        "exercise": "rowing_haltere_un_bras",
+        "target": {
+          "sets": 3,
+          "reps_min": 10,
+          "reps_max": 10,
+          "note": "par côté"
+        }
+      },
+      {
+        "menu": "Bras",
+        "options": [
+          "curl_barre_ez",
+          "curl_marteau_halteres",
+          "barre_au_front_ez"
+        ],
+        "target": {
+          "sets": 3,
+          "reps_min": 12,
+          "reps_max": 12
+        }
+      },
+      {
+        "menu": "Gainage",
+        "options": [
+          "planche",
+          "turkish_get_up_kettlebell"
+        ],
+        "target": {
+          "sets": 3,
+          "reps_min": 3,
+          "reps_max": 3,
+          "duration_s": 30,
+          "note": "par côté"
+        }
+      }
+    ]
+  },
+  {
+    "name": "Cardio — Course 30 min",
+    "location": "both",
+    "slots": [
+      {
+        "menu": "Cardio",
+        "options": [
+          "course_exterieure",
+          "tapis_de_course",
+          "velo",
+          "rameur"
+        ],
+        "target": {
+          "sets": 1,
+          "duration_s": 1800
+        }
+      }
+    ]
+  }
+]

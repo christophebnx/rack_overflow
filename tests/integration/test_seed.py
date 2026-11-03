@@ -37,12 +37,12 @@ def by_name(engine: Engine, name: str) -> exercises.ExerciseDetail:
 
 
 def test_seed_creates_the_catalog_once(migrated_engine: Engine) -> None:
-    assert seed.seed_catalog(migrated_engine, USER) == 41
+    assert seed.seed_catalog(migrated_engine, USER) == seed.SeedReport(exercises=41, templates=4)
     first = counts(migrated_engine)
     assert first[0] == 41
     with migrated_engine.begin() as connection:
-        assert app_settings.get(connection, USER, seed.VERSION_KEY) == "1"
-    assert seed.seed_catalog(migrated_engine, USER) == 0
+        assert app_settings.get(connection, USER, seed.VERSION_KEY) == "2"
+    assert seed.seed_catalog(migrated_engine, USER) == seed.SeedReport()
     assert counts(migrated_engine) == first
 
 
@@ -78,14 +78,14 @@ def test_roadmap_queries_on_the_seed(migrated_engine: Engine, query: str) -> Non
 
 def test_existing_names_are_kept_and_renamed_seeds_not_recreated(migrated_engine: Engine) -> None:
     mine = exercises.create(migrated_engine, USER, ExerciseForm("planche", "bodyweight", "home"))
-    assert seed.seed_catalog(migrated_engine, USER) == 40
+    assert seed.seed_catalog(migrated_engine, USER).exercises == 40
     planks = [e for e in exercises.list_exercises(migrated_engine, USER) if e.draft.name.lower() == "planche"]
     assert [p.id for p in planks] == [mine]
     bike = by_name(migrated_engine, "Vélo")
     exercises.update(migrated_engine, USER, bike.id, ExerciseForm("Vélo appartement", "cardio", "home"))
     rower = by_name(migrated_engine, "Rameur")
     exercises.set_archived(migrated_engine, USER, rower.id, NOW)
-    assert seed.seed_catalog(migrated_engine, USER) == 0
+    assert seed.seed_catalog(migrated_engine, USER) == seed.SeedReport()
     assert not [e for e in exercises.list_exercises(migrated_engine, USER) if e.draft.name == "Vélo"]
 
 
@@ -93,19 +93,21 @@ def test_seed_steps_above_the_version_run_in_one_transaction(migrated_engine: En
     ran: list[int] = []
 
     def step(number: int) -> seed.Step:
-        def run(connection: sa.Connection, user_id: int) -> int:
+        def run(connection: sa.Connection, user_id: int) -> seed.SeedReport:
             del connection, user_id
             ran.append(number)
-            return number
+            return seed.SeedReport(exercises=number)
 
         return run
 
     with migrated_engine.begin() as connection:
         app_settings.put(connection, USER, seed.VERSION_KEY, "1")
-    assert seed.seed_catalog(migrated_engine, USER, {1: step(1), 2: step(2), 3: step(3)}) == 5
+    assert seed.seed_catalog(migrated_engine, USER, {1: step(1), 2: step(2), 3: step(3)}) == seed.SeedReport(
+        5
+    )
     assert ran == [2, 3]
 
-    def failing(connection: sa.Connection, user_id: int) -> int:
+    def failing(connection: sa.Connection, user_id: int) -> seed.SeedReport:
         app_settings.put(connection, user_id, "other", "x")
         raise StorageError("boom")
 
@@ -118,12 +120,18 @@ def test_seed_steps_above_the_version_run_in_one_transaction(migrated_engine: En
 
 def test_invalid_seed_data_rolls_back(migrated_engine: Engine, monkeypatch: pytest.MonkeyPatch) -> None:
     good = {
+        "key": "a",
         "name": "A",
         "category": "strength",
         "location": "gym",
         "fields": [{"quantity": "reps", "required": True, "increment": 1}],
     }
-    bad_field = {**good, "name": "B", "fields": [{"quantity": "reps", "required": True, "increment": 0}]}
+    bad_field = {
+        **good,
+        "key": "b",
+        "name": "B",
+        "fields": [{"quantity": "reps", "required": True, "increment": 0}],
+    }
     monkeypatch.setattr(seed.seed, "load_exercises", lambda: [good, bad_field])
     with pytest.raises(CatalogError):
         seed.seed_catalog(migrated_engine, USER)
@@ -136,7 +144,7 @@ def test_invalid_seed_data_rolls_back(migrated_engine: Engine, monkeypatch: pyte
 def test_rack_migrate_seeds_once(settings_file: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["migrate", "--config", str(settings_file)]) == 0
     first = capsys.readouterr()
-    assert first.out.endswith("\nseeded 41 exercises\n") and first.err == ""
+    assert first.out.endswith("\nseeded 41 exercises\nseeded 4 templates\n") and first.err == ""
     assert main(["migrate", "--config", str(settings_file)]) == 0
     assert "seeded" not in capsys.readouterr().out
     engine = db.create_engine(settings_file.parent / "data" / "rack.sqlite")

@@ -250,7 +250,7 @@ def test_archiving_an_exercise_with_history_deletes_no_data(
 
 
 def test_bench_press_found_by_dc_bench_and_developpe(client: TestClient, migrated_engine: Engine) -> None:
-    assert seed.seed_catalog(migrated_engine, USER) == 41
+    assert seed.seed_catalog(migrated_engine, USER).exercises == 41
     for query in ("DC", "bench", "developpe", "dc", "Bench", "DÉVELOPPÉ"):
         response = client.get(f"/exercices/recherche?q={query}", headers=HTMX)
         assert response.status_code == 200

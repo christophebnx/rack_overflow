@@ -12,6 +12,7 @@ import sqlalchemy as sa
 
 from rack_overflow.domain.catalog import AliasDraft, ExerciseDraft, FieldParams
 from rack_overflow.domain.search import Candidate
+from rack_overflow.domain.text import normalise
 from rack_overflow.storage import positions
 from rack_overflow.storage.db import guarded_write
 from rack_overflow.storage.errors import NameTakenError
@@ -41,14 +42,36 @@ def _attributes(draft: ExerciseDraft) -> dict[str, object]:
 # --- exercises
 
 
-def insert(connection: sa.Connection, user_id: int, draft: ExerciseDraft) -> int:
-    """Insert an exercise and return its id."""
+def insert(connection: sa.Connection, user_id: int, draft: ExerciseDraft, seed_key: str | None = None) -> int:
+    """Insert an exercise (a seeded one with its `seed_key`) and return its id."""
+    values = {"user_id": user_id, "seed_key": seed_key, **_attributes(draft)}
     result = _guarded(
         connection,
-        lambda: connection.execute(sa.insert(exercise).values(user_id=user_id, **_attributes(draft))),
+        lambda: connection.execute(sa.insert(exercise).values(values)),
         f'exercise "{draft.name}" exists',
     )
     return int(result.inserted_primary_key[0])
+
+
+def set_seed_key(connection: sa.Connection, exercise_id: int, seed_key: str) -> None:
+    """Give the exercise its seed identity (D-060)."""
+    connection.execute(sa.update(exercise).where(exercise.c.id == exercise_id).values(seed_key=seed_key))
+
+
+def ids_by_seed_key(connection: sa.Connection, user_id: int) -> dict[str, int]:
+    """Seed key → id of the user's keyed exercises (archived included)."""
+    query = sa.select(exercise.c.seed_key, exercise.c.id).where(
+        exercise.c.user_id == user_id, exercise.c.seed_key.is_not(None)
+    )
+    return {row.seed_key: row.id for row in connection.execute(query)}
+
+
+def unkeyed_by_name(connection: sa.Connection, user_id: int) -> dict[str, int]:
+    """Normalised name → id of the user's exercises without seed key (archived included)."""
+    query = sa.select(exercise.c.name, exercise.c.id).where(
+        exercise.c.user_id == user_id, exercise.c.seed_key.is_(None)
+    )
+    return {normalise(row.name): row.id for row in connection.execute(query)}
 
 
 def update(connection: sa.Connection, exercise_id: int, draft: ExerciseDraft) -> None:
