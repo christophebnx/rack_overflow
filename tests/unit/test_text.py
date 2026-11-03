@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from rack_overflow.domain.text import normalise, slug
+from rack_overflow.domain.text import is_digits, normalise, slug
 
 
 @pytest.mark.parametrize(
@@ -60,3 +60,20 @@ def test_normalise_edges(raw: str, expected: str) -> None:
 def test_slug_of_symbols_is_empty_and_nfc_nfd_agree() -> None:
     assert slug("!!!") == ""
     assert slug("Siège") == slug("Sie\u0300ge") == "siege"
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("0", True),
+        ("012", True),
+        ("", False),
+        ("²", False),
+        ("١٢", False),
+        ("1 ", False),
+        ("-1", False),
+        ("1,0", False),
+    ],
+)
+def test_is_digits_reads_ascii_digits_only(raw: str, expected: bool) -> None:
+    assert is_digits(raw) is expected

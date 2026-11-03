@@ -13,6 +13,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from pydantic import BaseModel, Field
 
 from rack_overflow.domain.catalog import CatalogError, Problem
+from rack_overflow.domain.text import is_digits
 from rack_overflow.domain.vocabulary import EXERCISE_CATEGORIES, LOCATIONS
 from rack_overflow.services import exercises
 from rack_overflow.services.exercises import ExerciseDetail, ExerciseForm, FieldForm, FieldView
@@ -215,7 +216,7 @@ def _detail(request: Request, exercise_id: int) -> ExerciseDetail:
 def show_exercise(request: Request, exercise_id: RowId, ajout: str | None = None) -> HTMLResponse:
     """The exercise page; `?ajout={variable_id}` preselects that variable in « Ajouter un champ »."""
     detail = _detail(request, exercise_id)
-    selected = f"{VARIABLE_PREFIX}{ajout}" if ajout and ajout.isdigit() else None
+    selected = f"{VARIABLE_PREFIX}{ajout}" if ajout and is_digits(ajout) else None
     context = _exercise_form_context(request, detail=detail, values=_form_values(detail.draft))
     context.update(_fields_context(request, detail, selected=selected, focus=ADD_ID if selected else None))
     context.update(
@@ -302,7 +303,7 @@ def _source(raw: str | None) -> dict[str, Any]:
     if raw.startswith(CORE_PREFIX):
         return {"core_quantity": raw.removeprefix(CORE_PREFIX)}
     number = raw.removeprefix(VARIABLE_PREFIX)
-    if raw.startswith(VARIABLE_PREFIX) and number.isdigit():
+    if raw.startswith(VARIABLE_PREFIX) and is_digits(number):
         return {"variable_id": row_id(int(number))}
     raise CatalogError([Problem("source", "invalid_choice")])
 

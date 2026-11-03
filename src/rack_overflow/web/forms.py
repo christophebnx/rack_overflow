@@ -13,6 +13,7 @@ from pydantic import AfterValidator, BaseModel
 
 from rack_overflow.domain.catalog import CatalogError, Problem
 from rack_overflow.domain.ordering import DIRECTIONS, DOWN, UP
+from rack_overflow.domain.text import is_digits
 from rack_overflow.web.locale import Catalog
 
 ERROR_KEY_PREFIX = "catalog.error."
@@ -36,7 +37,7 @@ def select_id(raw: str | None) -> int | None:
     not an integer → 422, beyond any row id → 404."""
     if raw is None or not raw.strip():
         return None
-    if not raw.strip().isdigit():
+    if not is_digits(raw.strip()):
         raise HTTPException(status_code=422)
     return row_id(int(raw))
 

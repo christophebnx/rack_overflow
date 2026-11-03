@@ -20,7 +20,7 @@ from sqlalchemy.engine import Engine
 from rack_overflow.domain import catalog, templates
 from rack_overflow.domain.catalog import FieldParams
 from rack_overflow.domain.templates import Target, TemplateDraft
-from rack_overflow.domain.text import normalise
+from rack_overflow.domain.text import is_digits, normalise
 from rack_overflow.storage import app_settings, seed
 from rack_overflow.storage import exercises as queries
 from rack_overflow.storage import templates as template_queries
@@ -210,7 +210,7 @@ def _stored_version(connection: sa.Connection, user_id: int) -> int:
     stored = app_settings.get(connection, user_id, VERSION_KEY)
     if stored is None:
         return 0
-    if not (stored.isascii() and stored.isdigit()):
+    if not is_digits(stored):
         raise StorageError(f"unreadable {VERSION_KEY}: {stored!r}")
     return int(stored)
 

@@ -17,6 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from rack_overflow.domain.catalog import CatalogError
 from rack_overflow.domain.sessions import Item, SessionError
+from rack_overflow.domain.text import is_digits
 from rack_overflow.services import sessions
 from rack_overflow.services.sessions import FieldInfo, SessionView, SetRef, SummaryRow, SummaryView
 from rack_overflow.web.auth import device_user
@@ -106,7 +107,7 @@ def _closed(session_id: int) -> Response:
 
 def _query_id(raw: str | None) -> int | None:
     """An id from the query string; anything else is ignored (default current item)."""
-    if raw is None or not raw.isdigit():
+    if raw is None or not is_digits(raw):
         return None
     value = int(raw)
     return value if in_id_range(value) else None

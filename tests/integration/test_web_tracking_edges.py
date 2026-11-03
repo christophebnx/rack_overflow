@@ -267,26 +267,27 @@ def test_history_with_a_huge_or_foreign_anchor(client: TestClient, migrated_engi
     assert unknown.status_code == 200 and "/seances/" not in unknown.text
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="bug: web/forms.py:39 `select_id` checks `str.isdigit` (true for « ² ») then `int()` raises "
-    "ValueError: a crafted `?avant=²` is a 500 instead of 422",
-)
 def test_history_anchor_with_a_superscript_digit_is_422(client: TestClient) -> None:
     assert client.get("/historique?avant=²", headers=HTMX).status_code == 422
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="bug: domain/progress.py:30 `rm_draft` checks `str.isdigit` then `int()` raises ValueError "
-    "on « ² »: a crafted POST /rm/{id} is a 500 instead of the `rm_reps_range` refusal (200)",
-)
 def test_rm_entry_with_a_superscript_digit_is_refused(client: TestClient, migrated_engine: Engine) -> None:
     squat = make(migrated_engine)
     response = client.post(
         f"/rm/{squat}", json={"n": "²", "weight": "100", "date": "2026-11-01"}, headers=HTMX
     )
     assert response.status_code == 200 and TEXT("catalog.error.rm_reps_range") in response.text
+
+
+@pytest.mark.parametrize(
+    "path", ["/variables/nouvelle?exercice=²", "/exercices/{e}?ajout=²", "/seances/{s}?exercice=²"]
+)
+def test_superscript_digit_query_ids_are_ignored(
+    client: TestClient, migrated_engine: Engine, path: str
+) -> None:
+    squat = make(migrated_engine)
+    session_id = logged(migrated_engine, NOW - timedelta(hours=1), squat, [], close=False)
+    assert client.get(path.format(e=squat, s=session_id), headers=PAGE).status_code == 200
 
 
 @pytest.mark.parametrize(

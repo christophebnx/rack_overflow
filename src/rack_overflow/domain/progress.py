@@ -3,14 +3,17 @@ grouping of the history. Refusals are `catalog.CatalogError` problems, like ever
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date
 
 from rack_overflow.domain import units
 from rack_overflow.domain.catalog import CatalogError, Problem, choice_input, raise_if
 from rack_overflow.domain.indicators import MAX_ESTIMATION_REPS, RM_FORMULAS, STRENGTH
+from rack_overflow.domain.text import is_digits
 
 RM_NOT_STRENGTH = "rm_not_strength"
+_ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}", re.ASCII)
 
 
 @dataclass(frozen=True)
@@ -27,7 +30,7 @@ def _reps(problems: list[Problem], raw: str | None) -> int | None:
     if not text:
         problems.append(Problem("n", "required"))
         return None
-    if not text.isdigit() or not 1 <= int(text) <= MAX_ESTIMATION_REPS:
+    if not is_digits(text) or not 1 <= int(text) <= MAX_ESTIMATION_REPS:
         problems.append(Problem("n", "rm_reps_range"))
         return None
     return int(text)
@@ -49,17 +52,23 @@ def _weight(problems: list[Problem], raw: str | None) -> int | None:
     return value
 
 
+def _iso_day(text: str) -> date | None:
+    """The date of `YYYY-MM-DD` text (ASCII digits, no other ISO form), else None."""
+    if not _ISO_DATE.fullmatch(text):
+        return None
+    try:
+        return date.fromisoformat(text)
+    except ValueError:
+        return None
+
+
 def _date(problems: list[Problem], raw: str | None, today: str) -> str | None:
     text = (raw or "").strip()
     if not text:
         problems.append(Problem("date", "required"))
         return None
-    try:
-        day = date.fromisoformat(text)
-    except ValueError:
-        problems.append(Problem("date", "bad_date"))
-        return None
-    if len(text) != len("YYYY-MM-DD"):
+    day = _iso_day(text)
+    if day is None:
         problems.append(Problem("date", "bad_date"))
         return None
     if day > date.fromisoformat(today):

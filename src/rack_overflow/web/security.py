@@ -18,6 +18,8 @@ import json
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from rack_overflow.domain.text import is_digits
+
 MAX_BODY_BYTES = 65536
 SAFE_METHODS = frozenset({"GET", "HEAD"})
 LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "[::1]"})
@@ -89,7 +91,7 @@ class SecurityMiddleware:
             if media_type != JSON_MEDIA_TYPE:
                 raise _RejectedError(415, UNSUPPORTED_MEDIA_TYPE)
             length = headers.get("content-length")
-            if length is not None and (not length.isdigit() or int(length) > MAX_BODY_BYTES):
+            if length is not None and (not is_digits(length) or int(length) > MAX_BODY_BYTES):
                 raise _RejectedError(413, PAYLOAD_TOO_LARGE)
 
     def _check_origin(self, headers: Headers, host: str) -> None:

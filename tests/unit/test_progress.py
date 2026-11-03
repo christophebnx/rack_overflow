@@ -75,11 +75,6 @@ def test_rm_draft_reps_refused(raw: str) -> None:
     assert codes(error) == [("n", "rm_reps_range")]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="bug: domain/progress.py:30 `str.isdigit` accepts « ² » and `int` then raises a plain "
-    "ValueError instead of the `rm_reps_range` refusal",
-)
 def test_rm_draft_superscript_digit_is_a_refusal() -> None:
     with pytest.raises(CatalogError) as error:
         rm_draft("²", "100", TODAY, TODAY)
@@ -110,11 +105,6 @@ def test_rm_draft_bad_dates(raw: str) -> None:
     assert codes(error) == [("date", expected)]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="bug: domain/progress.py:58 `date.fromisoformat` accepts the ISO week form « 2026-W44-1 » "
-    "(10 characters, passes the length check); the form takes `YYYY-MM-DD` only",
-)
 def test_rm_draft_iso_week_date_is_refused() -> None:
     with pytest.raises(CatalogError) as error:
         rm_draft("1", "100", "2026-W44-1", TODAY)

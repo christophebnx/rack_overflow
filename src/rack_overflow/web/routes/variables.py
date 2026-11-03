@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 
 from rack_overflow.domain.catalog import CatalogError, ValueInput
 from rack_overflow.domain.errors import NotFoundError
+from rack_overflow.domain.text import is_digits
 from rack_overflow.domain.vocabulary import VARIABLE_TYPES
 from rack_overflow.services import exercises, variables
 from rack_overflow.services.variables import VariableDetail, VariableForm
@@ -78,7 +79,7 @@ def _form(body: VariableBody, frozen: VariableDetail | None = None) -> VariableF
 
 def _exercise_name(request: Request, raw: str | None) -> tuple[int, str] | None:
     """The exercise a variable is created for (`?exercice=`), when it is the user's."""
-    if raw is None or not raw.isdigit() or not in_id_range(int(raw)):
+    if raw is None or not is_digits(raw) or not in_id_range(int(raw)):
         return None
     try:
         detail = exercises.get_detail(request.app.state.engine, device_user(request), int(raw))

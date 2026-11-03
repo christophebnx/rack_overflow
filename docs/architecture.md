@@ -68,6 +68,7 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | The V1 user id | `domain/users.SINGLE_USER_ID` |
 | Device, pairing code and token rules | `domain/devices` |
 | Text normalisation (search, aliases, name uniqueness, codes) | `domain/text` |
+| Text read as a non-negative integer (ASCII digits only, before `int()`) | `domain/text.is_digits` |
 | Canonical integers ↔ display and input text (kg, km / m, m:ss; compact target durations; pace, speed, density and chart numbers, L5) | `domain/units` |
 | Catalog rules (variables, exercises, fields, aliases) | `domain/catalog` |
 | Movement pattern and equipment of an exercise in their first-seen spelling | `domain/catalog.with_known_spellings` |

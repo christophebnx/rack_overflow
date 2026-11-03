@@ -21,6 +21,12 @@ def normalise(text: str) -> str:
     return " ".join(_WORDS.findall(folded))
 
 
+def is_digits(text: str) -> bool:
+    """True for non-empty ASCII decimal digits, the only text read as an integer id or count
+    (`str.isdigit` alone also accepts « ² », which `int` then refuses)."""
+    return text.isascii() and text.isdigit()
+
+
 def slug(text: str) -> str:
     """`normalise(text)` with spaces turned into `_` (variable codes, enum keys); may be empty."""
     return normalise(text).replace(" ", "_")
