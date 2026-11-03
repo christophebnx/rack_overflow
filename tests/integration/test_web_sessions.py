@@ -57,7 +57,7 @@ def start(client: TestClient, template: int | str = "", location: str = "gym") -
         "/seances", json={"template_id": str(template), "location": location}, headers=HTMX
     )
     assert response.status_code == 204, response.text
-    return int(response.headers["HX-Redirect"].rsplit("/", 1)[1])
+    return int(response.headers["HX-Redirect"].split("#")[0].rsplit("/", 1)[1])
 
 
 def view(engine: Engine, session_id: int) -> SessionView:

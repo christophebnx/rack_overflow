@@ -1,5 +1,5 @@
 {# Status slot of an htmx form or [data-request-scope] (docs/ui-spec.md, L2 — Form status; D-053).
-   First child of its form or scope. The server fills it after a save (kind "ok"); the request-error
+   First child of its form or scope (the next-set form alone puts it right after its ✓). The server fills it after a save (kind "ok"); the request-error
    script fills it when a request fails (its data-message, else <body data-not-saved>). #}
 {% macro form_status(message="", kind="", data_message="") -%}
 <p class="form-status" data-request-status{% if kind %} data-kind="{{ kind }}"{% endif %}{% if data_message %} data-message="{{ data_message }}"{% endif %}{% if not message %} hidden{% endif %}>{{ message }}</p>

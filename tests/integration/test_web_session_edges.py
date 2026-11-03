@@ -451,7 +451,7 @@ def busy_page(client: TestClient, seeded: Engine) -> tuple[int, list[str]]:
     """A Salle A session with sets, a pending menu, the change block and the close confirmation."""
     salle = next(t.id for t in templates.list_templates(seeded, USER) if t.draft.name.startswith("Salle A"))
     started = client.post("/seances", json={"template_id": str(salle), "location": "gym"}, headers=HTMX)
-    session_id = int(started.headers["HX-Redirect"].rsplit("/", 1)[1])
+    session_id = int(started.headers["HX-Redirect"].split("#")[0].rsplit("/", 1)[1])
     found = sessions.show(seeded, USER, session_id)
     assert isinstance(found, SessionView) and found.block is not None
     row = found.block.id
@@ -572,7 +572,7 @@ def summary_of(
 ) -> str:
     now[0] = start
     response = web.post("/seances", json={"template_id": "", "location": "gym"}, headers=HTMX)
-    session_id = int(response.headers["HX-Redirect"].rsplit("/", 1)[1])
+    session_id = int(response.headers["HX-Redirect"].split("#")[0].rsplit("/", 1)[1])
     squat = web.app.state.engine  # type: ignore[attr-defined]
     exercise_id = exercises.create(squat, USER, ExerciseForm(f"Squat {start:%H%M%d}", "strength", "gym"))
     web.post(f"/seances/{session_id}/exercices", json={"exercise_id": str(exercise_id)}, headers=HTMX)
@@ -682,3 +682,14 @@ def test_a_warm_up_only_exercise_shows_no_zero_part_in_the_summary(
     assert meta.endswith(TEXT("session.summary.warmups", count=1))
     assert TEXT("session.summary.sets", count=0) not in html
     assert TEXT("session.summary.volume", value=f"0{chr(0xA0)}kg") not in html
+
+
+def test_the_start_redirect_lands_on_the_plan(client: TestClient, seeded: Engine) -> None:
+    del seeded
+    response = client.post("/seances", json={"template_id": "", "location": "gym"}, headers=HTMX)
+    target = response.headers["HX-Redirect"]
+    assert target.endswith("#seance-plan")  # the first ✓ above the fold of a 640 px phone
+    page = client.get(target.split("#")[0], headers=PAGE).text
+    assert 'id="seance-plan"' in page
+    again = client.post("/seances", json={"template_id": "", "location": "home"}, headers=HTMX)
+    assert again.headers["HX-Redirect"] == target  # already open: the same landing

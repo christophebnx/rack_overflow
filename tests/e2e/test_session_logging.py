@@ -204,6 +204,24 @@ def assert_confirm_in_thumb_zone(page: Page) -> None:
     )
 
 
+def assert_confirm_above_fold(page: Page) -> None:
+    """The ✓ is entirely inside the 640 px viewport (after a start, after a failed ✓)."""
+    page.wait_for_function(
+        """(height) => {
+            const box = document.querySelector('button.button--confirm').getBoundingClientRect();
+            return box.top >= 0 && box.bottom <= height + 1;
+        }""",
+        arg=PHONE["height"],
+        timeout=5000,
+    )
+
+
+def assert_disclosure_marker(summary: Locator) -> None:
+    """A `<summary>` laid out as flex still shows its chevron (drawn by `::before`)."""
+    marker = summary.evaluate("(e) => getComputedStyle(e, '::before').content")
+    assert marker not in ("none", "normal", "")
+
+
 def assert_targets(page: Page) -> None:
     """Every visible control of the page is at least 48 x 48 px."""
     page.wait_for_load_state("load")  # stylesheets applied
@@ -243,8 +261,9 @@ def test_full_salle_a_session_in_counted_taps(phone: Watched) -> None:
     with taps.counted(1):
         taps.tap(page.get_by_role("button", name="Salle A"))
     page.wait_for_url("**/seances/*")
-    session_url = page.url
+    session_url = page.url.split("#")[0]
     expect(current_block(page).locator("h2")).to_have_text("Squat au rack (barre)")
+    assert_confirm_above_fold(page)  # the redirect lands on the plan: no scroll before the first ✓
     assert_targets(page)
     phone.check_clean()
 
@@ -302,6 +321,7 @@ def test_full_salle_a_session_in_counted_taps(phone: Watched) -> None:
         taps.tap(page.get_by_role("button", name="Presse à cuisses"))
     settings = current_block(page).locator(".session-settings__summary").first
     expect(settings).to_contain_text("Siège\u00a04")
+    assert_disclosure_marker(settings)
     # change a setting chip: summary, chip (2 taps), saved at once
     with taps.counted(2):
         taps.tap(settings)
@@ -369,6 +389,8 @@ def test_full_salle_a_session_in_counted_taps(phone: Watched) -> None:
     expect(confirm_button(page)).to_be_enabled()
     expect(page.locator('form.set-form input[name="duration"]')).to_have_value("1:00")
     assert page.evaluate("() => window.confirmDisabled") is True
+    assert_confirm_above_fold(page)  # the message sits under the ✓: the ✓ did not move down
+    expect(status).to_be_in_viewport()
     page.unroute("**/seances/*/series")
     expect(current_block(page).locator(".set-row")).to_have_count(1)
 
@@ -447,3 +469,50 @@ def test_l4_pages_are_clean(browser: Browser, history: LiveApp, width: int, sche
         assert page.evaluate("() => document.querySelectorAll('[style], style').length") == 0
     finally:
         context.close()
+
+
+@pytest.mark.parametrize("width", [360, 1280])
+def test_the_open_set_edit_form_takes_the_row_width(browser: Browser, history: LiveApp, width: int) -> None:
+    """The edit form of a confirmed set spans its row and keeps 48 px targets (UI review L4)."""
+    engine = history.engine
+    found = sessions.start_page(engine, USER).open
+    if found is not None:
+        sessions.close(engine, USER, found.session.id, datetime.now(UTC))
+    token = devices.pair(
+        engine, pairing_code(history, f"edit-{width}-{id(browser)}"), datetime.now(UTC)
+    ).token
+    session_id = sessions.start(engine, USER, None, "gym", datetime.now(UTC), BRUSSELS)
+    squat = _name(engine, "Squat au rack (barre)")
+    block = sessions.pick(engine, USER, session_id, None, squat).block  # type: ignore[arg-type]
+    assert block is not None
+    raw = {"reps": "8", "weight": "60"}
+    sessions.confirm_set(engine, USER, session_id, block.id, "work", raw, datetime.now(UTC))  # type: ignore[arg-type]
+    context = browser.new_context(viewport={"width": width, "height": 800}, color_scheme="light")
+    context.add_cookies(
+        [
+            {
+                "name": COOKIE_NAME,
+                "value": token or "",
+                "url": history.url + "/",
+                "httpOnly": True,
+                "sameSite": "Strict",
+            }
+        ]
+    )
+    try:
+        page = context.new_page()
+        page.goto(f"{history.url}/seances/{session_id}")
+        row = page.locator(".set-row").first
+        row.locator(".set-row__edit > summary").click()
+        form = row.locator("form.set-edit")
+        expect(form).to_be_visible()
+        row_width = row.evaluate("(e) => e.getBoundingClientRect().width")
+        form_width = form.evaluate("(e) => e.getBoundingClientRect().width")
+        assert form_width >= 0.9 * row_width, (form_width, row_width)
+        for name in (TEXT("action.save"), TEXT("session.delete_set")):
+            box = form.get_by_role("button", name=name).bounding_box()
+            assert box is not None and box["width"] >= TARGET_MIN and box["height"] >= TARGET_MIN, (name, box)
+        assert_targets(page)
+    finally:
+        context.close()
+        sessions.close(engine, USER, session_id, datetime.now(UTC))

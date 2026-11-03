@@ -28,6 +28,9 @@ router = APIRouter()
 SESSIONS = "/seances"
 TEXT_MAX = 200
 START_ERROR_ID = "demarrer-modele"
+PLAN_ID = "seance-plan"
+"""Id of the plan `<ol>` (`session_plan.html`): the start redirect scrolls to it (the current item
+is the first one after a start), so the first ✓ is above the fold of a 640 px phone."""
 FORM_KEYS = frozenset({"type", "session_exercise_id", "pas"})
 
 
@@ -162,7 +165,7 @@ def start_session(request: Request, body: StartBody) -> Response:
         location = body.location if body.location in ("gym", "home") else page.location
         errors = _errors(request, error, {}, START_ERROR_ID)
         return render(request, "home_start_form.html", {"page": page, "location": location, "errors": errors})
-    return Response(status_code=204, headers={"HX-Redirect": f"{SESSIONS}/{session_id}"})
+    return Response(status_code=204, headers={"HX-Redirect": f"{SESSIONS}/{session_id}#{PLAN_ID}"})
 
 
 # --- session page

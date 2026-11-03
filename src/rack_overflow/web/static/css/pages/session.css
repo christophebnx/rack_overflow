@@ -11,6 +11,7 @@
   margin-top: var(--space-4);
   padding: 0;
   list-style: none;
+  scroll-margin-top: var(--space-2);
 }
 
 .session-plan > li + li {
@@ -52,11 +53,28 @@
   cursor: pointer;
 }
 
+/* `display: flex` drops the native marker: the chevron is drawn here, pointing down when open. */
 .session-settings__summary {
   display: flex;
   align-items: center;
+  gap: var(--space-2);
   min-height: var(--target-min);
   font-weight: var(--weight-semibold);
+  list-style: none;
+}
+
+.session-settings__summary::-webkit-details-marker {
+  display: none;
+}
+
+.session-settings__summary::before {
+  flex: none;
+  content: "▸" / "";
+  color: var(--color-muted);
+}
+
+details[open] > .session-settings__summary::before {
+  content: "▾" / "";
 }
 
 .session-change__body,
@@ -99,12 +117,22 @@
   grid-template-columns: 2ch minmax(0, 1fr);
 }
 
+/* Closed, « Modifier » sits in the third column. Open, the <details> spans the whole row on the
+   grid's next line: « Modifier » stays at the right edge and the form takes the row's full width.
+   No `display: contents` (it does not flatten `::details-content`, which kept the form 20 px wide). */
 .set-row__edit {
-  display: contents;
+  grid-column: 3;
+  min-width: 0;
+}
+
+.set-row__edit[open] {
+  grid-column: 1 / -1;
 }
 
 .set-row__edit > summary {
-  grid-column: 3;
+  display: flex;
+  width: fit-content;
+  margin-inline-start: auto;
   list-style: none;
 }
 
@@ -116,7 +144,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  grid-column: 1 / -1;
   padding-block: var(--space-3);
 }
 
