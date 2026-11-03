@@ -79,12 +79,30 @@ def test_full_sequence_and_restart(repo: Path) -> None:
     assert run.lines[-1] == "restart requested (supervisor pid 77)"
 
 
-def test_already_up_to_date_stops_before_sync(repo: Path) -> None:
+def test_already_up_to_date_still_syncs_migrates_and_restarts(repo: Path) -> None:
+    """D-052: rerunning `rack update` completes an update whose sync or migration had failed."""
     run = Run(FakeRunner(heads=("a", "a")))
     run(repo)
-    assert [call[0] for call in run.runner.calls] == ["git"] * 5
-    assert run.lines == ["already up to date"]
-    assert run.signals == []
+    config = str((repo / "settings.toml").resolve())
+    assert run.runner.calls[-2:] == [
+        [UV, "sync", "--frozen"],
+        [PYTHON, "-m", "rack_overflow", "migrate", "--config", config],
+    ]
+    assert run.lines == [
+        "already up to date; checking dependencies and database",
+        "restart requested (supervisor pid 77)",
+    ]
+    assert run.signals == [(77, signal.SIGHUP)]
+
+
+def test_rerun_after_a_failed_sync_completes_the_update(repo: Path) -> None:
+    failing = Run(FakeRunner({f"{UV} sync --frozen": (1, "")}, heads=("a", "b")))
+    with pytest.raises(OpsError):
+        failing(repo)
+    rerun = Run(FakeRunner(heads=("b", "b")))
+    rerun(repo)
+    assert [UV, "sync", "--frozen"] in rerun.runner.calls
+    assert rerun.signals == [(77, signal.SIGHUP)]
 
 
 def test_no_supervisor_is_a_message_not_an_error(repo: Path) -> None:
@@ -275,11 +293,6 @@ def test_cli_update_signals_the_running_supervisor(
     assert capsys.readouterr().out.endswith("restart requested (supervisor pid 4242)\n")
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="bug: a SIGHUP that cannot be delivered (supervisor of another user, or gone) escapes as a "
-    "traceback instead of `rack: error: ...` and exit 1 (ops/update.py, tools.send_signal)",
-)
 @pytest.mark.parametrize(
     "error", [PermissionError(1, "Operation not permitted"), ProcessLookupError(3, "No such process")]
 )
@@ -294,3 +307,13 @@ def test_cli_update_signal_failure_is_a_clean_error(
     monkeypatch.setattr(cli.supervise, "running_supervisor_pid", lambda data_dir: 4242)
     monkeypatch.setattr(cli.os, "kill", refuse)
     assert cli.main(["update", "--config", str(settings_file)]) == 1
+
+
+def test_signal_failure_says_the_migration_was_applied(repo: Path) -> None:
+    def refuse(pid: int, signum: int) -> None:
+        raise ProcessLookupError(3, "No such process")
+
+    run = Run(FakeRunner())
+    run.tools = UpdateTools(**{**run.tools.__dict__, "send_signal": refuse})
+    with pytest.raises(OpsError, match=r"migration were applied.*pid 77 failed: No such process"):
+        run(repo)

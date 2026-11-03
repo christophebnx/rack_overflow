@@ -17,6 +17,7 @@ import pytest
 from rack_overflow import cli
 from rack_overflow.domain.supervision import RestartPolicy
 from rack_overflow.ops import supervise
+from rack_overflow.ops.errors import OpsError
 from rack_overflow.ops.supervise import Supervisor
 
 OWN_LINE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z (INFO|WARNING) rack_overflow\.supervise: .+$")
@@ -261,3 +262,62 @@ def test_second_instance_leaves_the_first_pid_file_alone(
         assert FakeSupervisor.seen == []
     finally:
         os.close(held)
+
+
+# --- start and re-execution failures (review loop 1) ---------------------------------------------------
+
+
+def test_child_that_cannot_start_goes_through_the_restart_delay(tmp_path: Path) -> None:
+    log = tmp_path / "rack.log"
+    delays: list[float] = []
+    supervisor = Supervisor(
+        [str(tmp_path / "missing-python")], log, monotonic=_short_runs(), wait=_recording_wait(delays, 3)
+    )
+    assert supervisor.run(threading.Event()) == 0
+    assert delays == [1, 2, 4]
+    text = log.read_text(encoding="utf-8")
+    assert "cannot start the server: " in text
+    assert f"server exited with code {supervise.START_FAILED}; restarting in 1 s" in text
+
+
+def test_lock_file_that_cannot_be_opened_is_an_ops_error(tmp_path: Path) -> None:
+    (tmp_path / supervise.LOCK_FILE_NAME).mkdir()  # a folder in its place: open fails, even as root
+    with pytest.raises(OpsError, match=r"cannot open lock file .*supervise\.lock"):
+        supervise.acquire_lock(tmp_path)
+
+
+def test_failed_reexecution_resumes_supervision_in_this_process(
+    settings_file: Path,
+    handlers: dict[int, Callable[[int, object], None]],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    data = settings_file.parent / "data"
+    notes: list[str] = []
+    runs: list[bool] = []
+
+    class NotingSupervisor(FakeSupervisor):
+        def note(self, message: str) -> None:
+            notes.append(message)
+
+    def action(stop: threading.Event) -> None:
+        runs.append(supervise.running_supervisor_pid(data) == os.getpid())
+        if len(runs) == 1:
+            handlers[signal.SIGHUP](signal.SIGHUP, None)
+        else:
+            handlers[signal.SIGTERM](signal.SIGTERM, None)
+
+    def broken_execv(path: str, argv: list[str]) -> None:
+        raise FileNotFoundError(2, "No such file or directory")
+
+    monkeypatch.setattr(cli.supervise, "Supervisor", NotingSupervisor)
+    monkeypatch.setattr(FakeSupervisor, "action", staticmethod(action))
+    monkeypatch.setattr(cli.os, "execv", broken_execv)
+    assert cli.main(["supervise", "--config", str(settings_file)]) == 0
+    assert runs == [True, True]
+    message = (
+        "cannot re-execute the supervisor (No such file or directory); supervising with the current code"
+    )
+    assert notes == [message]
+    assert capsys.readouterr().err == f"rack: warning: {message}\n"
+    assert not (data / supervise.PID_FILE_NAME).exists()

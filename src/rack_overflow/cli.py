@@ -30,6 +30,7 @@ from rack_overflow.domain import devices as device_rules
 from rack_overflow.domain.errors import DomainError
 from rack_overflow.domain.timestamps import to_text
 from rack_overflow.ops import supervise, update
+from rack_overflow.ops.commands import self_command
 from rack_overflow.ops.errors import OpsError
 from rack_overflow.ops.logs import utc_formatter
 from rack_overflow.services import backups, devices
@@ -120,19 +121,9 @@ def run_serve(settings: Settings, args: argparse.Namespace) -> None:
     )
 
 
-def _self_command(command: str, config_path: Path) -> list[str]:
-    """`rack <command> --config <absolute path>` run by this Python (the clone's `.venv`)."""
-    return [sys.executable, "-m", "rack_overflow", command, "--config", str(config_path.resolve())]
-
-
-def run_supervise(settings: Settings, args: argparse.Namespace) -> None:
-    """Run `rack serve` under a supervisor: restarts, rotating logs, one instance per data folder.
-
-    SIGTERM / SIGINT stop the server and exit; SIGHUP (sent by `rack update`) stops the server and
-    re-executes the supervisor, so both run the updated code.
-    """
-    data_dir = settings.storage.data_dir
-    log_file = supervise.log_path(data_dir)
+def _supervise_once(data_dir: Path, log_file: Path, config: Path, notice: str | None) -> bool:
+    """Hold the lock and the PID file while the server is supervised; True when SIGHUP asked for a
+    re-execution (the lock and PID file are released first, so the new process can take them)."""
     lock = supervise.acquire_lock(data_dir)
     stop = threading.Event()
     reexec = threading.Event()
@@ -150,13 +141,36 @@ def run_supervise(settings: Settings, args: argparse.Namespace) -> None:
         for signum in (signal.SIGTERM, signal.SIGINT):
             signal.signal(signum, on_stop)
         signal.signal(signal.SIGHUP, on_hangup)
-        supervise.Supervisor(_self_command("serve", args.config), log_file).run(stop)
+        supervisor = supervise.Supervisor(self_command(sys.executable, "serve", config), log_file)
+        if notice is not None:
+            supervisor.note(notice)
+        supervisor.run(stop)
     finally:
         supervise.remove_pid(data_dir)
         os.close(lock)
-    if reexec.is_set():
-        command = _self_command("supervise", args.config)
-        os.execv(command[0], command)
+    return reexec.is_set()
+
+
+def run_supervise(settings: Settings, args: argparse.Namespace) -> None:
+    """Run `rack serve` under a supervisor: restarts, rotating logs, one instance per data folder.
+
+    SIGTERM / SIGINT stop the server and exit; SIGHUP (sent by `rack update`) stops the server and
+    re-executes the supervisor, so both run the updated code. A failed re-execution (e.g. `.venv`
+    being rebuilt) is logged and supervision resumes in this process, whose restart delay covers a
+    server that cannot start yet.
+    """
+    data_dir = settings.storage.data_dir
+    log_file = supervise.log_path(data_dir)
+    notice: str | None = None
+    while _supervise_once(data_dir, log_file, args.config, notice):
+        command = self_command(sys.executable, "supervise", args.config)
+        try:
+            os.execv(command[0], command)
+        except OSError as error:
+            notice = f"cannot re-execute the supervisor ({error.strerror}); supervising with the current code"
+            print(f"{PROG}: warning: {notice}", file=sys.stderr)
+        else:
+            return  # only reached when `execv` is replaced in tests
 
 
 def run_update(settings: Settings, args: argparse.Namespace) -> None:

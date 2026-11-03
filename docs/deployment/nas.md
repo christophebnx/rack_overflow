@@ -138,9 +138,9 @@ cd /volume1/rack/rack_overflow
 .venv/bin/rack update --config config.toml
 ```
 
-It refuses to run unless the clone is on `main` with no local changes (`config.toml` and the data folder do not count), then pulls, runs `uv sync --frozen`, migrates the database (after a backup), and asks the supervisor to restart on the new code. When nothing changed it prints `already up to date`. If a step fails, it prints the step and its output, exits with code 1, and does not restart: the running server keeps its code.
+It refuses to run unless the clone is on `main` with no local changes (`config.toml` and the data folder do not count), then pulls, runs `uv sync --frozen`, migrates the database (after a backup when a revision is pending), and asks the supervisor to restart on the new code. When the pull brings nothing new it prints `already up to date; checking dependencies and database` and still runs the sync, the migration and the restart (D-052). If a step fails, it prints the step and its output, exits with code 1, and does not restart: the running server keeps its code. **Fix the cause and run `rack update` again**: the rerun completes the sync and the migration even though the code is already pulled, then restarts the server.
 
-**Check**: the last line is `restart requested (supervisor pid N)` or `already up to date`; `grep 'supervisor started' /volume1/rack/data/logs/rack.log | tail -n 1` shows a fresh timestamp after an update.
+**Check**: the last line is `restart requested (supervisor pid N)`; `grep 'supervisor started' /volume1/rack/data/logs/rack.log | tail -n 1` shows a fresh timestamp after an update.
 
 ## 12. Reboot check
 

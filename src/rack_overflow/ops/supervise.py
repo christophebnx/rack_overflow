@@ -32,6 +32,7 @@ LOG_MAX_BYTES = 1024 * 1024
 LOG_BACKUP_COUNT = 5
 KILL_AFTER_S = 10.0
 POLL_S = 0.1
+START_FAILED = 127  # exit code reported for a child that could not be started (shell convention)
 
 Wait = Callable[[threading.Event, float], object]
 
@@ -80,6 +81,10 @@ class Supervisor:
         self.logger = logging.Logger("rack_overflow.supervise")  # standalone: never reaches the root
         self.logger.addHandler(self.handler)
 
+    def note(self, message: str) -> None:
+        """Write one warning of the caller (e.g. a failed re-execution) to the supervisor log."""
+        self.logger.warning("%s", message)
+
     def run(self, stop: threading.Event) -> int:
         """Start, watch and restart the child until `stop` is set; then stop the child and return 0."""
         self.logger.info("supervisor started (pid %d): %s", os.getpid(), " ".join(self.command))
@@ -99,9 +104,15 @@ class Supervisor:
         return 0
 
     def _run_once(self, stop: threading.Event) -> int:
-        child = subprocess.Popen(
-            self.command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL
-        )
+        """One run of the child; a child that cannot start (e.g. `.venv` being rebuilt by `uv sync`)
+        counts as a failed run with `START_FAILED`, so it goes through the restart delay."""
+        try:
+            child = subprocess.Popen(
+                self.command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL
+            )
+        except OSError as error:
+            self.logger.warning("cannot start the server: %s", error)
+            return START_FAILED
         assert child.stdout is not None
         reader = threading.Thread(target=self._copy, args=(child.stdout,), daemon=True)
         reader.start()

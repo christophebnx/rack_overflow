@@ -1,10 +1,12 @@
 """`rack update` (D-051): update a deployed clone of `main` and restart the supervised server.
 
-Sequence: preconditions (clone on `main`, no local changes, `uv` found), `git pull --ff-only`
-(HEAD unchanged: stop), `uv sync --frozen`, `rack migrate` in a new process (the pulled code's
-migrations, with its own pre-migration backup), then SIGHUP to the running supervisor. A failing
-step stops the sequence with its output and requests no restart. Commands run through an injected
-`run`, so tests never run git or uv.
+Sequence: preconditions (clone on `main`, no local changes, `uv` found), `git pull --ff-only`,
+`uv sync --frozen`, `rack migrate` in a new process (the pulled code's migrations, with its own
+pre-migration backup), then SIGHUP to the running supervisor. Sync, migrate and restart run even
+when HEAD is unchanged (D-052): both steps are idempotent, so rerunning `rack update` completes an
+update whose pull succeeded but whose sync or migration failed. A failing step stops the sequence
+with its output and requests no restart. Commands run through an injected `run`, so tests never
+run git or uv.
 """
 
 from __future__ import annotations
@@ -15,9 +17,11 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from rack_overflow.ops.commands import self_command
 from rack_overflow.ops.errors import OpsError
 
 DEPLOYED_BRANCH = "main"
+ALREADY_UP_TO_DATE = "already up to date; checking dependencies and database"
 NOT_CLEAN = f"the deployed clone must be on {DEPLOYED_BRANCH} with no local changes"
 
 Runner = Callable[[Sequence[str], Path], subprocess.CompletedProcess[str]]
@@ -79,14 +83,23 @@ def update(repo: Path, config_path: Path, data_dir: Path, tools: UpdateTools) ->
     before = _quiet(tools, ["git", "rev-parse", "HEAD"], repo)
     _step(tools, ["git", "pull", "--ff-only"], repo)
     if _quiet(tools, ["git", "rev-parse", "HEAD"], repo) == before:
-        tools.out("already up to date")
-        return
+        tools.out(ALREADY_UP_TO_DATE)
     _step(tools, [str(tools.uv), "sync", "--frozen"], repo)
-    migrate = [tools.python, "-m", "rack_overflow", "migrate", "--config", str(config_path.resolve())]
-    _step(tools, migrate, repo)
+    _step(tools, self_command(tools.python, "migrate", config_path), repo)
+    _request_restart(tools, data_dir)
+
+
+def _request_restart(tools: UpdateTools, data_dir: Path) -> None:
+    """SIGHUP to the running supervisor; a signal that cannot be delivered is an `OpsError`."""
     pid = tools.find_supervisor(data_dir)
     if pid is None:
         tools.out("no rack supervise running; restart the server yourself")
         return
-    tools.send_signal(pid, signal.SIGHUP)
+    try:
+        tools.send_signal(pid, signal.SIGHUP)
+    except OSError as error:
+        raise OpsError(
+            f"the update and migration were applied, but the restart signal to supervisor pid {pid} "
+            f"failed: {error.strerror}; restart rack supervise yourself"
+        ) from error
     tools.out(f"restart requested (supervisor pid {pid})")

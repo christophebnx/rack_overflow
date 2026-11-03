@@ -57,6 +57,7 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Supervise `rack serve` (restart, logs, single instance) | `ops/supervise` |
 | Self-update of a deployed clone (pull, sync, migrate, restart) | `ops/update` |
 | Log line format (UTC) of the server and the supervisor | `ops/logs.utc_formatter` |
+| `rack <command> --config <path>` run by a given Python in a new process | `ops/commands.self_command` |
 | Database timestamp text (UTC `YYYY-MM-DDTHH:MM:SSZ`) | `domain/timestamps` |
 | The V1 user id | `domain/users.SINGLE_USER_ID` |
 | Device, pairing code and token rules | `domain/devices` |
