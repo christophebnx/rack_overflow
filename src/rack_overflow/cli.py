@@ -1,7 +1,7 @@
 """Command-line entry point.
 
 Exit codes: 0 success, 1 error, 2 usage (no command, unknown command, bad option).
-Errors print `template-python: error: <message>` on stderr. Tests call `main([...])` in-process.
+Errors print `rack: error: <message>` on stderr. Tests call `main([...])` in-process.
 """
 
 from __future__ import annotations
@@ -10,15 +10,15 @@ import argparse
 import sys
 from collections.abc import Sequence
 
-from template_python import __version__
-from template_python.domain.errors import DomainError
-from template_python.domain.greeting import greeting
+from rack_overflow import __version__
+from rack_overflow.domain.errors import DomainError
+from rack_overflow.domain.greeting import greeting
 
-PROG = "template-python"
+PROG = "rack"
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog=PROG, description="TODO(project) one-line description.")
+    parser = argparse.ArgumentParser(prog=PROG, description="Rack Overflow: personal training tracker.")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     commands = parser.add_subparsers(dest="command", metavar="<command>")
     hello = commands.add_parser("hello", help="print a greeting (example command, replace it)")

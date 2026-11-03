@@ -1,7 +1,7 @@
 import pytest
 
-from template_python import __version__
-from template_python.cli import main
+from rack_overflow import __version__
+from rack_overflow.cli import main
 
 
 def test_hello_prints_a_greeting(capsys: pytest.CaptureFixture[str]) -> None:
@@ -11,7 +11,7 @@ def test_hello_prints_a_greeting(capsys: pytest.CaptureFixture[str]) -> None:
 
 def test_domain_error_exits_1(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["hello", " "]) == 1
-    assert capsys.readouterr().err == "template-python: error: name is empty\n"
+    assert capsys.readouterr().err == "rack: error: name is empty\n"
 
 
 def test_no_command_exits_2(capsys: pytest.CaptureFixture[str]) -> None:
@@ -29,4 +29,4 @@ def test_version(capsys: pytest.CaptureFixture[str]) -> None:
     with pytest.raises(SystemExit) as exit_info:
         main(["--version"])
     assert exit_info.value.code == 0
-    assert capsys.readouterr().out.strip() == f"template-python {__version__}"
+    assert capsys.readouterr().out.strip() == f"rack {__version__}"

@@ -1,46 +1,25 @@
-# template_python
+# Rack Overflow
 
-Python project template with a ready-made [Claude Code](https://claude.com/claude-code) workflow: project rules, specialised agents, skills that chain them, and hooks that keep secrets and `main` safe. Derived from the way of working built for `equinox_management`.
+Personal training tracker: exercise catalog with shared variables, session templates organised as menus by movement pattern, fast set logging from the phone, and minimal progress tracking (records, RM, charts). One responsive web app (FastAPI, Jinja2, htmx, SQLite) for a single user, deployed natively on a Synology NAS. The interface is in French.
 
-## Start a project from it
+Status: V1 in development. Scope and milestones: [`docs/release-1.0.0-brief.md`](docs/release-1.0.0-brief.md), [`docs/roadmap.md`](docs/roadmap.md); where the build stands: [`docs/progress.md`](docs/progress.md).
 
-1. Create a repository from this template (GitHub "Use this template") and clone it.
-2. Install [uv](https://docs.astral.sh/uv/), then open Claude Code in the folder and run:
-   ```
-   /init-project
-   ```
-   It renames the package (`template_python` → yours), the distribution and the CLI, then fills the `TODO(project)` markers with you. Without Claude Code: `uv run python tools/init_project.py --name my_project --description "..."`.
-3. Describe the milestones in `docs/roadmap.md`, then build them one by one with `/feature M1`, or all in a row with `/build-roadmap`.
+## Documentation
 
-## What is inside
-
-| Path | Role |
+| File | Content |
 |---|---|
-| `CLAUDE.md` | Project rules read at the start of every session: invariants, commands, language, git workflow, definition of done |
-| `src/template_python/<package>/CLAUDE.md` | Rules and module table of each package |
-| `.claude/agents/` | `architect` (design note), `ui-designer` (UI design and review), `developer`, `tester`, `reviewer` (read-only), `documentation` |
-| `.claude/skills/` | `/init-project`, `/feature` (chains the agents), `/build-roadmap` (autonomous, resumable), `/release`, `/add-fixture`, `/add-decision` |
-| `.claude/hooks/` | `guard_paths.py` blocks secrets, protected folders, commits and pushes on `main`; `format.py` runs ruff on each edited file |
-| `.claude/settings.json` | Allowed and denied commands, hook wiring |
-| `docs/` | `architecture.md` (layers, responsibility map), `decisions.md` (D-NNN log), `roadmap.md`, `progress.md`, `architecture/` (design notes) |
-| `tools/check_commit_message.py` | commit-msg hook: Conventional Commits + `Milestone:` footer |
-| `.pre-commit-config.yaml`, `.github/workflows/ci.yml` | ruff, duplicate code, gitleaks; tests on Ubuntu, Windows, macOS |
-
-## The workflow
-
-```
-/feature <request or milestone>
-  architect      → docs/architecture/<date>-<slug>.md   (stops for approval if a decision is superseded)
-  ui-designer    → UI design section                    (user-visible changes only)
-  developer      → code + commits on dev
-  tester         → tests/unit, tests/integration
-  reviewer       → BLOCKING / TO FIX / SUGGESTION        (≤ 2 loops back to the developer)
-  documentation  → docs, CLAUDE.md files, CHANGELOG
-```
-
-Every agent answers in at most ten lines; the details live in `docs/`.
+| `CLAUDE.md` | Project rules: invariants, commands, language, git workflow, definition of done |
+| `docs/release-1.0.0-brief.md` | Approved V1 brief: scope, requirements, storage model, milestones, settled questions |
+| `docs/roadmap.md` | Milestones B0, L1a … L6 with their acceptance criteria |
+| `docs/progress.md` | Build status per milestone |
+| `docs/architecture.md` | Layers, flows, responsibility map, configuration |
+| `docs/decisions.md` | Decision log (D-NNN) |
+| `docs/ui-spec.md` | UI rules and screens |
+| `docs/architecture/` | Design notes, one per change |
 
 ## Development
+
+Requires [uv](https://docs.astral.sh/uv/).
 
 ```bash
 uv sync
@@ -48,8 +27,14 @@ uv run pre-commit install
 uv run pytest -q -n auto
 uv run ruff check . && uv run ruff format --check .
 uv run pylint --disable=all --enable=duplicate-code src
-uv run template-python hello Ada
+uv run rack --version
 ```
+
+No automatic CI until V1 is done (D-012): checks run locally and in pre-commit.
+
+## Claude Code workflow
+
+Changes go through `/feature` (architect → ui-designer → developer → tester → reviewer → documentation); `/build-roadmap` builds the milestones in order and resumes from `docs/progress.md`. Hooks keep secrets unread and `main` untouched. Details in `CLAUDE.md` and `.claude/`.
 
 ## License
 

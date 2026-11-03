@@ -1,10 +1,9 @@
 name: ci
 
 # D-001, D-002: lint once on Ubuntu; the test suite on three OS in parallel (pytest-xdist), uv cache.
+# D-012: manual runs only until V1 is done; the CI content is redesigned then.
 
 on:
-  push:
-  pull_request:
   workflow_dispatch:
 
 concurrency:
@@ -40,4 +39,4 @@ jobs:
           python-version: "3.12"
       - run: uv sync --locked
       - run: uv run pytest -q -n auto -m "not live" --cov --cov-report=term-missing:skip-covered
-      - run: uv run template-python --version
+      - run: uv run rack --version
