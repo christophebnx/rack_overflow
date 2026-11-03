@@ -74,6 +74,7 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Name uniqueness after normalisation (exercises, templates; error code as a parameter) | `domain/catalog.check_name` |
 | Template, menu, target and slot / option limit rules | `domain/templates` |
 | Fuzzy ranking of exercises | `domain/search` |
+| Session logging rules: start plan, plan order and current item, set prefill, steppers, set and settings validation | `domain/sessions` |
 | Reorder a list by « Monter » / « Descendre » (fields, templates, slots, options) | `domain/ordering.moved` + `storage/positions.set_positions` |
 | Position of a row appended at the end of an ordered list (fields, templates, slots, options) | `storage/positions.next_position` |
 | Variable queries | `storage/variables` |
