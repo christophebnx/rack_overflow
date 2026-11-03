@@ -25,8 +25,6 @@ Main flows:
 - **Action** (e.g. confirm a set): htmx POST/PATCH with a JSON body → security checks (`Origin`, `Host`, JSON-only, device cookie) → Pydantic validation → service (one transaction, domain rules) → HTML fragment swapped in place.
 - **Operations**: `rack migrate`, `rack backup`, `rack device …`, `rack serve`, `rack supervise` (CLI calls the same services and storage).
 
-The packages `web/` and `services/` and the database part of `storage/` are created in L1a; the table below gains their rows then.
-
 ## Layers
 
 | Package | Role | May import (project packages) |

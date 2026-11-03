@@ -27,8 +27,11 @@ uv run pre-commit install
 uv run pytest -q -n auto
 uv run ruff check . && uv run ruff format --check .
 uv run pylint --disable=all --enable=duplicate-code src
-uv run rack --version
+uv run rack migrate --config config.example.toml
+uv run rack serve --config config.example.toml   # http://127.0.0.1:8765
 ```
+
+More commands (backup, browser tests): `CLAUDE.md`, section "Commands".
 
 No automatic CI until V1 is done (D-012): checks run locally and in pre-commit.
 
