@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% from "_labels.html" import LOCATION_KEYS %}
+{% block nav %}{% include "_nav.html" %}{% endblock %}
+{% block styles %}<link rel="stylesheet" href="/static/css/pages/catalog.css"><link rel="stylesheet" href="/static/css/pages/session.css">{% endblock %}
+{% block content %}
+{% set info = view.session %}
+<div class="session">
+  <h1>{{ page_title }}</h1>
+  <p class="muted">{{ t("session.meta", location=t(LOCATION_KEYS[info.location]), time=show.local_time(info.started_at, info.time_zone)) }}</p>
+  {% include "session_plan.html" %}
+  {% include "session_search.html" %}
+  {% include "session_close.html" %}
+</div>
+{% endblock %}

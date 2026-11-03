@@ -1,0 +1,6 @@
+{# « Terminer la séance » at the end of the session page (docs/ui-spec.md "L4 — Session page", close). #}
+{% from "_form_status.html" import form_status %}
+<section id="fin-de-seance" class="section session-close" data-request-scope>
+  {{ form_status() }}
+  <button type="button" class="button session-close__button" id="terminer" hx-get="/seances/{{ session_id }}/cloture" hx-target="#fin-de-seance" hx-swap="outerHTML show:#fin-de-seance:bottom"{% if focus == "terminer" %} autofocus{% endif %}>{{ t("session.close") }}</button>
+</section>

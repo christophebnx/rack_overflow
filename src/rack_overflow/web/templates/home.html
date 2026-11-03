@@ -1,10 +1,21 @@
 {% extends "base.html" %}
+{% from "_labels.html" import LOCATION_KEYS %}
 {% block nav %}{% include "_nav.html" %}{% endblock %}
 {% block styles %}<link rel="stylesheet" href="/static/css/pages/home.css">{% endblock %}
+{% block main_class %}{% if page.open %}main--message main--nav{% endif %}{% endblock %}
 {% block content %}
-<div class="home-empty">
-  <h1>{{ t("home.title") }}</h1>
-  <p class="home-empty__title">{{ t("home.empty_title") }}</p>
-  <p class="muted">{{ t("home.empty_text") }}</p>
+{% if page.open %}
+{% set info = page.open.session %}
+<div class="resume">
+  <h1>{{ t("home.open_title") }}</h1>
+  <p class="resume__title">{{ info.title or t("session.free_title") }}</p>
+  <p class="muted">{{ t("session.meta", location=t(LOCATION_KEYS[info.location]), time=show.local_time(info.started_at, info.time_zone)) }}</p>
+  <p class="muted">{{ t("home.open_counts", exercises=page.open.exercises, sets=page.open.sets) }}</p>
+  <div class="actions actions--thumb">
+    <a class="button button--primary" id="reprendre" href="/seances/{{ info.id }}">{{ t("home.resume") }}</a>
+  </div>
 </div>
+{% else %}
+{% include "home_start_form.html" %}
+{% endif %}
 {% endblock %}

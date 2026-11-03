@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel, Field
 
@@ -20,7 +20,7 @@ from rack_overflow.services import templates
 from rack_overflow.services.templates import SlotForm, SlotView, TemplateDetail, TemplateForm
 from rack_overflow.web.auth import device_user
 from rack_overflow.web.display import Display
-from rack_overflow.web.forms import NO_ERRORS, FormErrors, MoveBody, RowId, form_errors, move_focus, row_id
+from rack_overflow.web.forms import NO_ERRORS, FormErrors, MoveBody, RowId, form_errors, move_focus, select_id
 from rack_overflow.web.rendering import render
 
 router = APIRouter()
@@ -81,16 +81,6 @@ def _engine(request: Request) -> Any:
 
 def _text(request: Request, key: str, **params: object) -> str:
     return str(request.app.state.catalog.text(key, **params))
-
-
-def _id(raw: str | None) -> int | None:
-    """An id sent as a select value: empty → None (refused by the service), not an integer → 422,
-    beyond any row id → 404."""
-    if raw is None or not raw.strip():
-        return None
-    if not raw.strip().isdigit():
-        raise HTTPException(status_code=422)
-    return row_id(int(raw))
 
 
 def _errors(request: Request, error: CatalogError, ids: dict[str, str], fallback: str) -> FormErrors:
@@ -287,7 +277,7 @@ def _slots_response(request: Request, template_id: int, **options: Any) -> HTMLR
 @router.post(LIST_PATH + "/{template_id}/blocs", response_class=HTMLResponse)
 def add_slot(request: Request, template_id: RowId, body: AddSlotBody) -> HTMLResponse:
     """Add an exercise or a menu (with its first exercise); its « Modifier » opens on the next step."""
-    exercise_id = _id(body.exercise_id)
+    exercise_id = select_id(body.exercise_id)
     label = body.label if body.kind == MENU else None
     try:
         slot_id = templates.add_slot(
@@ -335,7 +325,7 @@ def _slot_ids(slot_id: int) -> dict[str, str]:
 def update_slot(request: Request, template_id: RowId, slot_id: RowId, body: SlotBody) -> HTMLResponse:
     """Save a slot's exercise or label and its target; refused → the row stays open with its messages."""
     form = SlotForm(
-        exercise_id=_id(body.exercise_id),
+        exercise_id=select_id(body.exercise_id),
         label=body.label,
         sets=body.sets,
         reps=body.reps,
@@ -410,7 +400,7 @@ def add_option(request: Request, template_id: RowId, slot_id: RowId, body: Optio
     """Offer one more exercise in a menu; the menu stays open on its add-option select."""
     try:
         option_id = templates.add_option(
-            _engine(request), device_user(request), template_id, slot_id, _id(body.exercise_id)
+            _engine(request), device_user(request), template_id, slot_id, select_id(body.exercise_id)
         )
     except CatalogError as error:
         errors = _errors(request, error, {}, _option_add_id(slot_id))

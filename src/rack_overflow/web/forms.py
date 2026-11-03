@@ -31,6 +31,16 @@ def row_id(value: int) -> int:
     return value
 
 
+def select_id(raw: str | None) -> int | None:
+    """An id sent as text by a select or a button value: empty → None (refused by the service),
+    not an integer → 422, beyond any row id → 404."""
+    if raw is None or not raw.strip():
+        return None
+    if not raw.strip().isdigit():
+        raise HTTPException(status_code=422)
+    return row_id(int(raw))
+
+
 # A path id: an integer (else 422) that can be a row id (else 404, raised through the validator)
 RowId = Annotated[int, AfterValidator(row_id)]
 

@@ -1,0 +1,11 @@
+{# The action bar of the current item: « Suivant : … », or « Terminer la séance » on the last item. #}
+{% set following = view.next_after(view.current) %}
+{% if following is not none %}
+{% if following.row_id is not none %}
+<a class="button" href="/seances/{{ view.session.id }}?exercice={{ following.row_id }}#exercice-{{ following.row_id }}">{{ t("session.next_item", name=view.name_of(following)) }}</a>
+{% else %}
+<a class="button" href="/seances/{{ view.session.id }}?menu={{ following.menu_slot_id }}#menu-{{ following.menu_slot_id }}">{{ t("session.next_item", name=view.name_of(following)) }}</a>
+{% endif %}
+{% else %}
+<button type="button" class="button" hx-get="/seances/{{ view.session.id }}/cloture" hx-target="#fin-de-seance" hx-swap="outerHTML show:#fin-de-seance:bottom">{{ t("session.close") }}</button>
+{% endif %}

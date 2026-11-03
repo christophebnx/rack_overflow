@@ -1,0 +1,40 @@
+{# Search results of « Ajouter un exercice »: recent then all for an empty query, else ranked;
+   in change mode (change_row) the buttons change that added row instead of adding. #}
+{% from "_form_status.html" import form_status %}
+{% from "_fields.html" import oob_announce %}
+{% from "_labels.html" import CATEGORY_KEYS %}
+{% set sid = session_id %}
+{% macro result(exercise) -%}
+<li>
+  <button class="row session-result" name="exercise_id" value="{{ exercise.id }}" id="{{ 'changer-' ~ change_row ~ '-' if change_row else 'ajout-' }}{{ exercise.id }}"{% if change_row %} hx-patch="/seances/{{ sid }}/exercices/{{ change_row }}"{% else %} hx-post="/seances/{{ sid }}/exercices"{% endif %} hx-target="#seance-plan" hx-swap="outerHTML show:.session-block:top" hx-disabled-elt="this">
+    <span class="row__title">{{ exercise.name }}</span>
+    <span class="row__meta">{{ t(CATEGORY_KEYS[exercise.category]) }}{% if exercise.equipment %} · {{ exercise.equipment }}{% endif %}</span>
+  </button>
+</li>
+{%- endmacro %}
+{{ form_status() }}
+{% if results.query %}
+  {% if results.ranked %}
+  <ul class="rows">{% for exercise in results.ranked %}{{ result(exercise) }}{% endfor %}</ul>
+  {% else %}
+  <div class="empty">
+    <p class="empty__title">{{ t("exercises.no_match", query=results.query) }}</p>
+    <p class="muted">{{ t("exercises.no_match_hint") }}</p>
+  </div>
+  {% endif %}
+  {{ oob_announce(t("exercises.results", count=results.count)) }}
+{% elif results.count %}
+  {% if results.recent %}
+  <h3 class="session-add__heading">{{ t("session.recent_heading") }}</h3>
+  <ul class="rows">{% for exercise in results.recent %}{{ result(exercise) }}{% endfor %}</ul>
+  {% endif %}
+  {% if results.others %}
+  <h3 class="session-add__heading">{{ t("session.all_heading") }}</h3>
+  <ul class="rows">{% for exercise in results.others %}{{ result(exercise) }}{% endfor %}</ul>
+  {% endif %}
+{% else %}
+  <div class="empty">
+    <p class="empty__title">{{ t("exercises.empty_title") }}</p>
+    <p><a href="/exercices/nouveau">{{ t("exercises.new") }}</a></p>
+  </div>
+{% endif %}

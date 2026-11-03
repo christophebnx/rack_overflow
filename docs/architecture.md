@@ -81,7 +81,7 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Variable queries | `storage/variables` |
 | Exercise, field and alias queries | `storage/exercises` |
 | Per-user settings (`app_setting`) | `storage/app_settings` |
-| An id from a request within the database integer range (path, body), else 404 | `web/forms.RowId`, `row_id` |
+| An id from a request within the database integer range (path, body), else 404 | `web/forms.RowId`, `row_id`, `select_id` (text from a select or button) |
 | Unique-constraint guard of a write (savepoint) | `storage/db.guarded_write` |
 | Unknown or foreign row | `domain/errors.NotFoundError` |
 | Template, slot and menu-option queries | `storage/templates` |
@@ -110,6 +110,7 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Render a page or fragment | `web/rendering.render` |
 | Values in display units in pages (number + unit text) | `web/display.Display` (`show` in templates) |
 | Text of an indicative target (« 4 × 6–8 ») | `web/display.Display.target` |
+| Text of a set, local time / date of a session, volume meta (L4) | `web/display.Display.set_text`, `local_time`, `local_date`, `volume` |
 | Focus after a « Monter » / « Descendre » move, and its JSON body | `web/forms.move_focus`, `web/forms.MoveBody` |
 | Word of a core quantity (quantity → string key) | `web/display.QUANTITY_KEYS` (`show.quantity` in templates) |
 | Refused catalog input → messages per input | `web/forms.form_errors` |

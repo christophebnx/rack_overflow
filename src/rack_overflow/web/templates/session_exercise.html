@@ -1,0 +1,68 @@
+{# The current exercise block (docs/ui-spec.md "L4 — Session page"): the fragment of ✓, edit and
+   delete. Context: view (SessionView, block set), errors, edit, settings_errors, settings_saved,
+   change_errors, focus, announce. #}
+{% from "_form_status.html" import form_status %}
+{% from "_fields.html" import field_error, oob_announce %}
+{% import "_session_fields.html" as fields with context %}
+{% set b = view.block %}
+{% set sid = view.session.id %}
+{% set row = b.id %}
+{% set prefix = "exercice-" ~ row %}
+<section class="session-block" id="{{ prefix }}" aria-labelledby="{{ prefix }}-titre">
+  <h2 id="{{ prefix }}-titre">{{ b.exercise.name }}{% if b.exercise.archived %}<span class="tag">{{ t("tag.archived_m") }}</span>{% endif %}</h2>
+  {% if b.card.target and show.target(b.card.target) %}<p class="muted">{{ show.target(b.card.target) }}</p>{% endif %}
+
+  {% if not b.has_facts and (b.change_options or b.card.slot_id is none) %}
+  <details class="session-change"{% if change_errors %} open{% endif %}{% if b.card.slot_id is none %} hx-get="/seances/{{ sid }}/recherche?ligne={{ row }}" hx-trigger="toggle once" hx-target="#{{ prefix }}-changer-resultats" hx-swap="innerHTML"{% endif %}>
+    <summary class="button" id="{{ prefix }}-changer">{{ t("session.change_exercise") }}</summary>
+    <div class="session-change__body" data-request-scope>
+      {{ form_status() }}
+      {{ field_error(prefix ~ "-changer", change_errors) }}
+      <p class="muted">{{ t("session.change_intro") }}</p>
+      {% for option in b.change_options %}
+      <button class="button menu-pick__option" name="exercise_id" value="{{ option.id }}" hx-patch="/seances/{{ sid }}/exercices/{{ row }}" hx-target="#seance-plan" hx-swap="outerHTML show:.session-block:top" hx-disabled-elt="this">{{ option.name }}</button>
+      {% endfor %}
+      {% if b.card.slot_id is none %}<div class="session-change__results" id="{{ prefix }}-changer-resultats"></div>{% endif %}
+    </div>
+  </details>
+  {% endif %}
+
+  {% if b.setting_fields %}
+  <details class="session-settings"{% if settings_errors %} open{% endif %}>
+    <summary class="session-settings__summary" id="{{ prefix }}-reglages-resume">{{ t("session.settings_summary", values=fields.values_text(b.setting_fields, b.settings, b)) }}</summary>
+    {% include "session_settings.html" %}
+  </details>
+  {% endif %}
+
+  {% if b.sets %}
+  <h3 class="visually-hidden">{{ t("session.sets_heading") }}</h3>
+  <ol class="set-list">
+    {% for item in b.sets %}
+    {% set editing = edit and edit.set_id == item.id %}
+    {% set eprefix = "serie-" ~ item.id %}
+    {% set etexts = edit.texts if editing else b.set_texts(item) %}
+    {% set eerrors = edit.errors if editing else no_errors %}
+    <li class="set-row" id="{{ eprefix }}">
+      <span class="set-row__number">{{ item.number }}</span>
+      <span class="set-row__text">{{ show.set_text(item.facts, b.fields) }}{% if item.facts.type == "warmup" %}<span class="tag">{{ t("session.set_type.warmup") }}</span>{% elif item.facts.type == "rm_test" %}<span class="tag">{{ t("session.set_type.rm_test") }}</span>{% endif %}{% if item.record %}<span class="tag tag--record">{{ t("session.record") }}</span>{% endif %}</span>
+      <details class="set-row__edit"{% if editing and eerrors %} open{% endif %}>
+        <summary class="button" id="{{ eprefix }}-modifier"{% if focus == eprefix ~ "-modifier" %} autofocus{% endif %}>{{ t("action.edit") }}<span class="visually-hidden"> {{ t("session.set_named", n=item.number) }}</span></summary>
+        <form class="set-edit" hx-patch="/series/{{ item.id }}" hx-target="#{{ prefix }}" hx-swap="outerHTML" hx-disabled-elt="find button">
+          {{ form_status() }}
+          {{ fields.type_chips(b.types, edit.type if editing else item.facts.type, eprefix ~ "-type", eerrors) }}
+          {{ field_error(eprefix ~ "-serie", eerrors) }}
+          {% for f in b.fields %}{{ fields.input(f, eprefix, etexts, eerrors) }}{% endfor %}
+          <div class="actions actions--inline">
+            <button class="button button--primary" type="submit">{{ t("action.save") }}</button>
+            <button class="button button--danger" type="button" hx-delete="/series/{{ item.id }}" hx-target="#{{ prefix }}" hx-swap="outerHTML">{{ t("session.delete_set") }}</button>
+          </div>
+        </form>
+      </details>
+    </li>
+    {% endfor %}
+  </ol>
+  {% endif %}
+
+  {% include "session_set_form.html" %}
+</section>
+{{ oob_announce(announce) }}

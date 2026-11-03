@@ -49,7 +49,8 @@ def test_right_code_pairs_and_opens_home(unpaired: Watched, live_app: LiveApp) -
     page.locator("#code").fill(f"{code[:4]} {code[4:]}")
     page.get_by_role("button", name=TEXT("pairing.submit")).click()
     page.wait_for_url(live_app.url + "/")
-    expect(page.locator("h1")).to_have_text(TEXT("home.title"))
+    expect(page).to_have_title(f"{TEXT('home.title')} · {TEXT('app.name')}")
+    expect(page.locator("h1")).to_have_text(TEXT("home.start_title"))  # L4 home: start a session
     assert page.goto(live_app.url + "/") is not None
     assert page.url == live_app.url + "/"
 

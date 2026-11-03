@@ -4,9 +4,16 @@ of proposed values, unit labels. Registered as template globals by `rendering`."
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import date
+from zoneinfo import ZoneInfo
 
 from rack_overflow.domain import units
+from rack_overflow.domain.catalog import BOOL, ENUM, TEXT
+from rack_overflow.domain.indicators import Volume
+from rack_overflow.domain.sessions import FieldValue, SetFacts
 from rack_overflow.domain.templates import Target
+from rack_overflow.domain.timestamps import from_text
+from rack_overflow.services.sessions import FieldInfo
 from rack_overflow.web.locale import Catalog
 
 VALUE_SEPARATOR = " · "
@@ -18,11 +25,16 @@ QUANTITY_KEYS = {
     "duration": "quantity.duration",
     "distance": "quantity.distance",
 }
+LOAD_CATEGORIES = ("strength", "kettlebell")
+BOOL_KEYS = {1: "field.yes", 0: "field.no"}
 TYPED_UNIT_KEYS = {"weight": units.UNIT_KG, "distance": units.UNIT_KM, "duration": units.UNIT_DURATION}
 
 
 class Display:
     """Display helpers bound to one string catalog."""
+
+    CHIP_LIMIT = 12
+    """Above this many values a choice is a select instead of chips (docs/ui-spec.md "L4")."""
 
     def __init__(self, catalog: Catalog) -> None:
         self._catalog = catalog
@@ -93,3 +105,99 @@ class Display:
                 self._catalog.text("target.with_note", target=text, note=target.note) if text else target.note
             )
         return text
+
+    # --- session logging (L4, docs/ui-spec.md "L4 — Session page")
+
+    def field_value(self, field: FieldInfo, value: FieldValue) -> str:
+        """A set or setting value as read: number with unit, enum label, « Oui » / « Non », text."""
+        kind = field.field.kind
+        if kind.kind == BOOL:
+            return self._catalog.text(BOOL_KEYS.get(int(value), "field.no"))
+        if kind.kind == ENUM:
+            return field.enum_label(value)
+        if kind.kind == TEXT or not isinstance(value, int):
+            return str(value)
+        return self.value(kind.kind, value, kind.scale, field.unit)
+
+    def set_text(self, facts: SetFacts, fields: Sequence[FieldInfo]) -> str:
+        """One set as a line: « 8 x 62,5 kg », « 12 rép. », « 30:00 · 5,2 km », measures appended
+        (« · Résistance 8 »); values of fields no longer shown are left out."""
+        reps, weight = facts.value("reps"), facts.value("weight")
+        parts: list[str] = []
+        if isinstance(reps, int) and isinstance(weight, int):
+            shown = self.value(units.WEIGHT, weight)
+            parts.append(self._catalog.text("session.set.reps_weight", reps=reps, weight=shown))
+        elif isinstance(reps, int):
+            parts.append(self._catalog.text("session.set.reps", reps=reps))
+        elif isinstance(weight, int):
+            parts.append(self.value(units.WEIGHT, weight))
+        for quantity in (units.DURATION, units.DISTANCE):
+            value = facts.value(quantity)
+            if isinstance(value, int):
+                parts.append(self.value(quantity, value))
+        for field in fields:
+            value = facts.value(field.name)
+            if field.core_quantity is None and value is not None:
+                text = self.field_value(field, value)
+                parts.append(self._catalog.text("session.set.variable", label=field.label, value=text))
+        return VALUE_SEPARATOR.join(parts)
+
+    def local_time(self, utc_text: str, tz_name: str) -> str:
+        """A stored UTC timestamp as a local time in the session's zone: « 18:42 » (D-065)."""
+        return from_text(utc_text).astimezone(ZoneInfo(tz_name)).strftime("%H:%M")
+
+    def local_date(self, local_date_text: str) -> str:
+        """A session's local date `YYYY-MM-DD` as « 03/11/2026 »."""
+        day = date.fromisoformat(local_date_text)
+        return self._catalog.text(
+            "date.numeric", day=f"{day.day:02d}", month=f"{day.month:02d}", year=day.year
+        )
+
+    def elapsed(self, start_text: str, end_text: str) -> str:
+        """The compact duration between two stored timestamps: « 1 h 09 »."""
+        seconds = int((from_text(end_text) - from_text(start_text)).total_seconds())
+        return self.duration_compact(max(seconds, 0))
+
+    def volume(self, volume: Volume) -> str:
+        """The volume of an exercise as its summary reads it (docs/ui-spec.md "L4 — Session
+        summary"): load for strength and kettlebell, reps (+ load, durations) for bodyweight,
+        distance and duration for cardio, rounds and duration for intervals."""
+        parts: list[str] = []
+        load = self._catalog.text("session.summary.volume", value=self.value(units.WEIGHT, volume.load_g))
+        if volume.category in LOAD_CATEGORIES:
+            parts.append(load)
+        elif volume.category == "bodyweight":
+            if volume.reps:
+                parts.append(self._catalog.text("session.summary.reps", count=volume.reps))
+            if volume.load_g:
+                parts.append(load)
+        elif volume.category == "cardio" and volume.distance_m:
+            distance = self.value(units.DISTANCE, volume.distance_m)
+            parts.append(self._catalog.text("session.summary.distance", value=distance))
+        elif volume.category == "intervals":
+            parts.append(self._catalog.text("session.summary.rounds", count=volume.sets))
+        if volume.duration_s and volume.category in ("bodyweight", "cardio", "intervals"):
+            duration = self.duration_compact(volume.duration_s)
+            parts.append(self._catalog.text("session.summary.duration", value=duration))
+        return VALUE_SEPARATOR.join(parts)
+
+    def choices(self, field: FieldInfo, current: str) -> list[tuple[str, str]]:
+        """`(input value, text)` of a chip group: « Oui » / « Non », enum labels, or discrete
+        values in display units; a current value off the list is added, an optional field gets
+        an empty choice « — » first."""
+        kind = field.field.kind
+        if kind.kind == BOOL:
+            items = [("1", self._catalog.text("field.yes")), ("0", self._catalog.text("field.no"))]
+        elif kind.kind == ENUM:
+            items = [(value.key, value.label) for value in field.enum_values]
+        else:
+            texts = [
+                units.input_text(kind.kind, v, scale=kind.scale)
+                for v in field.field.params.discrete_values or ()
+            ]
+            items = [(text, text) for text in texts]
+        if current and current not in {value for value, _ in items}:
+            items.append((current, current))
+        if not field.field.params.required:
+            items.insert(0, ("", self._catalog.text("session.no_value")))
+        return items

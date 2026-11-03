@@ -370,3 +370,69 @@ textarea.input {
     align-items: start;
   }
 }
+
+/* ---- L4 components (docs/ui-spec.md, L4 — Components) ---- */
+
+/* Choice chips: a native radio, visually hidden but focusable, inside a 48 px label. */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--target-gap);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.chips > legend:not(.visually-hidden) {
+  width: 100%;
+  margin-bottom: var(--space-2);
+  padding: 0;
+}
+
+.chips > .field__error {
+  flex-basis: 100%;
+}
+
+.chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--target-min);
+  min-height: var(--target-min);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  cursor: pointer;
+}
+
+.chip__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  opacity: 0;
+}
+
+.chip:has(:checked) {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.chip:has(:focus-visible) {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.confirm--neutral {
+  border-color: var(--color-border);
+}

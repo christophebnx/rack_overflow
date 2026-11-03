@@ -1,0 +1,14 @@
+{# In-place confirmation of the close (docs/ui-spec.md "L4 — Session page", close). #}
+{% from "_form_status.html" import form_status %}
+<section id="fin-de-seance" class="section session-close" data-request-scope>
+  {{ form_status() }}
+  <div class="confirm confirm--neutral" role="group" aria-labelledby="fin-de-seance-titre">
+    <p class="confirm__title" id="fin-de-seance-titre">{{ t("session.close_confirm_title") }}</p>
+    <p>{{ t("session.close_confirm_text") }}</p>
+    {% if unlogged %}<p>{{ t("session.close_unlogged", count=unlogged) }}</p>{% endif %}
+    <div class="actions actions--inline">
+      <button type="button" class="button" hx-get="/seances/{{ session_id }}/cloture?annuler=1" hx-target="#fin-de-seance" hx-swap="outerHTML" autofocus>{{ t("action.cancel") }}</button>
+      <button type="button" class="button button--primary" id="terminer-confirmer" hx-post="/seances/{{ session_id }}/cloture" hx-disabled-elt="#fin-de-seance button">{{ t("session.close_confirm") }}</button>
+    </div>
+  </div>
+</section>

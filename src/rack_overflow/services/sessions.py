@@ -149,6 +149,20 @@ class RowView:
         """Optional variables folded under « Autres valeurs »."""
         return tuple(item for item in self.fields if not item.visible)
 
+    @property
+    def settings_texts(self) -> dict[str, str]:
+        """The settings as their inputs show them (display units, keys)."""
+        values = {
+            item.name: self.settings[item.field.variable_id]
+            for item in self.setting_fields
+            if item.field.variable_id in self.settings
+        }
+        return rules.raw_texts([item.field for item in self.setting_fields], values)
+
+    def set_texts(self, item: SetView) -> dict[str, str]:
+        """A set's values as its edit form shows them."""
+        return rules.raw_texts([field.field for field in self.fields], item.facts.values)
+
     def set(self, set_id: int) -> SetView | None:
         """Today's set `set_id`, None when absent."""
         return next((item for item in self.sets if item.id == set_id), None)
