@@ -160,12 +160,13 @@ L1a has no business data. The only user tasks are: open the app on the iPhone or
 - Order in the DOM: skip link → `<header>` (brand link to `/`, `aria-current="page"` on home; `{% block nav %}` empty in L1a, wrapped in `<nav aria-label>` only when a child template fills it) → `<main id="contenu" tabindex="-1">` → permanent live region `<div id="annonce" role="status" aria-live="polite" aria-atomic="true" class="visually-hidden">`, never swapped itself; later milestones fill it with `hx-swap-oob` from the server (no JavaScript).
 - `<link rel="icon" href="data:,">` so the browser never requests `/favicon.ico` (no 404 noise; `data:` is allowed by `img-src`).
 - `<title>`: key `layout.title` with `{page}` = the page title key's text.
+- Brand / content alignment at desktop width (brand at x = 24, content column at x = 88 at 1280 px) is left to L2, with the navigation: an inner header wrapper with `max-width: var(--content-max); margin: 0 auto` would line them up.
 - Navigation placement on phone (top bar or bottom bar) is left to L2, the first milestone with more than one page; the session screen (L4) owns the bottom thumb zone.
 - Confirmation dialog: not built in L1a. No destructive action exists yet, and opening a `<dialog>` needs either JavaScript beyond htmx or HTML invoker commands, whose Safari support must be checked then. The first milestone with an archive or delete action designs it.
 
 ### Home (`home.html`)
 
-Empty state only: `<h1>` « Accueil », then « Rien à afficher pour l’instant. » and « Les séances et la progression apparaîtront ici. » in muted text. No action (nothing to do yet). L4 replaces this content with "start a session".
+Empty state only: `<h1>` « Accueil », then « Rien à afficher pour l’instant. » in body text and « Les séances et la progression apparaîtront ici. » in muted text. No action (nothing to do yet). L4 replaces this content with "start a session".
 
 ### Error pages (`error.html`, one template)
 
@@ -174,7 +175,7 @@ Rendered by `web/errors.py` for a browser navigation (D-047 rejections stay JSON
 | Case | Title key | Message key | Actions |
 |---|---|---|---|
 | 404 | `error.title.not_found` | `error.not_found` | « Retour à l’accueil » (primary) |
-| 500 and any unhandled exception | `error.title.internal` | `error.internal` | « Réessayer » (primary, `href` = the current path, no query), « Retour à l’accueil » |
+| 500 and any unhandled exception | `error.title.internal` | `error.internal` | « Réessayer » (primary, `href` = the raw current path, still percent-encoded, no query), « Retour à l’accueil » |
 | 405 | `error.title.generic` | `error.method_not_allowed` | « Retour à l’accueil » (primary) |
 | any other status | `error.title.generic` | `error.<code>` when `errors.py` maps the code, else `error.generic` | « Retour à l’accueil » (primary) |
 
@@ -184,7 +185,7 @@ Phone thumb zone: at < 40rem the error page's `<main>` fills the viewport below 
 
 ### Keyboard and focus
 
-Tab order: « Aller au contenu » (visually hidden until focused, then shown top-left above the header) → brand link → nav (later) → page actions. The skip link targets `#contenu`. No autofocus on any L1a page. Focus ring: `outline: 3px solid var(--color-focus); outline-offset: 2px` on `:focus-visible` for every interactive element; never `outline: none` without this replacement.
+Tab order: « Aller au contenu » (visually hidden until focused, then shown top-left above the header) → brand link → nav (later) → page actions. The skip link targets `#contenu`. No autofocus on any L1a page. Focus ring: `outline: 3px solid var(--color-focus); outline-offset: 2px` on `:focus-visible` for every interactive element; never `outline: none` without this replacement. `<main>` is not interactive: when the skip link focuses it, it gets no ring (`main:focus { outline: none; }`).
 
 ### Components and files
 
@@ -268,3 +269,15 @@ Checks: pytest 428 passed, 12 skipped (WebKit), 4 xfailed; ruff and format clean
 7. **TO FIX** (definition of done): milestone docs commit missing (CHANGELOG, progress, root CLAUDE.md commands) — done by the orchestrator at the end.
 8. **SUGGESTION** `storage/backup.py:84`: `check_integrity` opens a possibly corrupt database through `create_engine` (WAL, creates -wal/-shm). Open it read-only, sharing the open path with `_copy_is_sound` (`:104-110`).
 9. **SUGGESTION** error codes 413/415 written twice (`web/security.py:78-88`, `web/errors.py:187-196`): keep them as constants in one module.
+
+## Fix loop 1 (developer)
+
+- 1: `domain.backups.ordered(names)` (time, then rank) is the only snapshot ordering; `newest`, `expired`, `storage.backup.list_snapshots` and `services.backups.backup_if_due` use it.
+- 2: revision `0002_variable_decimal_scale_not_null` recreates `ck_variable_decimal_scale` with `decimal_scale IS NOT NULL` (batch mode); `schema.py` matches; 0001 untouched; head is now `0002`.
+- 3: `storage.migrate` wraps `DBAPIError` and Alembic `CommandError` in `MigrationError`; `rack migrate` reports a data folder it cannot create.
+- 4: every `OSError` of `storage.backup` (mkdir, listing, unlink, atomic writer) becomes `BackupError`.
+- 5: a settings or secrets file that is not UTF-8 is a `ConfigError`.
+- 6: `/static/` responses with status >= 400 also get `Cache-Control: no-store` (extends D-047, which only required it outside `/static/`).
+- 8, partly: `check_integrity` no longer goes through `db.create_engine` (no WAL switch, no `BEGIN IMMEDIATE`) and shares `_is_sound` with the copy check. The source stays opened read-write: a read-only connection on a WAL database creates `-wal` / `-shm` and cannot remove them, which would change the data folder of a corrupt database. The fresh copy is checked read-only.
+- 9: the rejection codes are constants in `web/security.py`, reused by `web/errors.py`.
+- UI: `main:focus-visible` dropped, « Réessayer » uses `scope["raw_path"]`, the Home wording fixed, the `.actions--thumb` / `.main--message` pairing recorded in `docs/ui-spec.md`. Brand / content alignment at desktop width is deferred to L2 (see "Layout shell").
