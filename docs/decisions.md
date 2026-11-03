@@ -44,3 +44,8 @@ Code, identifiers, docs, prompts, agents, skills and commits in English. UI stri
 ## Project
 
 TODO(project): add the project's own decisions from D-012 on.
+
+## Project
+
+**D-012 — No automatic CI until V1 is done; checks run locally.**
+GitHub Actions minutes cost money, so the workflow runs only on manual dispatch (`workflow_dispatch`). Until V1 is complete, the definition of done is checked locally: tests (`not live`), ruff and duplicate-code, run by the tester and reviewer agents and by pre-commit. Once V1 is done, a minimal CI is designed (which jobs, which OS) and recorded in a new decision. Refines D-001 and D-002 (the "runs in CI" parts apply only to manual runs). Rules out: automatic runs on push or pull request, the three-OS matrix as a default. Status: approved by the user on 2026-11-03.

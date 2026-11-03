@@ -1,13 +1,13 @@
 # Rack Overflow — V1 pre-brief challenge
 
-Status: **awaiting the user's answers** (section E). **Section D (scope change, 2026-11-03) supersedes every point of sections A to C that it names.** Written by Claude Code on 2026-11-03 after reading this repository (template, agents, skills) and the Equinox Management repository (findings in the appendix of `docs/release-1.0.0-brief.md`). Nothing has been built yet.
+Status: **answers received** (section E); **seed proposal awaiting correction** (section F.2). **Section D (scope change, 2026-11-03) supersedes every point of sections A to C that it names.** Written by Claude Code on 2026-11-03 after reading this repository (template, agents, skills) and the Equinox Management repository (findings in the appendix of `docs/release-1.0.0-brief.md`). Nothing has been built yet.
 
-Once the user answers section E, the next step is to rewrite `docs/release-1.0.0-brief.md` as the approved release brief, and to write `docs/roadmap.md`, `docs/decisions.md`, `docs/architecture.md` and `docs/ui-spec.md` in one `docs` commit, then run B0 and the milestones through `/build-roadmap`.
+Once the user corrects the seeds (F.2), the next step is to rewrite `docs/release-1.0.0-brief.md` as the approved release brief, and to write `docs/roadmap.md`, `docs/decisions.md`, `docs/architecture.md` and `docs/ui-spec.md` in one `docs` commit, then run B0 and the milestones through `/build-roadmap`.
 
 ## Resume in a new session
 
 1. Read `CLAUDE.md`, `docs/release-1.0.0-brief.md` (pre-brief + Equinox appendix) and this file.
-2. Read section D first: it supersedes parts of the pre-brief and of sections A to C. Show the user the questions of section E that are still open; do not start building before they are answered.
+2. Read section D first: it supersedes parts of the pre-brief and of sections A to C. Show the user the open points of section F.2; do not start building before they are answered.
 3. Work on the session's designated branch (it plays the role of `dev`); the user merges into `main` through a pull request.
 
 ---
@@ -109,15 +109,67 @@ Once the user answers section E, the next step is to rewrite `docs/release-1.0.0
 
 ### D.3 New milestone order
 
-B0 → **L1a** (FastAPI app, Jinja2 + htmx layout, config, database, migrations, daily backup, CI, Playwright) → **L1b** (per-device auth, NAS deployment; manual steps by the user) → **L2** (catalog) → **L3** (templates) → **L4** (in-session logging, online) → **L5** (tracking) → **L6** (operations).
+B0 → **L1a** (FastAPI app, Jinja2 + htmx layout, config, database, migrations, daily backup, Playwright; no CI, D-012) → **L1b** (per-device auth, NAS deployment; manual steps by the user) → **L2** (catalog) → **L3** (templates) → **L4** (in-session logging, online) → **L5** (tracking) → **L6** (operations).
 
-## E. Questions for the user (current)
+## E. Questions for the user (answered 2026-11-03)
 
-| # | Question | Recommendation | Answer |
+| # | Question | Answer |
+|---|---|---|
+| 1 | Are the DSM reverse proxy, certificate and DynDNS already working? | Only DDNS + port forwarding today, no reverse proxy. **HTTPS is required** (the auth cookie is `Secure`; over plain HTTP the pairing code and cookie travel in clear). Recommendation: the DSM built-in reverse proxy + a Let's Encrypt certificate for the DDNS name, forwarding 443 → NAS, and `rack serve` bound to `127.0.0.1`. To set up by the user before the end of L1b (planned stop); not needed before. Alternative rejected: TLS in uvicorn (certificate renewal to script by hand). See section F.1. |
+| 2 | Seeds | Claude Code proposes three templates with classic exercises; **proposal in section F.2, awaiting the user's correction**. |
+| 3 | Remove the work / rest ratio of intervals from V1? | **Yes, removed.** Intervals indicators: number of rounds and total work duration. |
+| 4 | SQLAlchemy Core + Alembic, integer primary keys? | **Yes.** |
+| 5 | Intermediate tag 0.1.0 after L4? | **No.** Build the whole V1 (L1a to L6) in one run, one release 1.0.0. |
+| 6 | CI? | **No CI until V1 is done** (GitHub minutes cost money). Checks run locally through the tester and reviewer agents and pre-commit. The workflow is kept but runs only on manual dispatch. After V1, a minimal CI is designed. Recorded as D-012 in `docs/decisions.md`. B0's "CI green" criterion is replaced by "checks green locally". |
+
+## F. Follow-ups of the answers
+
+### F.1 HTTPS on the NAS (user steps, before the end of L1b)
+
+1. DSM → Control Panel → Security → Certificate: add a Let's Encrypt certificate for the DDNS host name (needs port 80 reachable during issuance and renewal).
+2. DSM → Control Panel → Login Portal → Advanced → Reverse Proxy: source `HTTPS`, DDNS host name, port 443 → destination `HTTP`, `localhost`, the `rack serve` port. Enable HSTS.
+3. Router: forward 443 (and 80 for the certificate) to the NAS; remove the forwarding straight to the app port.
+4. Check from the iPhone on 4G: `https://<ddns>/` answers with a valid certificate.
+
+The app reads its public host name from configuration (Host check, A.5) and trusts `X-Forwarded-Proto` only from `127.0.0.1`.
+
+### F.2 Seed proposal (awaiting correction)
+
+Exercise names in French as shown in the UI. Seeds carry core quantities only (D-019); targets are indicative. A **menu** slot offers several exercises, chosen during the session.
+
+**Salle A — Squat & poussée horizontale**
+
+| # | Slot | Exercise(s) | Target |
 |---|---|---|---|
-| 1 | Are the DSM reverse proxy, certificate and DynDNS already working? Needed by L1b (access from the iPhone), no longer blocking at start. | — | open |
-| 2 | Seeds: does the user supply the real exercise list and the content of "Salle 1", "Salle 2", "Maison", "Cardio bonus", or does Claude Code propose a list for correction? | — | open |
-| 3 | Remove the work / rest ratio of intervals from V1 (B3)? | Yes | open |
-| 4 | SQLAlchemy Core + Alembic (B2), with server-generated integer primary keys (UUIDs bring nothing without client-side creation)? | Yes | open |
-| 5 | Intermediate tag 0.1.0 after L4, to use the app at the gym before L5 and L6? | Yes | open |
-| 6 | CI on Ubuntu + macOS, without Windows? | Yes | open |
+| 1 | Squat | Squat au rack (barre) | 4 × 6–8 |
+| 2 | Poussée horizontale | Développé couché (barre) | 4 × 6–8 |
+| 3 | Menu Tirage horizontal | Rowing barre au rack · Rowing assis machine · Tirage horizontal poulie | 3 × 8–10 |
+| 4 | Menu Jambes unilatéral | Fentes haltères · Split squat bulgare · Presse à cuisses | 3 × 10 |
+| 5 | Biceps | Curl barre EZ | 3 × 10–12 |
+| 6 | Menu Gainage | Planche · Crunch poulie haute · Relevé de jambes suspendu | 3 × 30 s / 12 |
+
+**Salle B — Charnière & poussée verticale**
+
+| # | Slot | Exercise(s) | Target |
+|---|---|---|---|
+| 1 | Charnière | Soulevé de terre roumain (RDL) | 4 × 8 |
+| 2 | Poussée verticale | Développé militaire haltères | 4 × 8 |
+| 3 | Menu Tirage vertical | Tirage vertical poulie · Tractions assistées machine · Tractions | 3 × 8–10 |
+| 4 | Poussée inclinée | Développé incliné à la Smith | 3 × 8–10 |
+| 5 | Menu Ischios / fessiers | Leg curl allongé · Hip thrust à la Smith · Extension lombaire | 3 × 10–12 |
+| 6 | Menu Triceps | Extension triceps poulie · Barre au front EZ · Dips | 3 × 10–12 |
+
+**Maison — Kettlebell, barre EZ, haltères**
+
+| # | Slot | Exercise(s) | Target |
+|---|---|---|---|
+| 1 | Charnière | Kettlebell swing (charges 16 / 20 / 24 kg) | 5 × 15 |
+| 2 | Squat | Goblet squat kettlebell | 4 × 10 |
+| 3 | Menu Poussée | Pompes · Développé haltères au sol · Développé militaire kettlebell | 3 × 10 |
+| 4 | Tirage | Rowing haltère un bras | 3 × 10 / côté |
+| 5 | Menu Bras | Curl barre EZ · Curl marteau haltères · Barre au front EZ | 3 × 12 |
+| 6 | Menu Gainage | Planche · Turkish get-up kettlebell | 3 × 30 s / 3 par côté |
+
+**Catalog without template** (available through search): Vélo, Tapis de course, Rameur, Elliptique (cardio, duration + distance), Squat à la Smith, Développé couché haltères, Leg extension, Mollets debout machine.
+
+Open points for the user: equipment names as they appear at Basic-Fit Overijse; whether a fourth "Cardio" template is wanted; target ranges.
