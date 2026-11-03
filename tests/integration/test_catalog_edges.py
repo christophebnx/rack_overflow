@@ -18,6 +18,7 @@ from rack_overflow.services.exercises import ExerciseForm, FieldForm
 from rack_overflow.services.variables import VariableForm
 from rack_overflow.storage import db
 from rack_overflow.storage import schema as s
+from rack_overflow.storage.errors import NameTakenError
 
 USER = 1
 OTHER = 2
@@ -515,3 +516,34 @@ def test_search_edges(migrated_engine: Engine) -> None:
     archived = exercises.search_exercises(migrated_engine, USER, "squat", include_archived=True)
     assert [(e.id, e.archived) for e in archived] == [(ids[0], True)]
     assert exercises.search_exercises(migrated_engine, OTHER, "") == []
+
+
+# --- a name taken between the check and the write (the unique constraint decides)
+
+
+def _taken(*_args: object, **_kwargs: object) -> None:
+    raise NameTakenError("taken by a concurrent write")
+
+
+def test_exercise_create_race_is_name_taken(migrated_engine: Engine, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(exercises.queries, "insert", _taken)
+    with pytest.raises(CatalogError) as refused:
+        new_exercise(migrated_engine, "Squat")
+    assert [(p.field, p.code) for p in refused.value.problems] == [("name", "name_taken")]
+
+
+def test_exercise_update_race_is_name_taken(migrated_engine: Engine, monkeypatch: pytest.MonkeyPatch) -> None:
+    squat = new_exercise(migrated_engine, "Squat")
+    monkeypatch.setattr(exercises.queries, "update", _taken)
+    with pytest.raises(CatalogError) as refused:
+        exercises.update(migrated_engine, USER, squat, ExerciseForm("Squat avant", "strength", "gym"))
+    assert [(p.field, p.code) for p in refused.value.problems] == [("name", "name_taken")]
+    assert exercises.get_detail(migrated_engine, USER, squat).draft.name == "Squat"
+
+
+def test_variable_create_race_is_name_taken(migrated_engine: Engine, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(variables.queries, "insert", _taken)
+    with pytest.raises(CatalogError) as refused:
+        variables.create(migrated_engine, USER, VariableForm("Tenue", "int", "set"))
+    assert [(p.field, p.code) for p in refused.value.problems] == [("label", "name_taken")]
+    assert variables.list_variables(migrated_engine, USER) == []
