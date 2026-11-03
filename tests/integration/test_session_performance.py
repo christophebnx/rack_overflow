@@ -1,5 +1,10 @@
 """Set confirmation time on one year of simulated history (roadmap L4 "Done when", D-066): the
-full request through the TestClient (paired device, every middleware), median < 100 ms."""
+full request through the TestClient (paired device, every middleware), median < 100 ms.
+
+It runs in the default parallel invocation: the median of 30 confirmations ignores the odd request
+slowed by a disk flush or a busy worker (measured about 15-20 ms under `-n auto`), so no
+per-request maximum is asserted (L4 fix loop 2). To time it alone:
+`uv run pytest -q tests/integration/test_session_performance.py`."""
 
 from __future__ import annotations
 
@@ -33,7 +38,6 @@ EXERCISES = (
 )
 CONFIRMATIONS = 30
 MEDIAN_LIMIT_S = 0.100
-EACH_LIMIT_S = 0.250
 START = datetime(2025, 11, 3, 17, 0, tzinfo=UTC)
 
 
@@ -110,4 +114,3 @@ def test_set_confirmation_median_below_100_ms(client: TestClient, migrated_engin
     assert total >= 5000 + CONFIRMATIONS + 1
     median = statistics.median(timings)
     assert median < MEDIAN_LIMIT_S, f"median {median * 1000:.1f} ms"
-    assert max(timings) < EACH_LIMIT_S, f"slowest {max(timings) * 1000:.1f} ms"
