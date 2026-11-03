@@ -1,6 +1,8 @@
 """The installed entry points, run as a user runs them (a subprocess, not `main([...])`)."""
 
 import http.client
+import json
+import re
 import socket
 import subprocess
 import sys
@@ -35,11 +37,11 @@ def _free_port() -> int:
         return sock.getsockname()[1]
 
 
-def _get_home(port: int, deadline: float) -> int:
+def _get_home(port: int, deadline: float, cookie: str = "") -> int:
     while True:
         try:
             connection = http.client.HTTPConnection("127.0.0.1", port, timeout=1)
-            connection.request("GET", "/", headers={"Accept": "text/html"})
+            connection.request("GET", "/", headers={"Accept": "text/html", "Cookie": cookie})
             return connection.getresponse().status
         except OSError:
             if time.monotonic() > deadline:
@@ -47,6 +49,20 @@ def _get_home(port: int, deadline: float) -> int:
             time.sleep(0.1)
         finally:
             connection.close()
+
+
+def _pair(port: int, code: str) -> str:
+    """Send the pairing code as the page does (JSON, htmx) and return the device cookie pair."""
+    connection = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+    try:
+        body = json.dumps({"code": code})
+        headers = {"Content-Type": "application/json", "HX-Request": "true"}
+        connection.request("POST", "/appairage", body=body, headers=headers)
+        response = connection.getresponse()
+        assert response.status == 200
+        return response.getheader("set-cookie", "").split(";", 1)[0]
+    finally:
+        connection.close()
 
 
 def test_serve_answers_the_home_page(settings_file: Path) -> None:
@@ -61,7 +77,11 @@ def test_serve_answers_the_home_page(settings_file: Path) -> None:
         stderr=subprocess.PIPE,
     )
     try:
-        assert _get_home(port, time.monotonic() + 20) == 200
+        assert _get_home(port, time.monotonic() + 20) == 303  # unpaired: sent to the pairing page
+        added = run_cli("device", "add", "test", "--config", str(settings_file))
+        code = re.search(r"pairing code (\d{4} \d{4})", added.stdout)
+        assert code is not None, added.stderr
+        assert _get_home(port, time.monotonic() + 20, _pair(port, code[1])) == 200
     finally:
         server.terminate()
         server.communicate(timeout=10)

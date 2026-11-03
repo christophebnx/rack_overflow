@@ -42,9 +42,15 @@ class Watched:
 
 
 @pytest.fixture(params=[(w, s) for w in WIDTHS for s in SCHEMES], ids=lambda p: f"{p[0]}px-{p[1]}")
-def watched(request: pytest.FixtureRequest, browser: Browser, live_server: str) -> Iterator[Watched]:
+def watched(
+    request: pytest.FixtureRequest,
+    browser: Browser,
+    live_server: str,
+    device_cookies: list[dict[str, object]],
+) -> Iterator[Watched]:
     width, scheme = request.param
     context = browser.new_context(viewport={"width": width, "height": 800}, color_scheme=scheme)
+    context.add_cookies(device_cookies)  # type: ignore[arg-type]
     yield Watched(context.new_page(), live_server, scheme)
     context.close()
 

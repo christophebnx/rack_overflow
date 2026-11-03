@@ -64,6 +64,7 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Daily backup in the server | `web/scheduler` |
 | Build the web app | `web/app.create_app` |
 | HTTP request checks and security headers | `web/security.SecurityMiddleware` |
+| Request authentication by device and the device cookie | `web/auth` |
 | User-facing strings | `web/locale.Catalog` (`web/locales/fr.json`) |
 | Render a page or fragment | `web/rendering.render` |
 | HTTP error → error page or JSON code | `web/errors` |

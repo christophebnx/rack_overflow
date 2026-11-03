@@ -29,10 +29,10 @@ from rack_overflow.services import backups, devices
 from rack_overflow.storage import db, migrate
 from rack_overflow.storage.errors import MigrationError, StorageError
 from rack_overflow.web.app import create_app
+from rack_overflow.web.auth import PAIRING_PATH
 
 PROG = "rack"
 DEFAULT_CONFIG = Path("config.toml")
-PAIRING_PATH = "/appairage"
 NEVER = "-"
 
 Handler = Callable[[Settings, argparse.Namespace], None]

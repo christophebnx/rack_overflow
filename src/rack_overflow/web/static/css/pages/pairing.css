@@ -1,0 +1,28 @@
+/* Pairing (docs/ui-spec.md, L1b — Pairing). */
+.pairing {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: var(--text-max);
+}
+
+.pairing-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 24rem;
+  margin-top: var(--space-6);
+}
+
+.input--code {
+  font-size: var(--text-2xl);
+  line-height: var(--leading-2xl);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+}
+
+@media (max-width: 39.999rem) {
+  .pairing-form > .button {
+    width: 100%;
+  }
+}

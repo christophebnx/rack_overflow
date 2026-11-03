@@ -12,8 +12,10 @@ from fastapi.testclient import TestClient
 from sqlalchemy.engine import Engine
 
 from rack_overflow.config import Settings, load_settings
+from rack_overflow.services import devices
 from rack_overflow.storage import db, migrate
 from rack_overflow.web.app import create_app
+from rack_overflow.web.auth import COOKIE_NAME
 
 FIXED_NOW = datetime(2026, 11, 3, 18, 4, 5, tzinfo=UTC)
 
@@ -89,9 +91,24 @@ def migrated_engine(settings: Settings) -> Iterator[Engine]:
     engine.dispose()
 
 
+def pair_device(engine: Engine, name: str = "test", now: datetime = FIXED_NOW) -> str:
+    """Add a device and pair it through the service; return its token (the cookie value)."""
+    code = devices.add_device(engine, name, now).code
+    token = devices.pair(engine, code, now).token
+    assert token is not None
+    return token
+
+
 @pytest.fixture
-def client(settings: Settings, migrated_engine: Engine) -> Iterator[TestClient]:
-    """A TestClient on the app (host `testserver`, fixed clock, no backup scheduler)."""
+def unpaired_client(settings: Settings, migrated_engine: Engine) -> Iterator[TestClient]:
+    """A TestClient on the app (host `testserver`, fixed clock, no backup scheduler), no device cookie."""
     app = create_app(settings, migrated_engine, clock=lambda: FIXED_NOW, run_scheduler=False)
     with TestClient(app) as test_client:
         yield test_client
+
+
+@pytest.fixture
+def client(unpaired_client: TestClient, migrated_engine: Engine) -> TestClient:
+    """`unpaired_client` carrying the cookie of a device paired at the fixed clock (D-049)."""
+    unpaired_client.cookies.set(COOKIE_NAME, pair_device(migrated_engine))
+    return unpaired_client

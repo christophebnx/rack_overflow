@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 # HTTP status -> stable English error code (JSON answers)
 CODES: dict[int, str] = {
     400: "bad_request",
+    401: "not_paired",
     403: "forbidden",
     404: "not_found",
     405: "method_not_allowed",
@@ -32,6 +33,7 @@ CODES: dict[int, str] = {
 # error code -> message key in the catalog (explicit: no dynamic key lookup)
 MESSAGE_KEYS: dict[str, str] = {
     "not_found": "error.not_found",
+    "not_paired": "error.not_paired",
     "internal": "error.internal",
     "method_not_allowed": "error.method_not_allowed",
     PAYLOAD_TOO_LARGE: "error.payload_too_large",

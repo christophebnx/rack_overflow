@@ -13,16 +13,20 @@ import sys
 import threading
 import time
 from collections.abc import Iterator
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 import uvicorn
 from playwright.sync_api import Browser, BrowserType, Playwright, sync_playwright
+from sqlalchemy.engine import Engine
 
 from rack_overflow.config import load_settings
+from rack_overflow.services import devices
 from rack_overflow.storage import db, migrate
 from rack_overflow.web.app import create_app
+from rack_overflow.web.auth import COOKIE_NAME
 
 ENGINES = ("chromium", "webkit")
 REQUIRE_BROWSER = "RACK_REQUIRE_BROWSER"
@@ -61,9 +65,23 @@ def _free_port() -> int:
         return sock.getsockname()[1]
 
 
+@dataclass(frozen=True)
+class LiveApp:
+    """The served app: its base URL and the engine on its database."""
+
+    url: str
+    engine: Engine
+
+
 @pytest.fixture(scope="session")
-def live_server(tmp_path_factory: pytest.TempPathFactory) -> Iterator[str]:
-    """Base URL of the app served by uvicorn on a free loopback port, on a temp migrated database."""
+def live_server(live_app: LiveApp) -> str:
+    """Base URL of the live app."""
+    return live_app.url
+
+
+@pytest.fixture(scope="session")
+def live_app(tmp_path_factory: pytest.TempPathFactory) -> Iterator[LiveApp]:
+    """The app served by uvicorn on a free loopback port, on a temp migrated database."""
     folder = tmp_path_factory.mktemp("live")
     settings_path = folder / "settings.toml"
     settings_path.write_text(SERVER_SETTINGS.format(port=_free_port()), encoding="utf-8")
@@ -81,14 +99,18 @@ def live_server(tmp_path_factory: pytest.TempPathFactory) -> Iterator[str]:
         if time.monotonic() > deadline or not thread.is_alive():
             pytest.fail("live server did not start")
         time.sleep(0.02)
-    yield f"http://127.0.0.1:{settings.server.port}"
+    yield LiveApp(f"http://127.0.0.1:{settings.server.port}", engine)
     server.should_exit = True
     thread.join(timeout=10)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def playwright() -> Iterator[Playwright]:
-    """The Playwright driver, pointed at the browsers folder recorded at start-up."""
+    """The Playwright driver, pointed at the browsers folder recorded at start-up.
+
+    Module scope: while the sync driver runs, its event loop is the running loop of the main
+    thread, so `asyncio.run` in another module's test on the same worker would fail.
+    """
     previous = os.environ.get(BROWSERS_PATH_VARIABLE)
     os.environ[BROWSERS_PATH_VARIABLE] = _BROWSERS["path"]  # read by the driver subprocess at start
     try:
@@ -107,7 +129,7 @@ def _skip_or_fail(message: str) -> None:
     pytest.skip(message)
 
 
-@pytest.fixture(scope="session", params=ENGINES)
+@pytest.fixture(scope="module", params=ENGINES)
 def browser(request: pytest.FixtureRequest, playwright: Playwright) -> Iterator[Browser]:
     """One browser per engine; skipped when the engine is not installed."""
     engine: BrowserType = getattr(playwright, request.param)
@@ -120,3 +142,17 @@ def browser(request: pytest.FixtureRequest, playwright: Playwright) -> Iterator[
         raise
     yield launched
     launched.close()
+
+
+def pairing_code(live_app: LiveApp, name: str) -> str:
+    """Add a device to the live app's database and return its pairing code."""
+    return devices.add_device(live_app.engine, name, datetime.now(UTC)).code
+
+
+@pytest.fixture(scope="session")
+def device_cookies(live_app: LiveApp) -> list[dict[str, object]]:
+    """Playwright cookies of a device paired through the service, for a paired browser context."""
+    token = devices.pair(live_app.engine, pairing_code(live_app, "e2e"), datetime.now(UTC)).token
+    assert token is not None
+    url = live_app.url + "/"
+    return [{"name": COOKIE_NAME, "value": token, "url": url, "httpOnly": True, "sameSite": "Strict"}]

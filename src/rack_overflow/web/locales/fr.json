@@ -20,5 +20,18 @@
   "error.forbidden_origin": "Demande refusée : elle ne provient pas de cette application.",
   "error.unsupported_media_type": "Format de demande non pris en charge.",
   "error.payload_too_large": "Demande trop volumineuse.",
-  "error.not_saved": "Non enregistré, réessayer"
+  "error.not_saved": "Non enregistré, réessayer",
+  "pairing.title": "Appairer cet appareil",
+  "pairing.intro": "Pour utiliser Rack Overflow ici, saisissez le code à 8 chiffres donné par « rack device add » sur le serveur.",
+  "pairing.code_label": "Code d’appairage",
+  "pairing.code_hint": "8 chiffres, valable 10 minutes.",
+  "pairing.submit": "Appairer",
+  "pairing.wrong_code": "Code incorrect. Vérifiez les 8 chiffres et réessayez.",
+  "pairing.wrong_code_remaining": "Code incorrect. Essais restants : {remaining}.",
+  "pairing.code_expired": "Ce code n’est plus valable. Générez-en un nouveau sur le serveur.",
+  "pairing.too_many_attempts": "Trop d’essais : ce code est bloqué. Générez-en un nouveau sur le serveur.",
+  "pairing.paired": "Cet appareil est appairé.",
+  "pairing.already_paired": "Cet appareil est déjà appairé.",
+  "pairing.open_app": "Ouvrir l’application",
+  "error.not_paired": "Cet appareil n’est pas appairé."
 }

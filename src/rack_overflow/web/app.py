@@ -14,9 +14,10 @@ from sqlalchemy.engine import Engine
 
 from rack_overflow.config import Settings
 from rack_overflow.web import errors, scheduler
+from rack_overflow.web.auth import DeviceAuthMiddleware
 from rack_overflow.web.locale import load_catalog
 from rack_overflow.web.rendering import create_environment
-from rack_overflow.web.routes import home
+from rack_overflow.web.routes import home, pairing
 from rack_overflow.web.security import SecurityMiddleware
 
 WEB = Path(__file__).resolve().parent
@@ -27,7 +28,8 @@ CATALOG = WEB / "locales" / "fr.json"
 def create_app(
     settings: Settings, engine: Engine, *, clock: Callable[[], datetime], run_scheduler: bool = True
 ) -> FastAPI:
-    """Build the app: static files, routes, error handling, security middleware (outermost), lifespan."""
+    """Build the app: static files, routes, lifespan, and middlewares from the outside in:
+    security checks, unhandled errors, device authentication (deny by default)."""
 
     @contextlib.asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -51,6 +53,9 @@ def create_app(
     app.state.templates = create_environment(catalog)
     app.mount("/static", StaticFiles(directory=STATIC), name="static")
     app.include_router(home.router)
+    app.include_router(pairing.router)
+    # Starlette: the last middleware added is the outermost
+    app.add_middleware(DeviceAuthMiddleware, engine=engine, clock=clock, https=settings.server.https)
     errors.install(app)
     app.add_middleware(
         SecurityMiddleware, public_host=settings.server.public_host, https=settings.server.https
