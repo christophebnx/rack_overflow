@@ -77,13 +77,22 @@ def _exercises_step(connection: sa.Connection, user_id: int) -> int:
 STEPS: dict[int, Step] = {1: _exercises_step}
 
 
+def _stored_version(connection: sa.Connection, user_id: int) -> int:
+    """The user's seed version (0 when never seeded); an unreadable one raises `StorageError`."""
+    stored = app_settings.get(connection, user_id, VERSION_KEY)
+    if stored is None:
+        return 0
+    if not (stored.isascii() and stored.isdigit()):
+        raise StorageError(f"unreadable {VERSION_KEY}: {stored!r}")
+    return int(stored)
+
+
 def seed_catalog(engine: Engine, user_id: int, steps: Mapping[int, Step] = STEPS) -> int:
     """Run the seed steps above the user's stored version, in one transaction; the number of
     exercises created."""
     created = 0
     with engine.begin() as connection:
-        stored = app_settings.get(connection, user_id, VERSION_KEY)
-        version = int(stored) if stored is not None and stored.isdigit() else 0
+        version = _stored_version(connection, user_id)
         pending = sorted(step for step in steps if step > version)
         for step in pending:
             created += steps[step](connection, user_id)

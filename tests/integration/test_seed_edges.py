@@ -13,6 +13,7 @@ from rack_overflow.services import exercises, seed
 from rack_overflow.services.exercises import ExerciseForm
 from rack_overflow.storage import app_settings, db
 from rack_overflow.storage import schema as s
+from rack_overflow.storage.errors import StorageError
 
 USER = 1
 
@@ -38,7 +39,7 @@ def set_version(engine: Engine, value: str) -> None:
 def test_three_migrates_seed_once(settings_file: Path, capsys: pytest.CaptureFixture[str]) -> None:
     for _ in range(3):
         assert main(["migrate", "--config", str(settings_file)]) == 0
-    assert capsys.readouterr().err.count("seeded") == 1
+    assert capsys.readouterr().out.count("seeded") == 1
     engine = db.create_engine(settings_file.parent / "data" / "rack.sqlite")
     try:
         assert counts(engine)[0] == 41
@@ -94,13 +95,14 @@ def test_a_version_above_every_step_seeds_nothing(migrated_engine: Engine) -> No
 
 
 @pytest.mark.parametrize("garbage", ["", "abc", "-1", "1.0"])
-def test_an_unreadable_version_reruns_without_duplicates(migrated_engine: Engine, garbage: str) -> None:
+def test_an_unreadable_version_is_refused_and_changes_nothing(migrated_engine: Engine, garbage: str) -> None:
     seed.seed_catalog(migrated_engine, USER)
     before = counts(migrated_engine)
     set_version(migrated_engine, garbage)
-    assert seed.seed_catalog(migrated_engine, USER) == 0
+    with pytest.raises(StorageError, match=r"seed\.version"):
+        seed.seed_catalog(migrated_engine, USER)
     assert counts(migrated_engine) == before
-    assert stored_version(migrated_engine) == "1"
+    assert stored_version(migrated_engine) == garbage
 
 
 def test_user_changes_survive_a_rerun(migrated_engine: Engine) -> None:

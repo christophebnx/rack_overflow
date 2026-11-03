@@ -135,9 +135,10 @@ def test_invalid_seed_data_rolls_back(migrated_engine: Engine, monkeypatch: pyte
 
 def test_rack_migrate_seeds_once(settings_file: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["migrate", "--config", str(settings_file)]) == 0
-    assert capsys.readouterr().err == "seeded 41 exercises\n"
+    first = capsys.readouterr()
+    assert first.out.endswith("\nseeded 41 exercises\n") and first.err == ""
     assert main(["migrate", "--config", str(settings_file)]) == 0
-    assert capsys.readouterr().err == ""
+    assert "seeded" not in capsys.readouterr().out
     engine = db.create_engine(settings_file.parent / "data" / "rack.sqlite")
     try:
         assert counts(engine)[0] == 41

@@ -15,9 +15,9 @@ def test_migrate_creates_the_database_and_is_idempotent(
     database = settings_file.parent / "data" / "rack.sqlite"
     assert main(["migrate", "--config", str(settings_file)]) == 0
     first = capsys.readouterr().out
-    assert first == f"database {database} at revision 0002\n"
+    assert first.splitlines()[0] == f"database {database} at revision 0002"
     assert main(["migrate", "--config", str(settings_file)]) == 0
-    assert capsys.readouterr().out == first
+    assert capsys.readouterr().out == f"database {database} at revision 0002\n"
 
 
 def test_missing_settings_file_exits_1(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

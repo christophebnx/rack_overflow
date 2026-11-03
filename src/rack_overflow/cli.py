@@ -79,7 +79,7 @@ def run_migrate(settings: Settings, args: argparse.Namespace) -> None:
     finally:
         engine.dispose()
     if created:
-        print(f"seeded {created} exercises", file=sys.stderr)
+        print(f"seeded {created} exercises")
 
 
 def run_backup(settings: Settings, args: argparse.Namespace) -> None:
