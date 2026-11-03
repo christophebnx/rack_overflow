@@ -33,6 +33,7 @@ The packages `web/` and `services/` and the database part of `storage/` are crea
 |---|---|---|
 | `domain/` | Pure business logic: models, rules, validation. No I/O, no clock, no environment (D-003). | nothing |
 | `storage/` | File system and persistence; the single atomic writer. | `domain` |
+| `services/` | Business operations, one use case each, shared by the CLI and the web layer. | `domain`, `storage` |
 | `config.py` | Load and validate the settings file and the secrets file beside it, once (D-044). | `domain` |
 | `cli.py` | Command-line entry point: parses arguments, calls the layers, maps errors to exit codes (D-004). | everything |
 
@@ -45,13 +46,16 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Responsibility | Implementation |
 |---|---|
 | Base class of business errors | `domain/errors.DomainError` |
-| Write a file atomically (temp + fsync + rename) | `storage/files.atomic_write` |
+| Write a file atomically (temp + fsync + rename) | `storage/files.atomic_write` (bytes), `storage/files.atomic_produce` (from a writer) |
 | Map an error to a CLI exit code and message | `cli.main` |
 | Load settings and secrets | `config.load_settings` |
 | Allowed values of enumerated columns | `domain/vocabulary` |
 | Open the database with the project pragmas | `storage/db.create_engine` |
 | Database schema | `storage/schema.metadata` |
 | Apply / inspect migrations | `storage/migrate` |
+| Snapshot naming, due-ness, retention | `domain/backups` |
+| Take, list and prune database snapshots | `storage/backup` |
+| Backup operation (snapshot then prune, or only when due) | `services/backups` |
 | Check a commit message | `tools/check_commit_message.problems` |
 | Block secrets, protected folders, commits and pushes on `main` (Claude Code) | `.claude/hooks/guard_paths.py` |
 | Format and lint-fix an edited file (Claude Code) | `.claude/hooks/format.py` |

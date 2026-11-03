@@ -1,0 +1,53 @@
+from datetime import UTC, datetime, timedelta, timezone
+
+import pytest
+
+from rack_overflow.domain import backups
+
+NOW = datetime(2026, 11, 3, 18, 4, 5, tzinfo=UTC)
+
+
+def test_snapshot_name_in_utc() -> None:
+    paris = NOW.astimezone(timezone(timedelta(hours=1)))
+    assert backups.snapshot_name(paris, []) == "rack-20261103T180405Z.sqlite"
+
+
+def test_snapshot_name_collisions() -> None:
+    first = backups.snapshot_name(NOW, [])
+    second = backups.snapshot_name(NOW, [first])
+    third = backups.snapshot_name(NOW, [first, second])
+    assert (second, third) == ("rack-20261103T180405Z_02.sqlite", "rack-20261103T180405Z_03.sqlite")
+
+
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        ("rack-20261103T180405Z.sqlite", NOW),
+        ("rack-20261103T180405Z_02.sqlite", NOW),
+        ("rack-20261399T180405Z.sqlite", None),
+        (".tmp-rack-20261103T180405Z.sqlite-ab12", None),
+        ("rack-20261103T180405Z.sqlite.corrupt-20261104T000000Z", None),
+        ("notes.txt", None),
+    ],
+)
+def test_parse_snapshot_time(name: str, expected: datetime | None) -> None:
+    assert backups.parse_snapshot_time(name) == expected
+
+
+def test_is_due() -> None:
+    assert backups.is_due(None, NOW)
+    assert not backups.is_due(NOW - timedelta(hours=23, minutes=59), NOW)
+    assert backups.is_due(NOW - timedelta(hours=24), NOW)
+
+
+def test_expired_keeps_recent_and_ignores_foreign_names() -> None:
+    names = [backups.snapshot_name(NOW - timedelta(days=day), []) for day in range(40)]
+    foreign = [".tmp-x", "rack-x.sqlite.corrupt-1", "readme.txt"]
+    gone = backups.expired(names + foreign, NOW, 30)
+    assert gone == sorted(names[31:])
+
+
+def test_expired_never_removes_the_newest() -> None:
+    old = [backups.snapshot_name(NOW - timedelta(days=day), []) for day in (100, 200)]
+    assert backups.expired(old, NOW, 30) == [old[1]]
+    assert backups.newest([*old, "junk"]) == old[0]

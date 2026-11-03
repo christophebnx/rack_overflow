@@ -18,6 +18,7 @@ PACKAGE = Path(__file__).resolve().parents[2] / "src" / PACKAGE_NAME
 ALLOWED: dict[str, set[str]] = {
     "domain": set(),
     "storage": {"domain"},
+    "services": {"domain", "storage"},
 }
 # top-level module -> project packages / modules it may import (`cli` is unrestricted)
 MODULE_ALLOWED: dict[str, set[str]] = {
