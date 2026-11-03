@@ -1,0 +1,31 @@
+{# Progression index (docs/ui-spec.md "L5 — Progress index"). Context: items (ProgressItem). #}
+{% extends "base.html" %}
+{% from "_labels.html" import CATEGORY_KEYS %}
+{% block nav %}{% include "_nav.html" %}{% endblock %}
+{% block styles %}<link rel="stylesheet" href="/static/css/pages/catalog.css"><link rel="stylesheet" href="/static/css/pages/progress.css">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ t("progress.title") }}</h1>
+  <a class="button" href="/reglages">{{ t("progress.settings_link") }}</a>
+</div>
+{% if items %}
+<ul class="rows progress-list">
+  {% for item in items %}
+  <li>
+    <a class="row progress-item" href="/progression/{{ item.exercise.id }}">
+      <span class="row__title progress-item__name">{{ item.exercise.name }}{% if item.exercise.archived %}<span class="tag">{{ t("tag.archived_m") }}</span>{% endif %}</span>
+      <span class="row__meta progress-item__category">{{ t(CATEGORY_KEYS[item.exercise.category]) }}<span class="progress-item__sep"> · </span></span>
+      <span class="row__meta progress-item__date">{{ show.local_date(item.last_date) }}<span class="progress-item__sep"> · </span></span>
+      <span class="row__meta progress-item__count">{{ t("progress.item_sessions", count=item.session_count) }}</span>
+    </a>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<div class="empty">
+  <p class="empty__title">{{ t("progress.empty_title") }}</p>
+  <p class="muted">{{ t("progress.empty_text") }}</p>
+  <div class="actions"><a class="button" href="/">{{ t("home.start_title") }}</a></div>
+</div>
+{% endif %}
+{% endblock %}

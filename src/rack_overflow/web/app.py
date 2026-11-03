@@ -22,6 +22,7 @@ from rack_overflow.web.routes import (
     history,
     home,
     pairing,
+    progress,
     session_templates,
     sessions,
     variables,
@@ -67,6 +68,7 @@ def create_app(
     app.include_router(session_templates.router)
     app.include_router(sessions.router)
     app.include_router(history.router)
+    app.include_router(progress.router)
     # Starlette: the last middleware added is the outermost
     app.add_middleware(DeviceAuthMiddleware, engine=engine, clock=clock, https=settings.server.https)
     errors.install(app)

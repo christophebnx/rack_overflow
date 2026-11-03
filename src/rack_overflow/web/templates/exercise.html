@@ -4,6 +4,7 @@
 {% block content %}
 <div class="page-head">
   <h1><span id="exercice-titre">{{ detail.draft.name }}</span><span id="exercice-etat">{% if detail.archived %}<span class="tag">{{ t("tag.archived_m") }}</span>{% endif %}</span></h1>
+  <a class="button" href="/progression/{{ detail.id }}">{{ t("progress.link") }}</a>
 </div>
 <div class="exercise-detail">
   <section class="section exercise-detail__info" aria-labelledby="exercice-infos-titre">

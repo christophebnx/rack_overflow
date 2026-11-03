@@ -1,0 +1,12 @@
+{# Settings (docs/ui-spec.md "L5 — Settings"): the 1RM formula. #}
+{% extends "base.html" %}
+{% block nav %}{% include "_nav.html" %}{% endblock %}
+{% block styles %}<link rel="stylesheet" href="/static/css/pages/progress.css">{% endblock %}
+{% block content %}
+<h1>{{ t("settings.title") }}</h1>
+<section class="section settings" aria-labelledby="formule-titre">
+  <h2 id="formule-titre">{{ t("settings.formula_heading") }}</h2>
+  {% include "settings_formula.html" %}
+</section>
+<div class="actions"><a class="button" href="/progression">{{ t("progress.link") }}</a></div>
+{% endblock %}

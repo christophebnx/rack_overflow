@@ -1,0 +1,292 @@
+/* Progress pages and settings (docs/ui-spec.md, L5 — Progress index, Progress of an exercise,
+   Settings). */
+.progress-head {
+  margin-top: var(--space-1);
+}
+
+@media (min-width: 40rem) {
+  .progress-item {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) 7rem 8rem;
+    gap: var(--space-4);
+    align-items: baseline;
+  }
+
+  .progress-item__sep {
+    display: none;
+  }
+
+  .progress-item__count {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+}
+
+@media (max-width: 39.999rem) {
+  .progress-item .row__meta {
+    display: inline;
+  }
+
+  .progress-item__name {
+    display: block;
+  }
+}
+
+@media (min-width: 64rem) {
+  .progress {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    gap: var(--space-8);
+    align-items: start;
+  }
+}
+
+/* RM rows: the value on the first line, origin, estimate and flag under it. */
+.rm-rows {
+  margin-top: var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.rm-row {
+  padding: var(--space-3) 0;
+}
+
+.rm-row + .rm-row {
+  border-top: 1px solid var(--color-divider);
+}
+
+.rm-row__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.rm-row__label {
+  font-weight: var(--weight-semibold);
+}
+
+.rm-row__value {
+  font-size: var(--text-lg);
+  line-height: var(--leading-lg);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.rm-row__line {
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+}
+
+.rm-flag {
+  margin-top: var(--space-2);
+  padding-inline: var(--space-3);
+  border-left: 3px solid var(--color-accent);
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.rm-formula {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.rm-add {
+  margin-top: var(--space-3);
+}
+
+.rm-add__summary {
+  list-style: none;
+}
+
+.rm-add__summary::-webkit-details-marker {
+  display: none;
+}
+
+.rm-add > .form {
+  margin-top: var(--space-4);
+}
+
+@media (max-width: 39.999rem) {
+  .rm-add__summary {
+    width: 100%;
+  }
+}
+
+.rm-measure {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+}
+
+.rm-measure__text {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Chart: the box is sized by CSS; Chart.js fills it (no inline style in templates). */
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin-top: var(--space-3);
+  padding: 0;
+  font-size: var(--text-sm);
+  list-style: none;
+}
+
+.chart-legend__item::before {
+  margin-right: var(--space-1);
+}
+
+.chart-legend__item--1::before {
+  content: "●" / "";
+  color: var(--chart-1);
+}
+
+.chart-legend__item--2::before {
+  content: "◆" / "";
+  color: var(--chart-2);
+}
+
+.chart-legend__item--3::before {
+  content: "■" / "";
+  color: var(--chart-3);
+}
+
+.chart-legend__item--4::before {
+  content: "▲" / "";
+  color: var(--chart-4);
+}
+
+.chart-legend__item--5::before {
+  content: "✕" / "";
+  color: var(--chart-5);
+}
+
+.chart-legend__item--6::before {
+  content: "★" / "";
+  color: var(--chart-6);
+}
+
+.chart-figure {
+  margin: var(--space-3) 0 0;
+}
+
+.chart {
+  position: relative;
+  height: 15rem;
+  font-size: var(--text-sm);
+}
+
+@media (min-width: 64rem) {
+  .chart {
+    height: 20rem;
+  }
+}
+
+.chart__error {
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.chart-figure > figcaption {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.chart-data {
+  margin-top: var(--space-3);
+}
+
+.chart-data__summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--target-min);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  list-style: none;
+}
+
+.chart-data__summary::-webkit-details-marker {
+  display: none;
+}
+
+.chart-data__summary::before {
+  content: "▸" / "";
+}
+
+.chart-data[open] > .chart-data__summary::before {
+  content: "▾" / "";
+}
+
+.data-table td > .inline-link {
+  min-height: var(--target-min);
+}
+
+/* Single records: label, then value and date link. */
+.records {
+  margin-top: var(--space-4);
+}
+
+.records__item {
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--color-divider);
+}
+
+.records__item > dd {
+  margin: 0;
+}
+
+.records__value {
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (min-width: 40rem) {
+  .records__item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 16rem;
+    gap: var(--space-4);
+    align-items: center;
+  }
+
+  .records__item > dd {
+    display: grid;
+    grid-template-columns: 8rem 8rem;
+    align-items: center;
+  }
+}
+
+/* Settings: a formula radio row, name then expression. */
+.settings {
+  max-width: var(--text-max);
+}
+
+.formula-choice {
+  align-items: flex-start;
+  padding: var(--space-2) 0;
+}
+
+.formula-choice > input {
+  margin-top: 0.15rem;
+}
+
+.formula-choice__text {
+  display: flex;
+  flex-direction: column;
+}
+
+.formula-choice__name {
+  font-weight: var(--weight-semibold);
+}
+
+.formula-choice__expression {
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}

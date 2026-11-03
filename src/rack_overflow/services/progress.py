@@ -284,11 +284,23 @@ def add_measured_rm(
         return RmSaved(_facts(connection, user_id, exercise_id).rm, draft)
 
 
-def delete_measured_rm(engine: Engine, user_id: int, measured_id: int, now: datetime) -> RmView:
+@dataclass(frozen=True)
+class RmDeleted:
+    """The RM section after a manual entry was deleted, and the entry listed after it (newest
+    first; None when it was the last)."""
+
+    view: RmView
+    next_id: int | None
+
+
+def delete_measured_rm(engine: Engine, user_id: int, measured_id: int, now: datetime) -> RmDeleted:
     """Soft delete a live manual RM entry of the user; the RM section of its exercise."""
     with engine.begin() as connection:
         found = rm.get_measured(connection, user_id, measured_id)
         if found is None:
             raise NotFoundError(f"no measured RM {measured_id}")
+        listed = [item.measured_id for item in _facts(connection, user_id, found.exercise_id).rm.measures]
+        position = listed.index(measured_id)
         rm.soft_delete_measured(connection, measured_id, to_text(now))
-        return _facts(connection, user_id, found.exercise_id).rm
+        following = listed[position + 1] if position + 1 < len(listed) else None
+        return RmDeleted(_facts(connection, user_id, found.exercise_id).rm, following)

@@ -1793,6 +1793,8 @@ States of the page:
 
 Tab order: header, « Fiche de l’exercice », last-performance link, (strength) « Changer », « Saisir un RM mesuré » and its form, each « Supprimer »; « Voir les données »; record date links. The canvas takes no tab stop.
 
+Implementation notes (L5 developer): the chart is drawn (canvas, legend, scripts) when the series hold at least two distinct days in all (a kettlebell chart counts the days of every load); the caption counts those days. The tooltip key reads « {label} : {value} {unit} » (no-break space before the colon only); a unit-less series (reps, rounds) drops the unit. Minutes on a duration axis use the new key `progress.unit.minutes` (« min »). `Display.pace`, `speed` and `density` are one helper, `Display.rate(kind, value)`, and table / record values go through `Display.cell`. Chart.js 4.6.1 was checked in Chromium under the unchanged CSP: no `<style>` element, no violation; it sizes the canvas through the CSSOM only. The RM-test measurements are read from `record_history` (no separate `rm_test_sets` query).
+
 ### L5 — Settings (`GET /reglages`, `templates/settings.html`)
 
 Task: choose the 1RM formula. Information: names, expressions, the current one.
@@ -1995,5 +1997,6 @@ Typography as L4: typographic apostrophes; no-break space (U+00A0) before « : �
 | `catalog.error.bad_date` | Date non valable. |
 | `catalog.error.date_in_future` | La date ne peut pas être dans le futur. |
 | `catalog.error.rm_not_strength` | Les RM ne concernent que les exercices de musculation. |
+| `progress.unit.minutes` | min |
 
 « × », « − » (U+2212) and « ^ » in formula texts take no-break spaces on both sides. Reused: `session.summary.sets`, `session.summary.volume`, `session.summary_title`, `session.settings_saved`, `session.announce_set_updated`, `session.announce_set_deleted`, `session.delete_set`, `session.record`, `session.set_type.*`, `session.field_unit`, `home.free_session`, `home.start_title` (link « Nouvelle séance »), `exercise.location.*`, `exercise.category.*`, `tag.archived_m`, `action.cancel`, `action.home`, `action.save`, `unit.hint.weight`, `unit.with_value`, `date.numeric`, `duration.compact.*`, `quantity.weight`, `unit.kg`, `catalog.error.required`, `catalog.error.must_be_positive`, `catalog.error.invalid_choice`, the `domain/units` codes, `error.not_saved`. The design note's `Display.week` « sem. du 27/10 » is replaced by `date.short` « 27/10 » plus `history.week_item` (accessible text).

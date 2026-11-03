@@ -259,7 +259,9 @@ def test_rm_entries_and_measured_wins(migrated_engine: Engine) -> None:
         progress.add_measured_rm(engine, USER, squat, "13", "0", "2026-12-01", now=T0, today="2026-11-03")
     with pytest.raises(NotFoundError):
         progress.delete_measured_rm(engine, OTHER, measure.measured_id, T0)
-    after = progress.delete_measured_rm(engine, USER, measure.measured_id, T0)
+    deleted = progress.delete_measured_rm(engine, USER, measure.measured_id, T0)
+    after = deleted.view
+    assert deleted.next_id is None
     assert after.measures == () and after.rows[0].measured is None
     with pytest.raises(NotFoundError):
         progress.delete_measured_rm(engine, USER, measure.measured_id, T0)

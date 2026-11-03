@@ -1,0 +1,68 @@
+{# RM section of a strength exercise (docs/ui-spec.md "L5 — Progress of an exercise", RM; D-069):
+   the fragment of the RM routes. Context: rm (RmView), today, rm_errors, rm_texts, focus,
+   announce, saved (optional). #}
+{% from "_form_status.html" import form_status %}
+{% from "_fields.html" import described, field_error, field_hint, oob_announce %}
+{% set rid = rm.exercise_id %}
+{% set open_form = rm_errors.first_id is not none %}
+<section class="section rm" id="rm" aria-labelledby="rm-titre" data-request-scope>
+  {{ form_status(saved if saved is defined and saved else "", "ok" if saved is defined and saved else "") }}
+  <h2 id="rm-titre">{{ t("rm.heading") }}</h2>
+  {% if rm.rows %}
+  <ul class="rm-rows">
+    {% for row in rm.rows %}
+    <li class="rm-row">
+      <p class="rm-row__head"><span class="rm-row__label">{{ t("rm.label", n=row.n) }}</span><span class="rm-row__value">{{ show.value("weight", row.shown_g) }}</span></p>
+      <p class="rm-row__line muted">{{ show.rm_origin(row, rm.formula) }}</p>
+      {% if row.measured and row.estimate_g %}<p class="rm-row__line muted">{{ t("rm.estimate_beside", formula=show.formula(rm.formula), value=show.value("weight", row.estimate_g)) }}</p>{% endif %}
+      {% if row.flagged %}<p class="rm-flag">{{ t("rm.flag", date=show.local_date(row.measured.local_date)) }}</p>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">{{ t("rm.no_data") }}</p>
+  {% endif %}
+  <p class="muted rm-formula">{{ t("rm.formula_line", formula=show.formula(rm.formula)) }} <a class="inline-link" href="/reglages">{{ t("rm.formula_change") }}<span class="visually-hidden"> {{ t("rm.formula_change_named") }}</span></a></p>
+  <details class="rm-add" id="rm-saisie"{% if open_form %} open{% endif %}>
+    <summary class="button rm-add__summary" id="rm-saisir"{% if focus == "rm-saisir" %} autofocus{% endif %}>{{ t("rm.add") }}</summary>
+    <form class="form" id="rm-form" hx-post="/rm/{{ rid }}" hx-target="#rm" hx-swap="outerHTML" hx-disabled-elt="#rm-form button">
+      {{ form_status() }}
+      {{ field_error("rm-form", rm_errors) }}
+      {% set chosen = rm_texts.get("n") or "1" %}
+      <fieldset class="chips chips--grid6" id="rm-n"{% if rm_errors.get("rm-n") %} aria-describedby="rm-n-erreur"{% endif %}>
+        <legend class="field__label">{{ t("rm.reps_legend") }}</legend>
+        {% for n in range(1, 13) %}
+        <label class="chip"><input class="chip__input" type="radio" name="n" value="{{ n }}" id="rm-n-{{ n }}"{% if chosen == n | string %} checked{% endif %}{% if rm_errors.first_id == "rm-n" and loop.first %} autofocus{% endif %}>{{ n }}</label>
+        {% endfor %}
+        {{ field_error("rm-n", rm_errors) }}
+      </fieldset>
+      <div class="field">
+        <label class="field__label" for="rm-weight">{{ t("session.field_unit", field=t("quantity.weight"), unit=t("unit.kg")) }}</label>
+        <input class="input" id="rm-weight" name="weight" type="text" inputmode="decimal" value="{{ rm_texts.get('weight', '') }}" maxlength="20" autocomplete="off" spellcheck="false" autocapitalize="off" enterkeyhint="done"{{ described("rm-weight", rm_errors) }}>
+        {{ field_error("rm-weight", rm_errors) }}
+        {{ field_hint("rm-weight", t("unit.hint.weight")) }}
+      </div>
+      <div class="field">
+        <label class="field__label" for="rm-date">{{ t("rm.date_label") }}</label>
+        <input class="input" id="rm-date" name="date" type="date" value="{{ rm_texts.get('date') or today }}" max="{{ today }}"{{ described("rm-date", rm_errors, hint=false) }}>
+        {{ field_error("rm-date", rm_errors) }}
+      </div>
+      <div class="actions">
+        <button class="button button--primary" type="submit">{{ t("rm.submit") }}</button>
+      </div>
+    </form>
+  </details>
+  {% if rm.measures %}
+  <h3>{{ t("rm.measures_heading") }}</h3>
+  <ul class="rows rm-measures">
+    {% for item in rm.measures %}
+    {% set measured_on = show.local_date(item.local_date) %}
+    <li class="rm-measure">
+      <span class="rm-measure__text">{{ t("rm.measure_text", n=item.n, value=show.value("weight", item.weight_g), date=measured_on) }}</span>
+      <button type="button" class="button button--danger" id="rm-mesure-{{ item.measured_id }}-supprimer" hx-delete="/rm/mesures/{{ item.measured_id }}" hx-target="#rm" hx-swap="outerHTML" hx-disabled-elt="this"{% if focus == "rm-mesure-" ~ item.measured_id ~ "-supprimer" %} autofocus{% endif %}>{{ t("rm.delete") }}<span class="visually-hidden"> {{ t("rm.measure_named", n=item.n, date=measured_on) }}</span></button>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>
+{{ oob_announce(announce) }}

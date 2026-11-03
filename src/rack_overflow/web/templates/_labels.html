@@ -11,3 +11,26 @@
   "bodyweight": "exercise.category.bodyweight", "cardio": "exercise.category.cardio",
   "intervals": "exercise.category.intervals"} %}
 {% set LOCATION_KEYS = {"gym": "exercise.location.gym", "home": "exercise.location.home", "both": "exercise.location.both"} %}
+{# L5: chart intro, data table columns and records (docs/ui-spec.md "L5 — Progress of an exercise"). #}
+{% set INTRO_KEYS = {
+  "e1rm": "progress.chart_intro.e1rm", "measured_1rm": "progress.chart_intro.e1rm",
+  "load": "progress.chart_intro.reps_by_load", "max_reps": "progress.chart_intro.max_reps",
+  "max_duration": "progress.chart_intro.max_duration", "distance": "progress.chart_intro.distance",
+  "duration": "progress.chart_intro.duration", "rounds": "progress.chart_intro.rounds"} %}
+{% set COLUMN_KEYS = {
+  "e1rm": "progress.col.e1rm", "measured": "progress.col.measured", "volume": "progress.col.volume",
+  "load": "progress.col.load", "max_reps": "progress.col.max_reps", "total_reps": "progress.col.total_reps",
+  "max_duration": "progress.col.max_duration", "distance": "progress.col.distance",
+  "duration": "progress.col.duration", "pace": "progress.col.pace", "rounds": "progress.col.rounds",
+  "work": "progress.col.work"} %}
+{% set RECORD_KEYS = {
+  "session_volume": "progress.record.session_volume", "density": "progress.record.density",
+  "max_reps": "progress.record.max_reps", "max_duration": "progress.record.max_duration",
+  "max_added_load": "progress.record.max_added_load", "session_reps": "progress.record.session_reps",
+  "max_distance": "progress.record.max_distance", "best_pace": "progress.record.best_pace",
+  "best_speed": "progress.record.best_speed", "session_rounds": "progress.record.session_rounds",
+  "session_work": "progress.record.session_work"} %}
+{% set RECORD_KINDS = {
+  "session_volume": "weight", "density": "density", "max_reps": "int", "max_duration": "duration",
+  "max_added_load": "weight", "session_reps": "int", "max_distance": "distance", "best_pace": "pace",
+  "best_speed": "speed", "session_rounds": "int", "session_work": "duration_total"} %}

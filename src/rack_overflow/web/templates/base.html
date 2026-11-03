@@ -14,6 +14,7 @@
   <script src="/static/vendor/htmx.min.js" defer></script>
   <script src="/static/vendor/json-enc.js" defer></script>
   <script src="/static/js/request-errors.js" defer></script>
+  {% block scripts %}{% endblock %}
 </head>
 <body hx-ext="json-enc" data-not-saved="{{ t('error.not_saved') }}">
   <a class="skip-link" href="#contenu">{{ t("layout.skip_to_content") }}</a>

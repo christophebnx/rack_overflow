@@ -125,6 +125,10 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Word of a core quantity (quantity → string key) | `web/display.QUANTITY_KEYS` (`show.quantity` in templates) |
 | Refused catalog input → messages per input | `web/forms.form_errors` |
 | Show a failed htmx request (« Non enregistré, réessayer », focus back) | `web/static/js/request-errors.js` + `web/templates/_form_status.html` |
+| Draw a progress chart from its JSON (no text, no rule, no conversion) | `web/static/js/progress-chart.js` (Chart.js vendored) |
+| Chart JSON shape (labels, display numbers, French labels) | `web/routes/progress.chart_json` |
+| Computed values, table cells, formula names, series labels, RM origin text (L5) | `web/display.Display.rate`, `cell`, `formula`, `series_label`, `rm_origin` |
+| Today's local date in a route | `web/routes/history.local_today` (through `domain/sessions.local_start`) |
 | HTTP error → error page or JSON code | `web/errors` |
 | Check a commit message | `tools/check_commit_message.problems` |
 | Block secrets, protected folders, commits and pushes on `main` (Claude Code) | `.claude/hooks/guard_paths.py` |

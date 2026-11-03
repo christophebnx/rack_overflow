@@ -1,0 +1,20 @@
+{# The 1RM formula form (docs/ui-spec.md "L5 — Settings"), saved on change. Context: formulas,
+   chosen, formula_errors, saved, announce, focus. #}
+{% from "_form_status.html" import form_status %}
+{% from "_fields.html" import field_error, oob_announce %}
+<form class="form settings-formula" id="reglages-formule" hx-patch="/reglages" hx-trigger="change" hx-target="this" hx-swap="outerHTML">
+  {{ form_status(saved or "", "ok" if saved else "") }}
+  <p class="muted">{{ t("settings.formula_intro") }}</p>
+  <fieldset class="choices"{% if formula_errors.get("reglages-formule") %} aria-describedby="reglages-formule-erreur"{% endif %}>
+    <legend>{{ t("settings.formula_legend") }}</legend>
+    {% for key in formulas %}
+    <label class="choice formula-choice" for="formule-{{ key }}">
+      <input type="radio" name="rm_formula" value="{{ key }}" id="formule-{{ key }}"{% if key == chosen %} checked{% endif %}{% if focus == "formule-" ~ key %} autofocus{% endif %}>
+      <span class="formula-choice__text"><span class="formula-choice__name">{{ show.formula(key) }}{% if key == default_formula %}<span class="tag">{{ t("settings.default_tag") }}</span>{% endif %}</span><span class="formula-choice__expression muted">{{ show.formula_text(key) }}</span></span>
+    </label>
+    {% endfor %}
+    {{ field_error("reglages-formule", formula_errors) }}
+  </fieldset>
+  <p class="muted">{{ t("settings.formula_single") }}</p>
+</form>
+{{ oob_announce(announce) }}

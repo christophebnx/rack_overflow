@@ -461,3 +461,63 @@ textarea.input {
 .confirm--neutral {
   border-color: var(--color-border);
 }
+
+/* L5: chips in a fixed grid of six (the RM rep count: two rows of six at 360 px). */
+.chips--grid6 {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(var(--target-min), 1fr));
+}
+
+.chips--grid6 > .chip {
+  padding: 0;
+}
+
+.chips--grid6 > .field__error {
+  grid-column: 1 / -1;
+}
+
+/* L5: data tables (records, chart data); the scroll wrapper is the last fallback only. */
+.data-table__scroll {
+  max-width: 100%;
+  margin-top: var(--space-3);
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+}
+
+.data-table > caption {
+  margin-bottom: var(--space-2);
+  font-weight: var(--weight-semibold);
+  text-align: left;
+}
+
+.data-table th,
+.data-table td {
+  padding: var(--space-2);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.data-table thead th {
+  color: var(--color-muted);
+  font-weight: var(--weight-semibold);
+}
+
+.data-table tbody tr {
+  border-top: 1px solid var(--color-divider);
+}
+
+.data-table tbody th {
+  font-weight: var(--weight-regular);
+}
+
+.data-table .num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}

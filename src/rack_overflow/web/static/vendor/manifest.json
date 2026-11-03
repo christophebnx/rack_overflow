@@ -14,6 +14,13 @@
       "source": "https://unpkg.com/htmx-ext-json-enc@2.0.3/json-enc.js",
       "sha256": "9fe14faaedb792c70c187e219b2d8e72fed92891375205dad9dfefe18d9accea",
       "licence": "0BSD"
+    },
+    "chart.umd.min.js": {
+      "package": "chart.js",
+      "version": "4.6.1",
+      "source": "https://unpkg.com/chart.js@4.6.1/dist/chart.umd.min.js",
+      "sha256": "87364cc2b2a76a6684929e7d6b80b18a897794db38400caff1fcf1791c6925d2",
+      "licence": "MIT"
     }
   }
 }

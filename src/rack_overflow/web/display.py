@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 
 from rack_overflow.domain import units
 from rack_overflow.domain.catalog import BOOL, ENUM, TEXT
-from rack_overflow.domain.indicators import Volume
+from rack_overflow.domain.indicators import DURATION_TOTAL, MANUAL, RmRow, Series, Volume
 from rack_overflow.domain.sessions import FieldValue, SetFacts
 from rack_overflow.domain.templates import Target
 from rack_overflow.domain.timestamps import from_text
@@ -31,6 +31,28 @@ WEEKDAY_KEYS = tuple(f"date.weekday.{day}" for day in range(1, 8))
 """Abbreviated weekday keys, ISO order (Monday first)."""
 MONTH_KEYS = tuple(f"date.month.{month}" for month in range(1, 13))
 """Month name keys, January first."""
+FORMULA_KEYS = {
+    "epley": "rm.formula.epley",
+    "brzycki": "rm.formula.brzycki",
+    "lombardi": "rm.formula.lombardi",
+    "oconner": "rm.formula.oconner",
+    "wathan": "rm.formula.wathan",
+}
+"""1RM formula → its name (the one map; `domain.indicators.RM_FORMULAS` order)."""
+FORMULA_TEXT_KEYS = {key: f"rm.formula_text.{key}" for key in FORMULA_KEYS}
+SERIES_KEYS = {
+    "e1rm": "progress.series.e1rm",
+    "measured_1rm": "progress.series.measured_1rm",
+    "load": "progress.series.load",
+    "max_reps": "progress.series.max_reps",
+    "max_duration": "progress.series.max_duration",
+    "distance": "progress.series.distance",
+    "duration": "progress.series.duration",
+    "rounds": "progress.series.rounds",
+}
+"""Chart series key → its label (legend, tooltip)."""
+SUM_SERIES = frozenset({"duration"})
+"""Series whose points are a day's sum of durations, shown compact (« 30 min »)."""
 TYPED_UNIT_KEYS = {"weight": units.UNIT_KG, "distance": units.UNIT_KM, "duration": units.UNIT_DURATION}
 
 
@@ -231,3 +253,62 @@ class Display:
         if not field.field.params.required:
             items.insert(0, ("", self._catalog.text("session.no_value")))
         return items
+
+    # --- tracking (L5, docs/ui-spec.md "L5 — Progress of an exercise", "L5 — Units of computed values")
+
+    def rate(self, kind: str, value: int) -> str:
+        """A computed value with its unit: pace « 5:20 /km », speed « 11,3 km/h », density
+        « 12,5 rép./min » (`domain.units` kinds `pace`, `speed`, `density`)."""
+        shown = units.format(kind, value)
+        assert shown.unit_key is not None
+        return self._catalog.text(shown.unit_key, value=shown.number_text)
+
+    def cell(self, kind: str, value: int | None) -> str:
+        """A value of the chart's data table or of a record by its kind: « — » when absent,
+        a day's sum of durations compact, a pace, else `value`."""
+        if value is None:
+            return self._catalog.text("session.no_value")
+        if kind == DURATION_TOTAL:
+            return self.duration_compact(value)
+        if kind in (units.PACE, units.SPEED, units.DENSITY):
+            return self.rate(kind, value)
+        if kind == units.INT:
+            return str(value)
+        return self.value(kind, value)
+
+    def series_value(self, series: Series, value: int) -> str:
+        """A point of a chart series as the caption reads it."""
+        return self.cell(DURATION_TOTAL if series.key in SUM_SERIES else series.unit_kind, value)
+
+    def formula(self, key: str) -> str:
+        """The name of a 1RM formula: « Epley »."""
+        return self._catalog.text(FORMULA_KEYS[key])
+
+    def formula_text(self, key: str) -> str:
+        """The expression of a 1RM formula: « charge x (1 + rép. / 30) »."""
+        return self._catalog.text(FORMULA_TEXT_KEYS[key])
+
+    def series_label(self, series: Series, formula: str) -> str:
+        """The label of a chart series: « 1RM estimé (Epley) », « 16 kg », « Distance »."""
+        key = SERIES_KEYS[series.key]
+        if series.load_g is not None:
+            return self._catalog.text(key, load=self.value(units.WEIGHT, series.load_g))
+        return self._catalog.text(key, formula=self.formula(formula))
+
+    def rm_origin(self, row: RmRow, formula: str) -> str:
+        """Where an RM row's shown value comes from: « Mesuré · saisie du 01/10/2026 »,
+        « Mesuré · test en séance du … » or « Estimé (Epley) · d'après 5 x 92,5 kg du … »."""
+        if row.measured is not None:
+            key = "rm.origin.manual" if row.measured.origin == MANUAL else "rm.origin.rm_test"
+            return self._catalog.text(key, date=self.local_date(row.measured.local_date))
+        assert row.estimate is not None
+        source = row.estimate.source
+        lifted = self._catalog.text(
+            "session.set.reps_weight", reps=source.reps, weight=self.value(units.WEIGHT, source.weight_g or 0)
+        )
+        return self._catalog.text(
+            "rm.origin.estimated",
+            formula=self.formula(formula),
+            set=lifted,
+            date=self.local_date(source.local_date),
+        )
