@@ -20,6 +20,10 @@ DURATION = "duration"
 DISTANCE = "distance"
 NUMERIC_KINDS: tuple[str, ...] = (INT, DECIMAL, WEIGHT, DURATION, DISTANCE)
 """Kinds whose values are canonical integers typed as numbers (variable types and core quantities)."""
+PACE = "pace"
+SPEED = "speed"
+DENSITY = "density"
+"""Display kinds of computed values (L5): seconds per km, metres per hour, reps per hour."""
 
 MAX_VALUE = 10**9
 WEIGHT_DECIMALS = 3
@@ -30,6 +34,10 @@ UNIT_KG = "unit.kg"
 UNIT_KM = "unit.km"
 UNIT_M = "unit.m"
 UNIT_DURATION = "unit.duration"
+UNIT_PACE = "unit.pace"
+UNIT_SPEED = "unit.speed"
+UNIT_DENSITY = "unit.density"
+"""Keys of computed values: texts holding the number (« {value} /km »), not unit words."""
 
 _NUMBER = re.compile(r"(\d*)(?:[.,](\d*))?", re.ASCII)
 _DISTANCE = re.compile(r"(.*?)\s*(km|m)?", re.IGNORECASE | re.DOTALL)
@@ -136,7 +144,32 @@ def format(kind: str, value: int, *, scale: int | None = None) -> Display:
         return Display(_duration_text(value), None)
     if kind == DECIMAL:
         return Display(_decimal_text(value, scale or 0, keep_zeros=True), None)
+    if kind == PACE:
+        return Display(_duration_text(value), UNIT_PACE)
+    if kind == SPEED:
+        return Display(_one_decimal(value, KILO), UNIT_SPEED)
+    if kind == DENSITY:
+        return Display(_one_decimal(value, 60), UNIT_DENSITY)
     return Display(str(value), None)
+
+
+def _one_decimal(value: int, divisor: int) -> str:
+    """`value / divisor` with one decimal, rounded half up: metres per hour → « 11,3 » km/h."""
+    tenths = (value * 20 + divisor) // (divisor * 2)
+    return _decimal_text(tenths, 1, keep_zeros=True)
+
+
+CHART_DECIMALS = 3
+
+
+def chart_number(kind: str, value: int) -> float:
+    """A canonical integer as a chart axis reads it (L5, D-068): kg for a weight, km for a
+    distance, minutes for a duration, the count otherwise."""
+    if kind in (WEIGHT, DISTANCE):
+        return round(value / KILO, CHART_DECIMALS)
+    if kind == DURATION:
+        return round(value / 60, CHART_DECIMALS)
+    return float(value)
 
 
 def input_text(kind: str, value: int, *, scale: int | None = None) -> str:

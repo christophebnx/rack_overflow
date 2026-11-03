@@ -302,3 +302,24 @@ def test_compact_duration_never_loses_a_second() -> None:
             assert units.parse(units.DURATION, compact.params["text"]) == seconds
         else:
             assert p.get("hours", 0) * 3600 + p.get("minutes", 0) * 60 + p.get("seconds", 0) == seconds
+
+
+@pytest.mark.parametrize(
+    ("kind", "value", "shown"),
+    [
+        ("pace", 320, Display("5:20", "unit.pace")),
+        ("speed", 11250, Display("11,3", "unit.speed")),
+        ("speed", 12000, Display("12,0", "unit.speed")),
+        ("density", 750, Display("12,5", "unit.density")),
+    ],
+)
+def test_format_computed_values(kind: str, value: int, shown: Display) -> None:
+    assert units.format(kind, value) == shown
+
+
+@pytest.mark.parametrize(
+    ("kind", "value", "number"),
+    [("weight", 102500, 102.5), ("distance", 5230, 5.23), ("duration", 90, 1.5), ("int", 12, 12.0)],
+)
+def test_chart_number(kind: str, value: int, number: float) -> None:
+    assert units.chart_number(kind, value) == number

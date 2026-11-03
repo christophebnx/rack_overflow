@@ -68,7 +68,7 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | The V1 user id | `domain/users.SINGLE_USER_ID` |
 | Device, pairing code and token rules | `domain/devices` |
 | Text normalisation (search, aliases, name uniqueness, codes) | `domain/text` |
-| Canonical integers ↔ display and input text (kg, km / m, m:ss; compact target durations) | `domain/units` |
+| Canonical integers ↔ display and input text (kg, km / m, m:ss; compact target durations; pace, speed, density and chart numbers, L5) | `domain/units` |
 | Catalog rules (variables, exercises, fields, aliases) | `domain/catalog` |
 | Movement pattern and equipment of an exercise in their first-seen spelling | `domain/catalog.with_known_spellings` |
 | At least one measure per exercise (field removal, variable delete or scope change) | `domain/catalog.check_measures`, `check_linked_measures` |
@@ -77,6 +77,8 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Fuzzy ranking of exercises | `domain/search` |
 | Session logging rules: start plan, plan order and current item, set prefill, steppers, set and settings validation | `domain/sessions` |
 | Records (⭐) and volume, computed from set facts (the only place; counted set types `RECORD_TYPES`, read by storage) | `domain/indicators` |
+| e1RM, RM table and formula, records by category, chart series, pace / speed / density, sessions per week (computed from facts, D-068 to D-070) | `domain/indicators` |
+| RM entry and formula form rules, month grouping of the history | `domain/progress` |
 | Reorder a list by « Monter » / « Descendre » (fields, templates, slots, options) | `domain/ordering.moved` + `storage/positions.set_positions` |
 | Position of a row appended at the end of an ordered list (fields, templates, slots, options) | `storage/positions.next_position` |
 | Variable queries | `storage/variables` |
