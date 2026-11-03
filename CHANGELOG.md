@@ -4,6 +4,16 @@ All notable changes are listed here, newest first. Format: [Keep a Changelog](ht
 
 ## [Unreleased]
 
+- Home page starts a session (place preselected from the last one, templates of that place, « Séance libre ») or resumes the open one; one open session at a time, a double start lands on the same session (D-061) (L4).
+- Session page (`/seances/{id}`): the template's plan in order, one current exercise expanded, menus picked in one tap, exercises added by search with recent ones first, a pick changed while it has no set (D-061) (L4).
+- Set logging: sets and settings prefilled from today's previous set, the last performance, the target or the field default; server-side « − » / « + » steppers, choice chips for discrete, yes / no and enum values, optional values collapsed under « Autres valeurs »; set types warm-up / work / RM test; one tap per unchanged set (D-062, D-063) (L4).
+- Settings saved on each change; sets edited and soft-deleted during the session (D-062, D-066) (L4).
+- Records (⭐) computed on every render from stored sets, never on the first session of an exercise; volume per category; close with confirmation, then a summary (duration, sets, volume, records) (D-064) (L4).
+- Configuration: optional `[calendar] time_zone` (IANA, default `Europe/Brussels`) fixes each session's local date and zone; new dependency `tzdata` (D-065) (L4).
+- Migration `0004`: index on `session_exercise (exercise_id)` (D-066) (L4).
+- Performance test: set confirmation on one year of simulated history, median ≈ 15–20 ms (limit 100 ms) (D-066) (L4).
+- A failed ✓ keeps focus on the ✓ and its message in view (D-053 refinement) (L4).
+
 - Session templates (`/seances-types`): name unique after case and accent folding, location, order with « Monter » / « Descendre »; archive and restore, no delete (D-058) (L3).
 - Template blocs: a fixed exercise or a menu (user label + up to 12 proposed exercises), at most 30 per template, reordered, removed by soft delete; archived exercises stay listed and tagged (D-058) (L3).
 - Indicative targets per bloc (sets, reps or range, duration, distance, note), shown as « 4 × 6–8 », « 3 × 30 s / 12 · par côté »; compact target durations (D-059, D-055) (L3).

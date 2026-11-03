@@ -22,6 +22,7 @@ uv run pytest -q -n auto -m "not live"    # tests in parallel; drop -n auto to d
 uv run pytest -q -n auto -m "not live and not browser"   # skip the Playwright browser tests
 uv run pytest -q tests/e2e                # browser tests only; an engine not installed is skipped
 RACK_REQUIRE_BROWSER=1 uv run pytest -q tests/e2e        # fail instead of skip (Chromium and WebKit)
+uv run pytest -q tests/integration/test_session_performance.py   # time the set confirmation alone (median < 100 ms, D-066)
 uv run ruff check . && uv run ruff format --check .
 uv run pylint --disable=all --enable=duplicate-code src
 uv run rack --version                                  # the CLI
@@ -33,7 +34,7 @@ uv run rack supervise --config config.example.toml     # run serve, restart on c
 uv run rack update --config config.toml                # deployed clone only: pull main, sync, migrate, restart (D-052)
 ```
 
-Always pass `--config config.example.toml` in development: the default `config.toml` is the machine's real settings file (invariant 4). For `rack device`, `--config` comes after the action (`rack device list --config …`). Every page except `/appairage` needs a paired device: pair the dev browser with `rack device add`. NAS install: `docs/deployment/nas.md`.
+Always pass `--config config.example.toml` in development: the default `config.toml` is the machine's real settings file (invariant 4). For `rack device`, `--config` comes after the action (`rack device list --config …`). Session dates and times use `[calendar] time_zone` of the settings file (default `Europe/Brussels`, D-065). Every page except `/appairage` needs a paired device: pair the dev browser with `rack device add`. NAS install: `docs/deployment/nas.md`.
 
 ## Invariants — never violate
 

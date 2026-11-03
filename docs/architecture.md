@@ -26,6 +26,7 @@ Main flows:
 - **Every request**: security checks (`Host`, `Origin`, JSON-only, body size) → device cookie (`web/auth`; unpaired: navigation `303` to `/appairage`, otherwise `401 not_paired`). Only `/appairage` and `/static/` are public (D-049).
 - **Page**: GET → route → service reads → Jinja2 page with strings from `locales/fr.json`.
 - **Action** (e.g. confirm a set): htmx POST/PATCH with a JSON body → Pydantic validation → service (one transaction, domain rules) → HTML fragment swapped in place; a refused user input re-renders the form with `200` (D-050).
+- **Session logging**: home (`GET /`) resumes the open session or starts one (`POST /seances` → `HX-Redirect`) → session page (`GET /seances/{id}`, whole state read from the database) → « − » / « + » are GETs re-rendering the set form (no write) → ✓ (`POST /seances/{id}/series`) writes the set and missing settings in one transaction, then returns the block with ⭐ and the next prefill, both recomputed from stored facts → close (`POST …/cloture`) → summary. Rules: `domain/sessions`, `domain/indicators`; design note `docs/architecture/2026-11-03-l4-session-logging.md` (D-061 to D-066).
 - **Pairing**: `rack device add NAME` prints a one-time code → the browser posts it to `/appairage` → hashed token stored, `rack_device` cookie set (D-040, D-049).
 - **Operations**: `rack migrate` (upgrade, then the pending seed steps: exercises, then templates; D-057, D-060), `rack backup`, `rack device …`, `rack serve` (CLI calls the same services and storage); `rack supervise` runs `rack serve` as a child; `rack update` pulls `main`, syncs, migrates in a new process, then sends SIGHUP to the supervisor, which re-executes itself (D-051, D-052). Install guide: `docs/deployment/nas.md`.
 
@@ -75,7 +76,7 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Template, menu, target and slot / option limit rules | `domain/templates` |
 | Fuzzy ranking of exercises | `domain/search` |
 | Session logging rules: start plan, plan order and current item, set prefill, steppers, set and settings validation | `domain/sessions` |
-| Records (⭐) and volume, computed from set facts | `domain/indicators` |
+| Records (⭐) and volume, computed from set facts (the only place; counted set types `RECORD_TYPES`, read by storage) | `domain/indicators` |
 | Reorder a list by « Monter » / « Descendre » (fields, templates, slots, options) | `domain/ordering.moved` + `storage/positions.set_positions` |
 | Position of a row appended at the end of an ordered list (fields, templates, slots, options) | `storage/positions.next_position` |
 | Variable queries | `storage/variables` |
@@ -111,6 +112,7 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Values in display units in pages (number + unit text) | `web/display.Display` (`show` in templates) |
 | Text of an indicative target (« 4 × 6–8 ») | `web/display.Display.target` |
 | Text of a set, local time / date of a session, volume meta (L4) | `web/display.Display.set_text`, `local_time`, `local_date`, `volume` |
+| « Oui » / « Non » of a `bool` value; chip values of a discrete, `bool` or `enum` field | `web/display.Display.yes_no` (`BOOL_KEYS`), `Display.choices` |
 | Focus after a « Monter » / « Descendre » move, and its JSON body | `web/forms.move_focus`, `web/forms.MoveBody` |
 | Word of a core quantity (quantity → string key) | `web/display.QUANTITY_KEYS` (`show.quantity` in templates) |
 | Refused catalog input → messages per input | `web/forms.form_errors` |
