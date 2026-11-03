@@ -89,7 +89,8 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Unknown or foreign row | `domain/errors.NotFoundError` |
 | Template, slot and menu-option queries | `storage/templates` |
 | Template operations (templates, slots, menus, targets) | `services/templates` |
-| Session, row, set and setting queries; last performance, last settings, record history, recent exercises | `storage/sessions` |
+| Session, row, set and setting queries; last performance, last settings, record history, recent exercises; history pages, session dates, exercises with history, session soft delete (L5) | `storage/sessions` |
+| Measured RM queries (`rm_measured`) | `storage/rm` |
 | Session logging operations (start, plan, pick, sets, settings, close, summary) | `services/sessions` |
 | Live slots of a template (template pages and sessions) | `services/templates.slots_for_session` |
 | Fields of an exercise with kind and parameters (exercise page and session forms) | `services/exercises.field_views` |

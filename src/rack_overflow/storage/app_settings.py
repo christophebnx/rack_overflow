@@ -1,4 +1,4 @@
-"""Per-user key / value settings (`app_setting`): the seed version (D-057), later the RM formula.
+"""Per-user key / value settings (`app_setting`): the seed version (D-057) and the RM formula (D-069).
 Queries on a caller's `Connection`."""
 
 from __future__ import annotations

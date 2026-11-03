@@ -23,6 +23,7 @@ from rack_overflow.storage.schema import (
     session_exercise,
     set_entry,
     set_value,
+    template,
 )
 
 type StoredValue = int | str
@@ -100,6 +101,120 @@ def latest_session(connection: sa.Connection, user_id: int) -> sa.Row | None:
         .limit(1)
     )
     return connection.execute(query).first()
+
+
+def soft_delete_session(connection: sa.Connection, session_id: int, deleted_at: str) -> bool:
+    """Mark the session deleted (D-021, D-067): its rows, sets and settings stay untouched;
+    whether it was written (not already deleted)."""
+    result = connection.execute(
+        sa.update(session)
+        .where(session.c.id == session_id, session.c.deleted_at.is_(None))
+        .values(deleted_at=deleted_at)
+    )
+    return result.rowcount == 1
+
+
+def history_page(
+    connection: sa.Connection, user_id: int, before_id: int | None, limit: int
+) -> Sequence[sa.Row]:
+    """Up to `limit` non-deleted sessions of the user, newest first by `(started_at, id)`, each
+    with its `template_name` (None for a free session); after the session `before_id` when given
+    (keyset, stable when a session is deleted between pages; unknown id → empty)."""
+    query = (
+        sa.select(session, template.c.name.label("template_name"))
+        .outerjoin(template, template.c.id == session.c.template_id)
+        .where(_live_session(user_id))
+        .order_by(session.c.started_at.desc(), session.c.id.desc())
+        .limit(limit)
+    )
+    if before_id is not None:
+        anchor = connection.execute(
+            sa.select(session.c.started_at, session.c.id).where(
+                session.c.id == before_id, session.c.user_id == user_id
+            )
+        ).first()
+        if anchor is None:
+            return []
+        query = query.where(
+            sa.or_(
+                session.c.started_at < anchor.started_at,
+                sa.and_(session.c.started_at == anchor.started_at, session.c.id < anchor.id),
+            )
+        )
+    return connection.execute(query).all()
+
+
+def sets_for_sessions(connection: sa.Connection, session_ids: Sequence[int]) -> Sequence[sa.Row]:
+    """The live sets of the sessions with `session_id`, `exercise_id`, `exercise_name` and
+    `category`, by session, row position and set position (history list)."""
+    if not session_ids:
+        return []
+    query = (
+        sa.select(
+            set_entry,
+            session_exercise.c.session_id,
+            session_exercise.c.exercise_id,
+            exercise.c.name.label("exercise_name"),
+            exercise.c.category,
+        )
+        .join(session_exercise, session_exercise.c.id == set_entry.c.session_exercise_id)
+        .join(exercise, exercise.c.id == session_exercise.c.exercise_id)
+        .where(session_exercise.c.session_id.in_(session_ids), set_entry.c.deleted_at.is_(None))
+        .order_by(
+            session_exercise.c.session_id,
+            session_exercise.c.position,
+            session_exercise.c.id,
+            set_entry.c.position,
+            set_entry.c.id,
+        )
+    )
+    return connection.execute(query).all()
+
+
+def _holding_a_live_set(user_id: int) -> sa.Select:
+    return (
+        sa.select(session.c.id)
+        .join(session_exercise, session_exercise.c.session_id == session.c.id)
+        .join(set_entry, set_entry.c.session_exercise_id == session_exercise.c.id)
+        .where(_live_session(user_id), set_entry.c.deleted_at.is_(None))
+        .distinct()
+    )
+
+
+def session_dates(connection: sa.Connection, user_id: int, since: str) -> list[str]:
+    """The local dates (one per session) of the user's non-deleted sessions holding a live set,
+    on or after `since` (`YYYY-MM-DD`, D-070)."""
+    holding = _holding_a_live_set(user_id).subquery()
+    query = (
+        sa.select(session.c.local_date)
+        .where(session.c.id.in_(sa.select(holding.c.id)), session.c.local_date >= since)
+        .order_by(session.c.local_date, session.c.id)
+    )
+    return list(connection.execute(query).scalars())
+
+
+def exercises_with_history(connection: sa.Connection, user_id: int) -> Sequence[sa.Row]:
+    """Exercises with a live set in a non-deleted session of the user: `id`, `name`, `category`,
+    `archived_at`, `last_date` (latest local date), `session_count`; most recent first."""
+    last_date = sa.func.max(session.c.local_date).label("last_date")
+    last_start = sa.func.max(session.c.started_at)
+    query = (
+        sa.select(
+            exercise.c.id,
+            exercise.c.name,
+            exercise.c.category,
+            exercise.c.archived_at,
+            last_date,
+            sa.func.count(sa.distinct(session.c.id)).label("session_count"),
+        )
+        .join(session_exercise, session_exercise.c.exercise_id == exercise.c.id)
+        .join(session, session.c.id == session_exercise.c.session_id)
+        .join(set_entry, set_entry.c.session_exercise_id == session_exercise.c.id)
+        .where(_live_session(user_id), set_entry.c.deleted_at.is_(None))
+        .group_by(exercise.c.id, exercise.c.name, exercise.c.category, exercise.c.archived_at)
+        .order_by(last_start.desc(), exercise.c.id)
+    )
+    return connection.execute(query).all()
 
 
 def close_session(connection: sa.Connection, session_id: int, ended_at: str) -> bool:
@@ -287,7 +402,7 @@ def soft_delete_set(connection: sa.Connection, set_id: int, deleted_at: str) -> 
 
 def _exercise_sets(user_id: int, exercise_id: int) -> sa.Select:
     return (
-        sa.select(set_entry, session_exercise.c.session_id)
+        sa.select(set_entry, session_exercise.c.session_id, session.c.local_date)
         .join(session_exercise, session_exercise.c.id == set_entry.c.session_exercise_id)
         .join(session, session.c.id == session_exercise.c.session_id)
         .where(
@@ -299,10 +414,11 @@ def _exercise_sets(user_id: int, exercise_id: int) -> sa.Select:
 
 
 def last_performance(
-    connection: sa.Connection, user_id: int, exercise_id: int, except_session_id: int
+    connection: sa.Connection, user_id: int, exercise_id: int, except_session_id: int | None
 ) -> Sequence[sa.Row]:
     """The live sets of the exercise in the most recent other non-deleted session holding one
-    (by `started_at`, then id), by row position then set position (D-062)."""
+    (by `started_at`, then id; `except_session_id` None: any session, the progress page), by row
+    position then set position (D-062), each with its `session_id`."""
     latest = (
         sa.select(session.c.id)
         .join(session_exercise, session_exercise.c.session_id == session.c.id)
@@ -310,17 +426,18 @@ def last_performance(
         .where(
             session_exercise.c.exercise_id == exercise_id,
             set_entry.c.deleted_at.is_(None),
-            session.c.id != except_session_id,
             _live_session(user_id),
         )
         .order_by(session.c.started_at.desc(), session.c.id.desc())
         .limit(1)
     )
+    if except_session_id is not None:
+        latest = latest.where(session.c.id != except_session_id)
     found = connection.execute(latest).scalar_one_or_none()
     if found is None:
         return []
     query = (
-        sa.select(set_entry)
+        sa.select(set_entry, session_exercise.c.session_id)
         .join(session_exercise, session_exercise.c.id == set_entry.c.session_exercise_id)
         .where(
             session_exercise.c.session_id == found,
@@ -382,7 +499,8 @@ def upsert_settings(connection: sa.Connection, row_id: int, values: Mapping[int,
 
 def record_history(connection: sa.Connection, user_id: int, exercise_id: int) -> Sequence[sa.Row]:
     """The exercise's live work and RM-test sets across the user's non-deleted sessions, by
-    `(completed_at, id)`, each with its `session_id` (D-064)."""
+    `(completed_at, id)`, each with its `session_id` and the session's `local_date` (D-064;
+    L5 reads RM-test measurements from it, D-033)."""
     query = _exercise_sets(user_id, exercise_id).where(set_entry.c.type.in_(RECORD_TYPES))
     return connection.execute(query.order_by(set_entry.c.completed_at, set_entry.c.id)).all()
 
