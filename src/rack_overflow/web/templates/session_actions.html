@@ -7,5 +7,5 @@
 <a class="button" href="/seances/{{ view.session.id }}?menu={{ following.menu_slot_id }}#menu-{{ following.menu_slot_id }}">{{ t("session.next_item", name=view.name_of(following)) }}</a>
 {% endif %}
 {% else %}
-<button type="button" class="button" hx-get="/seances/{{ view.session.id }}/cloture" hx-target="#fin-de-seance" hx-swap="outerHTML show:#fin-de-seance:bottom">{{ t("session.close") }}</button>
+<button type="button" class="button" hx-get="/seances/{{ view.session.id }}/cloture" hx-target="#fin-de-seance" hx-swap="outerHTML show:#fin-de-seance:bottom" hx-disabled-elt="this">{{ t("session.close") }}</button>
 {% endif %}

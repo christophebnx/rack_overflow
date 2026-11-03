@@ -510,12 +510,6 @@ def test_the_start_form_disables_every_start_button(client: TestClient, seeded: 
     assert home.count('name="template_id"') == 5  # four templates and « Séance libre »
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="ui-spec gap: the close row of 'Request, focus and announcement rules' wants buttons "
-    "disabled during GET …/cloture; « Terminer la séance » (session_actions.html:10, "
-    "session_close.html:5) and « Annuler » (session_close_confirm.html:10) carry no hx-disabled-elt",
-)
 def test_the_close_buttons_are_disabled_during_their_request(client: TestClient, seeded: Engine) -> None:
     _, pages = busy_page(client, seeded)
     close = [t for html in pages for t in triggers(html) if "/cloture" in t[0]]
