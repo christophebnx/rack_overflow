@@ -896,7 +896,8 @@ def update_set(
         facts = rules.set_draft(category, [item.field for item in fields], raw_type, raw_values)
         core, variables = _split(facts, fields)
         queries.update_set(connection, set_id, set_type=facts.type, core=core)
-        queries.replace_set_values(connection, set_id, variables)
+        current = [item.field.variable_id for item in fields if item.field.variable_id is not None]
+        queries.replace_set_values(connection, set_id, variables, current)
         return _block(connection, user_id, session_row, found.session_exercise_id)
 
 

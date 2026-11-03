@@ -12,6 +12,7 @@ from collections.abc import Iterable, Mapping, Sequence
 
 import sqlalchemy as sa
 
+from rack_overflow.domain.indicators import RECORD_TYPES
 from rack_overflow.storage import positions
 from rack_overflow.storage.db import guarded_write
 from rack_overflow.storage.errors import SessionOpenError
@@ -32,7 +33,6 @@ CORE_COLUMNS: dict[str, str] = {
     "distance": "distance_m",
 }
 """Core quantity → its `set_entry` column (D-018)."""
-COUNTED_TYPES = ("work", "rm_test")
 
 
 def _value_columns(value: StoredValue) -> dict[str, object]:
@@ -261,10 +261,20 @@ def update_set(
     )
 
 
-def replace_set_values(connection: sa.Connection, set_id: int, values: Mapping[int, StoredValue]) -> None:
-    """Replace the set's variable values by `values`."""
-    connection.execute(sa.delete(set_value).where(set_value.c.set_entry_id == set_id))
-    insert_set_values(connection, set_id, values)
+def replace_set_values(
+    connection: sa.Connection,
+    set_id: int,
+    values: Mapping[int, StoredValue],
+    variable_ids: Iterable[int],
+) -> None:
+    """Replace the set's values of the variables `variable_ids` (the exercise's current fields)
+    by `values`; the stored values of any other variable (archived or unlinked since) are kept
+    (invariant 8)."""
+    scope = list(variable_ids)
+    connection.execute(
+        sa.delete(set_value).where(set_value.c.set_entry_id == set_id, set_value.c.variable_id.in_(scope))
+    )
+    insert_set_values(connection, set_id, {key: value for key, value in values.items() if key in scope})
 
 
 def soft_delete_set(connection: sa.Connection, set_id: int, deleted_at: str) -> None:
@@ -373,7 +383,7 @@ def upsert_settings(connection: sa.Connection, row_id: int, values: Mapping[int,
 def record_history(connection: sa.Connection, user_id: int, exercise_id: int) -> Sequence[sa.Row]:
     """The exercise's live work and RM-test sets across the user's non-deleted sessions, by
     `(completed_at, id)`, each with its `session_id` (D-064)."""
-    query = _exercise_sets(user_id, exercise_id).where(set_entry.c.type.in_(COUNTED_TYPES))
+    query = _exercise_sets(user_id, exercise_id).where(set_entry.c.type.in_(RECORD_TYPES))
     return connection.execute(query.order_by(set_entry.c.completed_at, set_entry.c.id)).all()
 
 

@@ -455,12 +455,6 @@ def test_values_of_an_archived_variable_are_never_written(migrated_engine: Engin
     assert count(migrated_engine, s.exercise_setting) == 0
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="product bug: services/sessions.update_set → storage.replace_set_values deletes every "
-    "set_value of the set, so editing a set physically erases the stored value of a variable "
-    "archived (or unlinked) since (invariant 8, L2 'stored values kept')",
-)
 def test_editing_a_set_keeps_the_values_of_archived_variables(migrated_engine: Engine) -> None:
     bike = make(migrated_engine, "Vélo", "cardio")
     level = measure_var(migrated_engine, "Niveau")
@@ -469,6 +463,22 @@ def test_editing_a_set_keeps_the_values_of_archived_variables(migrated_engine: E
     row = add(migrated_engine, session_id, bike)
     done = log(migrated_engine, session_id, row, {"duration": "10:00", f"var_{level}": "5"}, T0)
     variables.set_archived(migrated_engine, USER, level, T0 + MINUTE)
+    sessions.update_set(migrated_engine, USER, done.set.id, "work", {"duration": "11:00"})
+    with migrated_engine.begin() as connection:
+        assert queries.values_of(connection, [done.set.id]) == {done.set.id: {level: 5}}
+
+
+def test_editing_a_set_keeps_the_values_of_unlinked_variables(migrated_engine: Engine) -> None:
+    bike = make(migrated_engine, "Vélo", "cardio")
+    level = measure_var(migrated_engine, "Niveau")
+    cadence = measure_var(migrated_engine, "Cadence")
+    link = exercises.add_field(migrated_engine, USER, bike, variable_id=level)
+    exercises.add_field(migrated_engine, USER, bike, variable_id=cadence)
+    session_id = free(migrated_engine)
+    row = add(migrated_engine, session_id, bike)
+    values = {"duration": "10:00", f"var_{level}": "5", f"var_{cadence}": "80"}
+    done = log(migrated_engine, session_id, row, values, T0)
+    exercises.remove_field(migrated_engine, USER, bike, link)
     sessions.update_set(migrated_engine, USER, done.set.id, "work", {"duration": "11:00"})
     with migrated_engine.begin() as connection:
         assert queries.values_of(connection, [done.set.id]) == {done.set.id: {level: 5}}
