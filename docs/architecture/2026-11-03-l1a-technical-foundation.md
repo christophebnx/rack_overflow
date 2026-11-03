@@ -1,0 +1,244 @@
+# L1a — Technical foundation (design note)
+
+Status: APPROVED FOR AUTONOMOUS MODE
+
+Every point below is settled by the approved brief (sections 5, 6 L1a, 7, 10, 11, appendix A.2, A.3, A.5, A.7, A.8) or by decisions D-012 to D-043. Where the brief leaves an implementation detail open, this note fixes it and records it as a new, non-superseding decision (D-044 to D-047). No decision is superseded and no released data format exists yet.
+
+## Context
+
+Build the technical foundation of milestone L1a (`docs/roadmap.md`): configuration, database schema and migrations, backups, the web base (app factory, layout, assets, strings, security middleware, error pages), the test isolation guard and the Playwright set-up, and remove the template `hello` command.
+
+Current state: `cli.py` (only `hello`), `domain/errors.py`, `domain/greeting.py`, `storage/files.py` (`atomic_write`), tests for these, `tests/unit/test_layering.py` with `ALLOWED = {domain: {}, storage: {domain}}`. No runtime dependency. Chromium (build 1243) is preinstalled at `/opt/pw-browsers` in this container; WebKit is not.
+
+## Chosen design
+
+### Layering
+
+| Unit | May import (project) | New in L1a |
+|---|---|---|
+| `domain/` | nothing | `vocabulary.py`, `backups.py` |
+| `storage/` | `domain` | `db.py`, `schema.py`, `migrate.py`, `migrations/`, `backup.py`, `errors.py`; `files.py` extended |
+| `services/` (new package) | `domain`, `storage` | `backups.py` |
+| `web/` (new package) | `domain`, `services`, `config` | whole package |
+| `config.py` (top-level module) | `domain` | new |
+| `cli.py` | everything (composition root) | rewritten |
+
+`tests/unit/test_layering.py`: add `"services": {"domain", "storage"}` and `"web": {"domain", "services", "config"}` to `ALLOWED`, plus a `MODULE_ALLOWED = {"config": {"domain"}}` check for top-level modules (`cli` stays unrestricted). `web/` never imports `storage/`: it receives an `Engine` (a SQLAlchemy type) and calls `services/`. Each new package gets a `CLAUDE.md` with rules and module table.
+
+### 1. Configuration — `config.py`
+
+- `load_settings(config_path: Path) -> Settings`: reads the TOML file with stdlib `tomllib`, then the secrets file `.env` **in the same folder as the config file** with `dotenv.dotenv_values` (never mutates `os.environ`; missing `.env` = empty mapping). Called once by `cli.py`; the result is passed down explicitly. No other module reads the environment or these files.
+- `Settings` (frozen dataclasses): `server.host` (str), `server.port` (1..65535), `server.public_host` (non-empty str), `server.https` (bool, V1 `false`, D-013), `storage.data_dir` (Path; relative paths resolved against the config file's folder), `backup.retention_days` (int ≥ 1, default 30), `secrets: Mapping[str, str]`. Derived properties: `database_path = data_dir / "rack.sqlite"`, `backups_dir = data_dir / "backups"`.
+- Unknown sections or keys, wrong types, out-of-range values, missing file, malformed TOML → `ConfigError(Exception)` with a precise English message (CLI exit 1). The file is **required** for `migrate`, `backup`, `serve` (no silent defaults that could put production data in the wrong folder).
+- CLI: every command except `--version` takes `--config PATH`, default `config.toml` in the current folder (the deployed clone runs from its root).
+- Committed `config.example.toml` at the repository root, documented key by key, usable as-is for development: `data_dir = ".local/dev-data"`, `host = "127.0.0.1"`, `port = 8765`, `public_host = "localhost"`, `https = false`. Developers and agents run `uv run rack <cmd> --config config.example.toml` (the guard hook blocks any command mentioning `config.toml`; `config.example.toml` does not match it).
+- Tests never read the real files: they write their own TOML in `tmp_path`; the isolation guard refuses any open of `<repo>/config.toml` and `<repo>/.env`.
+- `tomli-w` is **not** added in L1a: nothing writes TOML yet.
+
+### 2. Database — `storage/db.py`, `storage/schema.py`, `storage/migrate.py`, `storage/migrations/`
+
+**Engine** — `db.create_engine(database_path: Path) -> Engine` (one function owns "open the database"):
+- URL `sqlite:///<absolute path>`; `connect` event sets `PRAGMA journal_mode = WAL`, `foreign_keys = ON`, `synchronous = <db.SYNCHRONOUS>` (module constant `"FULL"`; the test suite sets it to `"OFF"` unless `real_fsync`), `busy_timeout = 5000`.
+- Transactions: the documented SQLAlchemy pysqlite recipe (`dbapi_connection.isolation_level = None` on connect, `begin` event emits `BEGIN IMMEDIATE`). Every transaction takes the write lock up front: no deferred-to-write upgrade failing with `SQLITE_BUSY` under WAL; single user, so the serialisation cost is nil. DDL becomes transactional, so a failed migration rolls back.
+
+**Schema** — `schema.metadata` (SQLAlchemy Core `MetaData` with a naming convention for `pk`, `fk`, `uq`, `ck`, `ix`, required by Alembic batch mode) and one `Table` per table of brief section 7.2. Conventions (D-046):
+- `id INTEGER PRIMARY KEY` generated by the database on every table (D-035); `user_id INTEGER NOT NULL` on root tables (`variable`, `exercise`, `template`, `session`, `rm_measured`, `device`, `app_setting`), no FK (no user table until V2, D-017), indexed.
+- Timestamps `TEXT` UTC ISO 8601 (`2026-11-03T18:04:05Z`); local dates `TEXT` `YYYY-MM-DD`. "Archived" is `archived_at TEXT NULL` (NULL = active), like `deleted_at`, `revoked_at`.
+- Ordered children use a `position INTEGER NOT NULL` column (`order` is a reserved word).
+- Booleans `sa.Boolean(create_constraint=True)`. Definition lists (enum values, discrete values) are `sa.JSON` (TEXT on SQLite, JSON on Postgres); stored facts never are (D-018).
+- Foreign keys without `ON DELETE` actions: history is never physically deleted (D-021).
+- Allowed values of enumerated columns come from `domain/vocabulary.py` tuples (`VARIABLE_TYPES`, `VARIABLE_SCOPES`, `CORE_QUANTITIES`, `EXERCISE_CATEGORIES`, `LOCATIONS` = gym/home/both, `SESSION_LOCATIONS` = gym/home, `SESSION_STATUSES`, `SET_TYPES`) and become `CHECK (col IN (...))`.
+- Only portable SQL: no SQLite-only types or functions; partial indexes carry both `sqlite_where` and `postgresql_where`.
+
+| Table | Columns (all `NOT NULL` unless "null") | Constraints |
+|---|---|---|
+| `variable` | id, user_id, code, label, type, unit null, scope, enum_values JSON null (list of `{key, label}`), decimal_scale null, archived_at null | `uq(user_id, code)`; `ck` type, scope; `ck` enum_values present iff type = enum; `ck` decimal_scale between 1 and 6 iff type = decimal, else null |
+| `exercise` | id, user_id, name, category, movement_pattern null, equipment null, location, archived_at null | `uq(user_id, name)`; `ck` category, location |
+| `exercise_field` | id, exercise_id → exercise, core_quantity null, variable_id → variable null, required bool default false, increment null, default_int null, default_text null, discrete_values JSON null (canonical integers), position | `ck` exactly one of core_quantity / variable_id (written `(a IS NOT NULL AND b IS NULL) OR (a IS NULL AND b IS NOT NULL)`); `ck` core_quantity in list; `ck` increment > 0; `ck` not both defaults; `uq(exercise_id, core_quantity)`, `uq(exercise_id, variable_id)` |
+| `exercise_alias` | id, exercise_id → exercise, alias, alias_normalised | `uq(exercise_id, alias_normalised)`; `ix(alias_normalised)` |
+| `template` | id, user_id, name, location, position, archived_at null | `ck` location |
+| `template_slot` | id, template_id → template, position, exercise_id → exercise null, movement_pattern null, target_sets null, target_reps_min null, target_reps_max null, target_duration_s null, target_distance_m null, target_note null | `ck` exactly one of exercise_id / movement_pattern; `ck` targets ≥ 0 / > 0; `ck` reps_min ≤ reps_max |
+| `template_slot_option` | id, template_slot_id → template_slot, exercise_id → exercise, position | `uq(template_slot_id, exercise_id)` |
+| `session` | id, user_id, local_date, time_zone, started_at, ended_at null, location, template_id → template null, notes null, status, deleted_at null | `ck` location in SESSION_LOCATIONS, status; `ck` `(status = 'open' AND ended_at IS NULL) OR (status = 'closed' AND ended_at IS NOT NULL)`; partial unique index `(user_id) WHERE status = 'open' AND deleted_at IS NULL` (one open session) |
+| `session_exercise` | id, session_id → session, exercise_id → exercise, template_slot_id → template_slot null, position, notes null | `ix(session_id)` |
+| `exercise_setting` | id, session_exercise_id → session_exercise, variable_id → variable, value_int null, value_text null | `ck` exactly one value; `uq(session_exercise_id, variable_id)` |
+| `set_entry` | id, session_exercise_id → session_exercise, position, type default 'work', reps null, weight_g null, duration_s null, distance_m null, completed_at null, deleted_at null | `ck` type in SET_TYPES; `ck` each quantity ≥ 0; `ix(session_exercise_id)` |
+| `set_value` | id, set_entry_id → set_entry, variable_id → variable, value_int null, value_text null | `ck` exactly one value; `uq(set_entry_id, variable_id)` |
+| `rm_measured` | id, user_id, exercise_id → exercise, n, weight_g, measured_on, created_at, deleted_at null | `ck` n ≥ 1, weight_g > 0 |
+| `device` | id, user_id, name, token_hash null (null until paired), created_at, last_seen_at null, revoked_at null | `uq(token_hash)`; partial unique `(user_id, name) WHERE revoked_at IS NULL` |
+| `pairing_code` | id, device_id → device, code_hash, expires_at, attempts default 0, used_at null | `ck` attempts ≥ 0 |
+| `app_setting` | id, user_id, key, value | `uq(user_id, key)` |
+
+`movement_pattern` stays free text here; L2 / L3 decide whether it becomes a vocabulary (new migration). Target columns may be refined by L3 through a new migration.
+
+**Migrations** — shipped inside the package so `rack migrate` works from an installed clone with no `alembic.ini`:
+- `storage/migrations/env.py`, `script.py.mako`, `versions/0001_initial_schema.py`. `migrate.py` builds `alembic.config.Config()` in code with `script_location = <path of storage/migrations>` and hands the connection through `config.attributes["connection"]`. `env.py` configures `target_metadata = schema.metadata`, `render_as_batch=True`, `compare_type=True`, online mode only.
+- `0001` is a frozen snapshot: explicit `op.create_table` calls with literal value lists (it does not import `schema` or `vocabulary`, so later edits to them never rewrite history). It may be produced with autogenerate and then reviewed. Rule (D-046): a committed migration is never edited; changes add a revision.
+- `migrate.upgrade_to_head(engine) -> str` (returns the new revision): on the raw DBAPI connection, before any transaction, `PRAGMA foreign_keys = OFF` (batch mode rebuilds tables); runs the upgrade in one transaction; runs `PRAGMA foreign_key_check` and rolls back with `MigrationError` if it returns rows; re-enables foreign keys. `current_revision(engine) -> str | None`, `head_revision() -> str`, `is_up_to_date(engine) -> bool`.
+- `rack migrate`: loads settings, creates `data_dir` if missing, and if the database exists with pending revisions takes a backup first (`services/backups.backup_now`, so a failed migration can be undone); upgrades; prints `database <path> at revision <rev>`. Idempotent: a second run changes nothing and prints the same line.
+
+**Errors** — `storage/errors.py`: `StorageError(Exception)` base of `MigrationError`, `BackupError`, `CorruptDatabaseError(BackupError)`.
+
+### 3. Backups — `domain/backups.py`, `storage/files.py`, `storage/backup.py`, `services/backups.py`
+
+- `domain/backups.py` (pure): `snapshot_name(now, existing) -> str` gives `rack-<YYYYMMDDTHHMMSSZ>.sqlite`, `_02`, `_03`… on a same-second collision; `parse_snapshot_time(name) -> datetime | None`; `is_due(latest, now) -> bool` (none yet, or latest ≥ 24 h old); `expired(names, now, retention_days) -> list[str]`: snapshots older than `retention_days`, **never the newest one**, ignoring every name that does not parse (temp files, `.corrupt-*`, foreign files).
+- `storage/files.py`: extend rather than duplicate. New `atomic_produce(path, produce: Callable[[Path], None])`: picks the unused temp name, lets `produce(temp)` create it, fsyncs it, `os.replace`, fsyncs the folder, removes the temp file on any failure. `atomic_write(path, data)` becomes a thin call of it. Invariant 3 is kept: the snapshot is written through `files`.
+- `storage/backup.py`: `check_integrity(database_path) -> bool` (`PRAGMA integrity_check` = `ok`); `take_snapshot(database_path, backups_dir, now) -> Path`: missing database → `BackupError`; integrity check fails → `CorruptDatabaseError`, nothing written, nothing moved or deleted; else `VACUUM INTO` the temp path inside `atomic_produce`, integrity-checks the copy before the rename. Uses `db.create_engine(...).raw_connection()` outside any transaction (VACUUM cannot run in one) and disposes the engine. `list_snapshots(backups_dir)`, `prune(backups_dir, now, retention_days) -> list[Path]` deletes only what `domain.backups.expired` returns.
+- `services/backups.py`: `backup_now(database_path, backups_dir, now, retention_days) -> Path` (snapshot, then prune; prune is skipped when the snapshot failed, so good older snapshots survive) and `backup_if_due(...) -> Path | None`. Both the CLI and the server call these.
+- `rack backup`: prints the snapshot path; a corrupt database exits 1 with `rack: error: database failed the integrity check; not backed up`.
+- Daily run (`web/scheduler.py`): an asyncio task started by the app lifespan calls `backup_if_due` through `asyncio.to_thread` at start-up and then every hour, with the clock passed to `create_app`. Errors are logged at `ERROR` and the loop continues; the server keeps serving (restore is L6, server stopped). `create_app(..., run_scheduler=False)` in tests that do not test it.
+- Retention (D-045): by age, `[backup] retention_days = 30`; the newest snapshot is always kept, so a long-stopped server still has one.
+
+### 4. Web — `web/`
+
+| Module | Owns |
+|---|---|
+| `app.py` | `create_app(settings, engine, *, clock, run_scheduler=True) -> FastAPI`: mounts `/static`, installs the security middleware, routes, exception handlers, lifespan (scheduler, engine dispose); stores settings, engine, catalog, clock on `app.state`. No module-level app. |
+| `security.py` | `SecurityMiddleware` (pure ASGI, see below) and the header constants |
+| `locale.py` | `load_catalog(path) -> Catalog`, `Catalog.text(key, **params)`, `LocaleError`; imports no other project module |
+| `rendering.py` | Jinja2 environment (autoescape on, `t` global bound to the catalog) and `render(request, template, context, status=200)`; the one place pages and fragments are rendered |
+| `errors.py` | exception handlers: 404, 405, 500 and other HTTP errors → the `error.html` page for a browser navigation (`Accept: text/html`, no `HX-Request`), else JSON `{"error": "<code>"}` |
+| `scheduler.py` | the daily backup task (section 3) |
+| `routes/home.py` | `GET /` → `home.html`. Later milestones add one `routes/<area>.py` each. |
+| `templates/` | `base.html` (layout), `home.html`, `error.html` |
+| `static/css/` | `tokens.css` (colours, type scale, spacing, radii; light values, dark values under `prefers-color-scheme: dark`), `base.css`, `components.css`, `pages/home.css`; system font stack |
+| `static/vendor/` | `htmx.min.js`, `json-enc.js`, `manifest.json` |
+| `locales/fr.json` | flat `{key: text}` catalog |
+
+- **`rack serve`**: loads settings, creates the engine, refuses to start (exit 1, `database is not up to date; run rack migrate`) unless `migrate.is_up_to_date`, configures logging (stdlib, stderr, UTC timestamps, `%(asctime)s %(levelname)s %(name)s: %(message)s`, INFO; uvicorn's loggers propagate to it, `log_config=None`), then `uvicorn.run(app, host, port, server_header=False, proxy_headers=False)`, one worker. Log files and rotation are L1b (`rack supervise`).
+- **Base layout**: `<html lang="fr">`, `<meta name="viewport">`, `<meta name="color-scheme" content="light dark">`, one `<meta name="htmx-config">` (JSON, not a script) with `includeIndicatorStyles: false`, `allowEval: false`, `allowScriptTags: false`, `selfRequestsOnly: true`, `methodsThatUseUrlParams: ["get"]` (so `DELETE` also sends a JSON body and passes the 415 rule); stylesheets then `<script src defer>` for htmx and json-enc; `<body hx-ext="json-enc">`; a permanent `aria-live` region; a `<main>` block. No inline script, inline style, `style=` or `on*=` attribute. Exact strings and visual design: ui-designer, in `docs/ui-spec.md` (screens "base layout, home, error pages" already planned there).
+- **Strings** (D-036, brief A.6 as amended): `locale.py` reads `web/locales/fr.json` as `utf-8-sig`, flat object of strings, `{name}` placeholders; malformed file (not an object, non-string value, bad placeholder) → `LocaleError` at start-up. A missing key renders the key itself and logs a warning once per key. Loaded once by `create_app`. No `GET /api/locale`, no `i18n.js`. (If L6 exports need French strings, the loader moves to a neutral module then.)
+- **Vendored htmx and json-enc**: htmx 2.x (`htmx.org`, `dist/htmx.min.js`) and the matching htmx 2 `json-enc` extension (`htmx-ext-json-enc`, `json-enc.js`), latest stable versions at build time, committed under `web/static/vendor/`. `manifest.json` lists for each file: package, exact version, source URL (`https://unpkg.com/<package>@<version>/<path>`), SHA-256, licence. **The developer needs network access once** to download them (`curl` through the configured proxy); if it is refused, stop and report rather than hand-write the files. A unit test recomputes the hashes against the manifest, so a silent edit fails. Chart.js is added in L5.
+- **Security middleware** (D-034, D-047) — pure ASGI middleware (not `BaseHTTPMiddleware`: it can count streamed body bytes and reject before buffering), outermost, applied to every request including static files and errors:
+  1. `Host` (D-047): hostname compared case-insensitively, port ignored (the DDNS forward may change it), against `{server.public_host, "localhost", "127.0.0.1", "[::1]"}`. Missing or other → `400 {"error": "invalid_host"}`.
+  2. On every method other than GET / HEAD, and on GET / HEAD under `/api/`: `Origin`, when present, must equal `<scheme>://<Host header>` (scheme `https` when `server.https`, else `http`; `Origin: null` refused); `Sec-Fetch-Site`, when present, must be `same-origin` or `none`. Else `403 {"error": "forbidden_origin"}`, echoing nothing.
+  3. Method other than GET / HEAD without media type `application/json` (parameters such as `charset` allowed) → `415 {"error": "unsupported_media_type"}`.
+  4. Body over `MAX_BODY_BYTES = 65536`: `Content-Length` too large → `413 {"error": "payload_too_large"}` before reading; a streamed body is counted and cut at the limit with the same answer.
+  5. Headers added to every response: `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'`, `Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`; `Cache-Control: no-store` on every response outside `/static/`; `Strict-Transport-Security` only when `server.https` is true (D-013). Never a CORS header.
+
+### 5. Tests
+
+- **Isolation guard** (D-043, brief A.3) in `tests/isolation.py` + `tests/conftest.py`, a faithful port: `pytest_configure` → `isolation.install(Path.home())` (real home recorded first; one audit hook per process / xdist worker, inert until activated); autouse fixture activates it and redirects `HOME`, `USERPROFILE`, `APPDATA`, `LOCALAPPDATA`, `XDG_*` to a temp folder; refuses writes (open flags, remove, rmdir, mkdir, chmod, truncate, rename / replace, link, symlink, `shutil.rmtree` / `move`, `sqlite3.connect`) under the real home or `<repo>/.local/`; refuses any open of `<repo>/.local/**`, `<repo>/.env`, `<repo>/config.toml`; refuses non-loopback name lookups, TCP connects and binds (loopback and `AF_UNIX` allowed). Allowed roots, `realpath` of the parent, `normcase`, `__pycache__` exemption as in A.3. `IsolationError(AssertionError)`, recorded and failing the test at teardown even if caught or raised in a thread. Markers `real_home(reason)`, `external_network(reason)`, `real_fsync(reason)` with required `reason`; `strict_network` fixture variant. Autouse disk-flush skip: `os.fsync` no-op and `storage.db.SYNCHRONOUS = "OFF"` unless `real_fsync`. `snapshot` fixture (folder tree → kind, bytes, mtime). Shared fixtures: `settings_file(tmp_path)` writing a test TOML (`public_host = "testserver"` for the TestClient), `migrated_engine`, `client` (TestClient, `run_scheduler=False`).
+- **Playwright** (D-042): the Python `playwright` package (dev), its own fixtures in `tests/e2e/conftest.py` (no `pytest-playwright`: not named in the brief and not needed), marker `browser`. Before the home redirection, `pytest_configure` records the browsers folder (`PLAYWRIGHT_BROWSERS_PATH` if set, else the platform default under the **real** home) and the fixture passes it to the driver, otherwise the redirected home hides installed browsers. A session fixture starts uvicorn on `127.0.0.1:<free port>` in a thread with a temp, migrated data folder. The browser fixture is parametrised `chromium`, `webkit`; **each** is launched separately and skipped when its executable is missing (`pytest.skip("webkit not installed")`), unless `RACK_REQUIRE_BROWSER=1`, which turns the skip into a failure. Pin the Python `playwright` version whose bundled `browsers.json` expects Chromium build 1243 (the build in `/opt/pw-browsers`), so Chromium runs here; WebKit is skipped in this container (the developer may try `uv run playwright install webkit`; system libraries may be missing). Screenshots go to `tmp_path`, never the repository.
+- `tests/integration/test_entry_points.py`: hello case replaced by `python -m rack_overflow --version`, `migrate` + `backup` in a subprocess on a temp config, and a `rack serve` smoke test (subprocess on a free loopback port, `GET /` = 200, then terminate).
+
+### 6. Removal of the template example
+
+Delete `domain/greeting.py`, `tests/unit/test_greeting.py`, the `hello` sub-command and its tests; drop the `greeting.py` row from `domain/CLAUDE.md`. `cli.main` maps `DomainError`, `ConfigError`, `StorageError` to exit 1 (`rack: error: <message>`), keeping exit 2 for usage; its tests use a missing config file for the exit-1 path.
+
+### 7. Dependencies (only those named in brief section 10)
+
+Runtime: `fastapi>=0.115`, `uvicorn>=0.30`, `pydantic>=2.8`, `jinja2>=3.1`, `sqlalchemy>=2.0`, `alembic>=1.13`, `python-dotenv>=1.0`. Dev group: `httpx>=0.27`, `playwright==<version matching Chromium 1243>`. Not added: `tomli-w` (nothing writes TOML yet), `pytest-playwright`, `uvicorn[standard]`. Vendored, not installed: htmx, json-enc. `uv.lock` updated in the commit that adds each dependency.
+
+### Responsibility map additions (`docs/architecture.md`)
+
+Load settings and secrets → `config.load_settings`; open the database with the project pragmas → `storage/db.create_engine`; schema → `storage/schema.metadata`; apply / inspect migrations → `storage/migrate`; allowed values of enumerated columns → `domain/vocabulary`; snapshot naming, due-ness, retention → `domain/backups`; produce a file atomically from a writer → `storage/files.atomic_produce` (`atomic_write` built on it); take / prune snapshots → `storage/backup`; backup operation → `services/backups`; daily backup in the server → `web/scheduler`; build the web app → `web/app.create_app`; HTTP checks and headers → `web/security.SecurityMiddleware`; user-facing strings → `web/locale.Catalog`; render a page or fragment → `web/rendering.render`; HTTP error → page or code → `web/errors`; test isolation → `tests/isolation.py`.
+
+## UI design
+
+Status: APPROVED FOR AUTONOMOUS MODE. Every choice follows `docs/ui-spec.md` global rules, brief section 4 and A.7, D-015, D-027, D-034, D-036, D-047; the accent hue is the only free choice and lives in one token. Screens, strings and keys are specified in `docs/ui-spec.md`, section "Screens", L1a; this section gives the reasoning and the implementation map.
+
+### Task and decision
+
+L1a has no business data. The only user tasks are: open the app on the iPhone or desktop and see that it answers (home); understand, after a wrong address or a server fault, what happened and get back on track in one tap (error pages). The layout shell is built for later screens but shows nothing they have not yet earned: no navigation links to pages that do not exist (they would 404).
+
+### Layout shell (`base.html`)
+
+```
+360 px                                   1280 px
++------------------------------+         +----------------------------------------------------------+
+| [Aller au contenu] (on focus)|         | Rack Overflow                         {nav block, L2+}   |
+| Rack Overflow     {nav, L2+} |  56 px  +----------------------------------------------------------+
++------------------------------+         |        +--------- max 72rem (1152 px) ---------+         |
+| <main id="contenu">          |         |        | <main>                                 |         |
+|  16 px side padding          |         |        |  24 px side padding                    |         |
+|                              |         |        |                                        |         |
+| [live region, hidden]        |         |        +----------------------------------------+         |
++------------------------------+         +----------------------------------------------------------+
+```
+
+- Order in the DOM: skip link → `<header>` (brand link to `/`, `aria-current="page"` on home; `{% block nav %}` empty in L1a, wrapped in `<nav aria-label>` only when a child template fills it) → `<main id="contenu" tabindex="-1">` → permanent live region `<div id="annonce" role="status" aria-live="polite" aria-atomic="true" class="visually-hidden">`, never swapped itself; later milestones fill it with `hx-swap-oob` from the server (no JavaScript).
+- `<link rel="icon" href="data:,">` so the browser never requests `/favicon.ico` (no 404 noise; `data:` is allowed by `img-src`).
+- `<title>`: key `layout.title` with `{page}` = the page title key's text.
+- Navigation placement on phone (top bar or bottom bar) is left to L2, the first milestone with more than one page; the session screen (L4) owns the bottom thumb zone.
+- Confirmation dialog: not built in L1a. No destructive action exists yet, and opening a `<dialog>` needs either JavaScript beyond htmx or HTML invoker commands, whose Safari support must be checked then. The first milestone with an archive or delete action designs it.
+
+### Home (`home.html`)
+
+Empty state only: `<h1>` « Accueil », then « Rien à afficher pour l’instant. » and « Les séances et la progression apparaîtront ici. » in muted text. No action (nothing to do yet). L4 replaces this content with "start a session".
+
+### Error pages (`error.html`, one template)
+
+Rendered by `web/errors.py` for a browser navigation (D-047 rejections stay JSON and are never pages). The page uses no database or service, so it renders even when they fail. Structure: `<h1>` title, message, muted « Code {status} », actions.
+
+| Case | Title key | Message key | Actions |
+|---|---|---|---|
+| 404 | `error.title.not_found` | `error.not_found` | « Retour à l’accueil » (primary) |
+| 500 and any unhandled exception | `error.title.internal` | `error.internal` | « Réessayer » (primary, `href` = the current path, no query), « Retour à l’accueil » |
+| 405 | `error.title.generic` | `error.method_not_allowed` | « Retour à l’accueil » (primary) |
+| any other status | `error.title.generic` | `error.<code>` when `errors.py` maps the code, else `error.generic` | « Retour à l’accueil » (primary) |
+
+`errors.py` holds an explicit code → key mapping (no dynamic key lookup). The codes `forbidden_origin`, `unsupported_media_type`, `payload_too_large`, `invalid_host` get French strings now (D-036: every code has its string), used when L2+ show htmx request errors. Open point for the L2 architect: htmx does not swap 4xx / 5xx responses by default, and the JSON `{"error": code}` answer cannot be shown without client code; L2 must choose how « Non enregistré, réessayer » reaches the form (e.g. htmx `responseHandling` in the `htmx-config` meta plus an HTML error fragment for `HX-Request`).
+
+Phone thumb zone: at < 40rem the error page's `<main>` fills the viewport below the header (`min-height: calc(100dvh - var(--header-height))`, flex column) and `.actions` gets `margin-top: auto`, so the actions sit at the bottom, stacked, full width, primary first. At ≥ 40rem actions follow the text in a row, auto width, 8 px gap. This `.actions--thumb` modifier is the reusable pattern for later screens.
+
+### Keyboard and focus
+
+Tab order: « Aller au contenu » (visually hidden until focused, then shown top-left above the header) → brand link → nav (later) → page actions. The skip link targets `#contenu`. No autofocus on any L1a page. Focus ring: `outline: 3px solid var(--color-focus); outline-offset: 2px` on `:focus-visible` for every interactive element; never `outline: none` without this replacement.
+
+### Components and files
+
+- `tokens.css`: values in `docs/ui-spec.md` (L1a, Tokens); light values on `:root`, dark values under `@media (prefers-color-scheme: dark)`; `color-scheme: light dark` on `:root`.
+- `base.css`: minimal reset (`box-sizing`, margins), `body` font / colours / `line-height`, `a` underlined in accent colour, `:focus-visible`, `.visually-hidden`, `.skip-link`, header, `main` widths and paddings, `.num` (`font-variant-numeric: tabular-nums; text-align: right`).
+- `components.css`: `.button` (secondary: transparent, 1 px `--color-border`, text colour) and `.button--primary` (accent background, `--color-on-accent` text), both `min-height` / `min-width: var(--target-min)`, padding `0 var(--space-4)`, weight 600, radius `--radius-md`, also styling `<a class="button">`; `[disabled]`, `[aria-disabled="true"]` at 0.5 opacity with `cursor: not-allowed`; `.actions` (flex, gap `--target-gap`) and `.actions--thumb`; `.message-page` (h1 + text + code, max 40rem); `.htmx-indicator` hidden and shown under `.htmx-request` (required since `includeIndicatorStyles: false`).
+- `pages/home.css`: only the home empty state spacing. No `pages/error.css`: the error page uses components only.
+- No animation or transition in L1a.
+
+### Rejected UI options
+
+- **Navigation links in L1a**: every link would lead to a 404 until L2–L5.
+- **Bottom tab bar now**: would claim the thumb zone the session screen needs; decided with L2 / L4.
+- **Visible toast as live region**: a second visual layer; feedback is shown in place next to the action, the live region only announces.
+- **Showing the requested path on the 404 page**: echoes user input for no gain.
+- **Custom font**: system stack per global rules; nothing to download.
+
+## Rejected options
+
+- **Silent defaults when `config.toml` is missing**: could start production on a dev data folder; an explicit error is safer.
+- **`alembic.ini` at the repository root as the runtime entry**: breaks when the CLI runs from another folder; the in-code `Config` works from any clone.
+- **Migration `0001` calling `metadata.create_all`**: later edits to `schema.py` would rewrite history; frozen explicit DDL instead.
+- **Deferred `BEGIN`**: under WAL a read-then-write transaction can fail with `SQLITE_BUSY` without waiting; `BEGIN IMMEDIATE` waits on `busy_timeout`.
+- **SQLite backup API** (Equinox): `VACUUM INTO` is planned by D-037 and compacts the copy.
+- **Reading the snapshot into memory to call `atomic_write(path, bytes)`**: doubles I/O and memory; `atomic_produce` keeps one atomic writer.
+- **Moving a corrupt database aside and auto-restoring** (Equinox): restore is L6 and runs with the server stopped; L1a only refuses and logs.
+- **Count-based retention (keep 30 files)**: manual and pre-migration snapshots would push daily ones out early; D-037 says 30-day.
+- **`BaseHTTPMiddleware`**: buffers bodies and cannot cut a streamed body at the limit.
+- **Host check against `public_host` only**: breaks local use and loopback tests; loopback names cannot be abused by DNS rebinding.
+- **Node Playwright** (Equinox CI): D-042 chose the Python package.
+- **htmx from a CDN**: forbidden by CSP and the privacy rule.
+
+## Impacts
+
+- Decisions appended (none superseded): D-044 configuration contract, D-045 backup rules, D-046 database conventions, D-047 HTTP security details.
+- Docs to update: `docs/architecture.md` (layers table with `services/`, `web/`, `config.py`; responsibility map; configuration section with `--config`), `src/rack_overflow/{domain,storage}/CLAUDE.md`, new `src/rack_overflow/{services,web}/CLAUDE.md`, root `CLAUDE.md` commands (`rack migrate | backup | serve --config config.example.toml`, `-m "not browser"`), `docs/ui-spec.md` L1a screens (ui-designer), `CHANGELOG.md`, `docs/progress.md`.
+- `pyproject.toml`: dependencies, markers `browser`, `real_home`, `external_network`, `real_fsync`.
+- Compatibility: no released data format; `config.example.toml` is new; `.env.example` unchanged.
+
+## Test plan
+
+- **Unit**: `config` (valid file, relative `data_dir`, each invalid key / type / range, missing file, `.env` beside it read without touching `os.environ`); `domain/backups` (names, collisions, parse, due, expiry with newest kept and foreign names ignored); `domain/vocabulary` (no duplicates); `files.atomic_produce` (success, producer failure leaves no temp and the old file intact); `locale` (placeholders, missing key returns key and warns once, malformed file); vendored hashes match the manifest; every `t("key")` in templates exists in `fr.json`; rendered pages contain no inline script / style / `style=` / `on*=` and only same-origin URLs; layering.
+- **Database**: upgrade from empty on a temp database; second run is a no-op; `compare_metadata` between the migrated database and `schema.metadata` is empty; each vocabulary value is accepted and an unknown value rejected by its CHECK; exactly-one checks on `exercise_field`, `template_slot`, value tables; a second open session is refused; FK enforcement; pragmas on a fresh connection (WAL, foreign_keys, busy_timeout); `is_up_to_date` before and after.
+- **Backup**: snapshot equals source rows and passes integrity; retention with 40 dated names keeps the last 30 days plus newest, leaves temp / `.corrupt-*` / foreign files; corrupt database (bytes overwritten in a temp file) → `CorruptDatabaseError`, `snapshot` fixture shows the data and backups folders unchanged; `rack migrate` with pending revisions takes a snapshot first; scheduler takes one snapshot at start-up, none on a second start the same day (injected clock).
+- **Web (TestClient)**: `GET /` 200 with the layout; 404 page for navigation, JSON code for `HX-Request`; 415 on POST without JSON (and with form encoding); 403 on foreign `Origin`, `Origin: null`, `Sec-Fetch-Site: cross-site`; same-origin POST passes to routing; 400 on wrong `Host`; 413 on oversized `Content-Length` and on an oversized streamed body; security headers and `no-store` on page, error, static and middleware-rejected responses; HSTS only with `https = true`.
+- **CLI / entry points**: `migrate`, `backup`, `serve` refuses an unmigrated database, exit codes 0 / 1 / 2, subprocess smoke tests.
+- **Isolation guard** (via `pytester` in a subprocess with a copy of the guard): an inner test writing under the real home, opening `<repo>/.env` or `<repo>/config.toml`, resolving a public name or connecting to `192.0.2.1` fails, including when the refusal is caught or raised in a thread; loopback bind and connect pass; the opt-out markers work and need `reason`.
+- **Browser** (`tests/e2e/`, Chromium and WebKit × 360 / 1280 px × light / dark): home and a 404 page load; no request leaves the test server origin (route interception); no console CSP violation; no `<style>`, inline `<script>` or `style=` in the live DOM; `window.htmx` defined and `json-enc` registered; no horizontal scroll at 360 px; dark scheme changes the background token. Run here on Chromium; WebKit recorded as skipped in `docs/progress.md` until run on a machine with WebKit (`RACK_REQUIRE_BROWSER=1`).
+
+## Commit split (each leaves the tree green; footer `Milestone: L1a`)
+
+1. `test(tests): port the Equinox isolation guard` — `tests/isolation.py`, `tests/conftest.py`, markers in `pyproject.toml`, guard tests. No product change.
+2. `feat(storage): add configuration, schema, migrations and rack migrate` — `config.py`, `config.example.toml`, `domain/vocabulary.py`, `storage/{db,schema,migrate,errors}.py`, `storage/migrations/`, CLI rewrite with `migrate`, removal of `hello` and `domain/greeting.py`, layering update (`MODULE_ALLOWED`), deps `sqlalchemy`, `alembic`, `python-dotenv`, docs of these packages.
+3. `feat(storage): add backups and rack backup` — `domain/backups.py`, `files.atomic_produce`, `storage/backup.py`, `services/` package (`backups.py`, `CLAUDE.md`, layering row), `rack backup`, pre-migration snapshot in `rack migrate`.
+4. `feat(web): add app factory, layout, security middleware and rack serve` — `web/` package (app, security, locale, rendering, errors, scheduler, routes, templates, CSS, `fr.json`), vendored htmx + json-enc with manifest, `rack serve`, logging, deps `fastapi`, `uvicorn`, `pydantic`, `jinja2`, `httpx` (dev), layering row, `web/CLAUDE.md`, ui-spec L1a section.
+5. `test(web): add Playwright browser checks on Chromium and WebKit` — `tests/e2e/`, dev dep `playwright`, `browser` marker docs.
+6. `docs(docs): close milestone L1a` — architecture map and layers, root `CLAUDE.md` commands, `CHANGELOG.md`, `docs/progress.md`, roadmap notes.
