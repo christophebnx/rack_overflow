@@ -244,6 +244,14 @@ def assert_targets(page: Page) -> None:
     assert small == []
 
 
+def tap_next(taps: Taps, name: str) -> None:
+    """One tap on « Suivant : {name} », a link: wait for the new page's `load` (deferred htmx bound)
+    so the next tap is not a native form submit on a page htmx has not processed yet."""
+    link = taps.page.get_by_role("link", name=TEXT("session.next_item", name=name))
+    with taps.page.expect_navigation(wait_until="load"):
+        taps.tap(link)
+
+
 def wait_settled(page: Page) -> None:
     page.wait_for_load_state("networkidle")
 
@@ -293,7 +301,7 @@ def test_full_salle_a_session_in_counted_taps(phone: Watched) -> None:
 
     # next exercise: 1 tap; a warm-up set: type then ✓ (2 taps)
     with taps.counted(1):
-        taps.tap(page.get_by_role("link", name=TEXT("session.next_item", name="Développé couché (barre)")))
+        tap_next(taps, "Développé couché (barre)")
     expect(current_block(page).locator("h2")).to_have_text("Développé couché (barre)")
     with taps.counted(2):
         taps.tap(page.locator("label.chip", has_text=TEXT("session.set_type.warmup")))
@@ -306,7 +314,7 @@ def test_full_salle_a_session_in_counted_taps(phone: Watched) -> None:
 
     # a pending menu: « Suivant », then the option (2 taps), then ✓
     with taps.counted(2):
-        taps.tap(page.get_by_role("link", name=TEXT("session.next_item", name="Tirage horizontal")))
+        tap_next(taps, "Tirage horizontal")
         taps.tap(page.get_by_role("button", name="Rowing barre au rack"))
     expect(current_block(page).locator("h2")).to_have_text("Rowing barre au rack")
     expect(page.locator("#annonce")).to_have_text(
@@ -318,7 +326,7 @@ def test_full_salle_a_session_in_counted_taps(phone: Watched) -> None:
 
     # « Jambes unilatéral »: pick the leg press; its settings are prefilled from the last session
     with taps.counted(2):
-        taps.tap(page.get_by_role("link", name=TEXT("session.next_item", name="Jambes unilatéral")))
+        tap_next(taps, "Jambes unilatéral")
         taps.tap(page.get_by_role("button", name="Presse à cuisses"))
     settings = current_block(page).locator(".session-settings__summary").first
     expect(settings).to_contain_text("Siège\u00a04")
@@ -359,11 +367,11 @@ def test_full_salle_a_session_in_counted_taps(phone: Watched) -> None:
 
     # curl, then the « Gainage » menu with the plank (duration from the last performance)
     with taps.counted(1):
-        taps.tap(page.get_by_role("link", name=TEXT("session.next_item", name="Curl barre EZ")))
+        tap_next(taps, "Curl barre EZ")
     with taps.counted(1):
         taps.tap(confirm_button(page))
     with taps.counted(2):
-        taps.tap(page.get_by_role("link", name=TEXT("session.next_item", name="Gainage")))
+        tap_next(taps, "Gainage")
         taps.tap(page.get_by_role("button", name="Planche"))
     expect(page.locator('form.set-form input[name="duration"]')).to_have_value("0:45")
     with taps.counted(1):
@@ -433,7 +441,7 @@ def test_other_place_discrete_load_recent_exercise_and_resume(phone: Watched) ->
     expect(page.locator("#ajout")).not_to_have_attribute("open", "")
     # resume from home: 1 tap, current = the row of the latest set
     page.goto(phone.origin + "/")
-    with taps.counted(1):
+    with taps.counted(1), page.expect_navigation(wait_until="load"):  # htmx bound before « Terminer »
         taps.tap(page.get_by_role("link", name=TEXT("home.resume")))
     expect(current_block(page).locator("h2")).to_have_text("Kettlebell swing")
     taps.tap(page.locator("#terminer"))

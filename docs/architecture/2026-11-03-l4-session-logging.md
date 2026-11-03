@@ -333,3 +333,5 @@ Reviewer:
 UI review:
 4. Fixed: the next-set form carries `data-request-focus="trigger"`; `request-errors.js` keeps focus on the ✓ after a failed ✓ (on « + » / « − » after a failed step). D-053 refinement, ui-spec updated, e2e flow asserts the focus.
 5. Done: « Modifier » no longer moves when its `<details>` opens (the open `<details>` spans the row's first line; the action column has a minimum width so the text keeps its width; e2e asserts both boxes unchanged at 360 and 1280). The failure slot is scrolled fully into view (`scrollIntoView` nearest, `scroll-margin-block` on `.form-status`); the e2e flow asserts ratio 1 inside 640 px.
+
+4. Seen during this loop: the Salle A flow tapped a menu option before htmx was bound on the page « Suivant » had just loaded (a native form submit under `-n auto`); `tap_next` (and the resume tap of the other-place flow) waits for the `load` of that navigation; the cause of a single other-place failure was not captured, the resume tap was the same race.
