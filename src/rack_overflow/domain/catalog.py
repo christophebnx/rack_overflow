@@ -67,13 +67,17 @@ def _refuse(field_name: str, code: str, **params: object) -> CatalogError:
     return CatalogError([Problem(field_name, code, params)])
 
 
-def _raise_if(problems: list[Problem]) -> None:
+def raise_if(problems: list[Problem]) -> None:
+    """Raise every collected problem at once (nothing when the list is empty)."""
     if problems:
         raise CatalogError(problems)
 
 
-def _text(problems: list[Problem], name: str, raw: str | None, maximum: int, *, required: bool) -> str | None:
-    """`raw` stripped; empty → None (or `required`), longer than `maximum` → `too_long`."""
+def text_input(
+    problems: list[Problem], name: str, raw: str | None, maximum: int, *, required: bool
+) -> str | None:
+    """`raw` stripped; empty → None (or `required`), longer than `maximum` → `too_long`. Shared by
+    every catalog form (exercises, variables, templates)."""
     value = (raw or "").strip()
     if not value:
         if required:
@@ -84,7 +88,8 @@ def _text(problems: list[Problem], name: str, raw: str | None, maximum: int, *, 
     return value
 
 
-def _choice(problems: list[Problem], name: str, raw: str | None, allowed: Sequence[str]) -> str | None:
+def choice_input(problems: list[Problem], name: str, raw: str | None, allowed: Sequence[str]) -> str | None:
+    """`raw` when it is one of `allowed`; missing → `required`, anything else → `invalid_choice`."""
     if not raw:
         problems.append(Problem(name, "required"))
         return None
@@ -142,12 +147,12 @@ def variable_draft(
     the stored enum values, `retired` the keys already removed: a removed key is kept retired so
     it is never handed out again (D-032, D-054)."""
     problems: list[Problem] = []
-    clean_label = _text(problems, "label", label, LABEL_MAX, required=True)
-    clean_type = _choice(problems, "type", var_type, VARIABLE_TYPES)
-    clean_scope = _choice(problems, "scope", scope, VARIABLE_SCOPES)
+    clean_label = text_input(problems, "label", label, LABEL_MAX, required=True)
+    clean_type = choice_input(problems, "type", var_type, VARIABLE_TYPES)
+    clean_scope = choice_input(problems, "scope", scope, VARIABLE_SCOPES)
     clean_unit = None
     if clean_type in FREE_UNIT_TYPES:
-        clean_unit = _text(problems, "unit", unit, UNIT_MAX, required=False)
+        clean_unit = text_input(problems, "unit", unit, UNIT_MAX, required=False)
     clean_scale = None
     if clean_type == units.DECIMAL:
         clean_scale = _scale(problems, scale)
@@ -156,7 +161,7 @@ def variable_draft(
     if clean_type == ENUM:
         enum = _enum_values(problems, values, existing, retired)
         retired_keys = retired_after(existing, enum, retired)
-    _raise_if(problems)
+    raise_if(problems)
     assert clean_label is not None and clean_type is not None and clean_scope is not None
     return VariableDraft(clean_label, clean_type, clean_scope, clean_unit, clean_scale, enum, retired_keys)
 
@@ -172,7 +177,7 @@ def retired_after(
 
 
 def _scale(problems: list[Problem], raw: str | None) -> int | None:
-    choice = _choice(problems, "decimal_scale", raw, [str(scale) for scale in SCALES])
+    choice = choice_input(problems, "decimal_scale", raw, [str(scale) for scale in SCALES])
     return int(choice) if choice is not None else None
 
 
@@ -195,7 +200,7 @@ def _enum_values(
         problems.append(Problem("values", "too_many_values", {"max": ENUM_VALUES_MAX}))
     seen: set[str] = set()
     for value in kept:
-        label = _text(problems, "values", value.label, ENUM_LABEL_MAX, required=True)
+        label = text_input(problems, "values", value.label, ENUM_LABEL_MAX, required=True)
         if label is not None and normalise(label) in seen:
             problems.append(Problem("values", "duplicate_value", {"value": label}))
         seen.add(normalise(label or ""))
@@ -249,7 +254,7 @@ def variable_change(
     kept = {value.key for value in draft.enum_values or ()}
     if draft.type == ENUM and any(key not in kept for key in used_enum_keys):
         problems.append(Problem("values", "enum_value_in_use"))
-    _raise_if(problems)
+    raise_if(problems)
     return draft
 
 
@@ -282,12 +287,12 @@ def exercise_draft(
 ) -> ExerciseDraft:
     """Validate an exercise form (name uniqueness is checked by `name_taken` against the others)."""
     problems: list[Problem] = []
-    clean_name = _text(problems, "name", name, NAME_MAX, required=True)
-    clean_category = _choice(problems, "category", category, EXERCISE_CATEGORIES)
-    pattern = _text(problems, "movement_pattern", movement_pattern, PATTERN_MAX, required=False)
-    clean_equipment = _text(problems, "equipment", equipment, EQUIPMENT_MAX, required=False)
-    clean_location = _choice(problems, "location", location, LOCATIONS)
-    _raise_if(problems)
+    clean_name = text_input(problems, "name", name, NAME_MAX, required=True)
+    clean_category = choice_input(problems, "category", category, EXERCISE_CATEGORIES)
+    pattern = text_input(problems, "movement_pattern", movement_pattern, PATTERN_MAX, required=False)
+    clean_equipment = text_input(problems, "equipment", equipment, EQUIPMENT_MAX, required=False)
+    clean_location = choice_input(problems, "location", location, LOCATIONS)
+    raise_if(problems)
     assert clean_name is not None and clean_category is not None and clean_location is not None
     return ExerciseDraft(clean_name, clean_category, pattern, clean_equipment, clean_location)
 
@@ -406,7 +411,7 @@ def field_params(
     step = _parse_number(problems, "increment", kind, increment)
     values = _parse_values(problems, kind, discrete_values)
     default_int, default_text = _parse_default(problems, kind, default)
-    _raise_if(problems)
+    raise_if(problems)
     ordered = tuple(sorted(values)) if values is not None else None
     params = FieldParams(required, step, ordered, default_int, default_text)
     check_field(kind, params)
@@ -477,7 +482,7 @@ def check_field(kind: FieldKind, params: FieldParams) -> None:
     if params.increment is not None and params.discrete_values is not None:
         problems.append(Problem("increment", "increment_with_discrete"))
     problems.extend(_default_problems(kind, params))
-    _raise_if(problems)
+    raise_if(problems)
 
 
 def _values_problems(kind: FieldKind, values: Sequence[int]) -> list[Problem]:
@@ -572,8 +577,8 @@ class AliasDraft:
 def alias_draft(raw: str | None, exercise_name: str, existing: Iterable[str]) -> AliasDraft:
     """Validate an alias of an exercise; `existing` are its other aliases (any spelling)."""
     problems: list[Problem] = []
-    alias = _text(problems, "alias", raw, ALIAS_MAX, required=True)
-    _raise_if(problems)
+    alias = text_input(problems, "alias", raw, ALIAS_MAX, required=True)
+    raise_if(problems)
     assert alias is not None
     folded = normalise(alias)
     if not folded:

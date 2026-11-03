@@ -162,3 +162,37 @@ def _duration_text(seconds: int) -> str:
     if hours:
         return f"{hours}:{minutes:02d}:{secs:02d}"
     return f"{minutes}:{secs:02d}"
+
+
+COMPACT_SECONDS = "duration.compact.seconds"
+COMPACT_MINUTES = "duration.compact.minutes"
+COMPACT_MINUTES_SECONDS = "duration.compact.minutes_seconds"
+COMPACT_HOURS = "duration.compact.hours"
+COMPACT_HOURS_MINUTES = "duration.compact.hours_minutes"
+
+
+@dataclass(frozen=True)
+class CompactDuration:
+    """A duration in the compact form of targets (« 45 s », « 30 min », « 1 h 15 »): a text key
+    and its parameters; `key` is None for the rare D-055 form (`text`, « 1:15:30 »)."""
+
+    key: str | None
+    params: dict[str, str]
+
+
+def compact_duration(seconds: int) -> CompactDuration:
+    """`seconds` as a target reads it (D-055 refinement, L3): seconds below a minute, whole
+    minutes or « min ss » below an hour, whole hours or « h mm », else `h:mm:ss`."""
+    hours, rest = divmod(seconds, 3600)
+    minutes, secs = divmod(rest, 60)
+    if not hours and not minutes:
+        return CompactDuration(COMPACT_SECONDS, {"seconds": str(secs)})
+    if not hours:
+        if not secs:
+            return CompactDuration(COMPACT_MINUTES, {"minutes": str(minutes)})
+        return CompactDuration(COMPACT_MINUTES_SECONDS, {"minutes": str(minutes), "seconds": f"{secs:02d}"})
+    if secs:
+        return CompactDuration(None, {"text": _duration_text(seconds)})
+    if not minutes:
+        return CompactDuration(COMPACT_HOURS, {"hours": str(hours)})
+    return CompactDuration(COMPACT_HOURS_MINUTES, {"hours": str(hours), "minutes": f"{minutes:02d}"})

@@ -253,3 +253,22 @@ def test_parse_refuses_with_a_stable_code(kind: str, raw: str, code: str) -> Non
     with pytest.raises(UnitError) as refused:
         units.parse(kind, raw)
     assert refused.value.code == code
+
+
+@pytest.mark.parametrize(
+    ("seconds", "key", "params"),
+    [
+        (0, units.COMPACT_SECONDS, {"seconds": "0"}),
+        (45, units.COMPACT_SECONDS, {"seconds": "45"}),
+        (60, units.COMPACT_MINUTES, {"minutes": "1"}),
+        (1800, units.COMPACT_MINUTES, {"minutes": "30"}),
+        (90, units.COMPACT_MINUTES_SECONDS, {"minutes": "1", "seconds": "30"}),
+        (65, units.COMPACT_MINUTES_SECONDS, {"minutes": "1", "seconds": "05"}),
+        (3600, units.COMPACT_HOURS, {"hours": "1"}),
+        (4500, units.COMPACT_HOURS_MINUTES, {"hours": "1", "minutes": "15"}),
+        (3900, units.COMPACT_HOURS_MINUTES, {"hours": "1", "minutes": "05"}),
+        (4530, None, {"text": "1:15:30"}),
+    ],
+)
+def test_compact_duration(seconds: int, key: str | None, params: dict[str, str]) -> None:
+    assert units.compact_duration(seconds) == units.CompactDuration(key, params)

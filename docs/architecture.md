@@ -66,10 +66,11 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | The V1 user id | `domain/users.SINGLE_USER_ID` |
 | Device, pairing code and token rules | `domain/devices` |
 | Text normalisation (search, aliases, name uniqueness, codes) | `domain/text` |
-| Canonical integers ↔ display and input text (kg, km / m, m:ss) | `domain/units` |
+| Canonical integers ↔ display and input text (kg, km / m, m:ss; compact target durations) | `domain/units` |
 | Catalog rules (variables, exercises, fields, aliases) | `domain/catalog` |
 | Movement pattern and equipment of an exercise in their first-seen spelling | `domain/catalog.with_known_spellings` |
 | At least one measure per exercise (field removal, variable delete or scope change) | `domain/catalog.check_measures`, `check_linked_measures` |
+| Template, menu, target and slot / option limit rules | `domain/templates` |
 | Fuzzy ranking of exercises | `domain/search` |
 | Reorder a list by « Monter » / « Descendre » (fields, templates, slots, options) | `domain/ordering.moved` + `storage/positions.set_positions` |
 | Variable queries | `storage/variables` |
