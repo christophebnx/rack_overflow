@@ -1,5 +1,7 @@
 # Rack Overflow — V1 pre-brief
 
+> **Scope change 2026-11-03:** V1 is a responsive web app (FastAPI + htmx), no PWA, no offline mode, no L0. See section D of `docs/release-1.0.0-challenge.md`, which supersedes the conflicting parts of this file.
+>
 > **Status: pre-brief, not approved.** Scoping document written outside the repository, to be challenged by Claude Code (repo access, agents, dev protocol) before producing `docs/architecture.md`, `docs/decisions.md`, `docs/roadmap.md` and `docs/ui-spec.md`. Once aligned with the user, this file becomes the approved release brief (with "Approvals for the unattended run" and "Settled open points").
 > Repository `christophebnx/rack_overflow` · project `rack-overflow` · package `src/rack_overflow` · CLI `rack`.
 > Date: 2026-11-03.

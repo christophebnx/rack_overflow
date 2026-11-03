@@ -1,13 +1,13 @@
 # Rack Overflow — V1 pre-brief challenge
 
-Status: **awaiting the user's answers** (section C). Written by Claude Code on 2026-11-03 after reading this repository (template, agents, skills) and the Equinox Management repository (findings in the appendix of `docs/release-1.0.0-brief.md`). Nothing has been built yet.
+Status: **awaiting the user's answers** (section E). **Section D (scope change, 2026-11-03) supersedes every point of sections A to C that it names.** Written by Claude Code on 2026-11-03 after reading this repository (template, agents, skills) and the Equinox Management repository (findings in the appendix of `docs/release-1.0.0-brief.md`). Nothing has been built yet.
 
-Once the user answers section C, the next step is to rewrite `docs/release-1.0.0-brief.md` as the approved release brief, and to write `docs/roadmap.md`, `docs/decisions.md`, `docs/architecture.md` and `docs/ui-spec.md` in one `docs` commit, then run B0 and the milestones through `/build-roadmap`.
+Once the user answers section E, the next step is to rewrite `docs/release-1.0.0-brief.md` as the approved release brief, and to write `docs/roadmap.md`, `docs/decisions.md`, `docs/architecture.md` and `docs/ui-spec.md` in one `docs` commit, then run B0 and the milestones through `/build-roadmap`.
 
 ## Resume in a new session
 
 1. Read `CLAUDE.md`, `docs/release-1.0.0-brief.md` (pre-brief + Equinox appendix) and this file.
-2. Show the user the questions of section C that are still open; do not start building before they are answered.
+2. Read section D first: it supersedes parts of the pre-brief and of sections A to C. Show the user the questions of section E that are still open; do not start building before they are answered.
 3. Work on the session's designated branch (it plays the role of `dev`); the user merges into `main` through a pull request.
 
 ---
@@ -71,7 +71,7 @@ Once the user answers section C, the next step is to rewrite `docs/release-1.0.0
 - **`DELETE /api/sessions/{id}`:** a soft delete (`deleted_at`), consistent with "no physical deletion".
 - **Manual acceptance:** criteria only checkable on site (NAS reboot, smoothness on iPhone) are marked "user validation" in the roadmap.
 
-## C. Questions for the user
+## C. Questions for the user (superseded by section E)
 
 | # | Question | Recommendation | Answer |
 |---|---|---|---|
@@ -80,4 +80,44 @@ Once the user answers section C, the next step is to rewrite `docs/release-1.0.0
 | 3 | Remove the work / rest ratio of intervals from V1 (B3)? | Yes | open |
 | 4 | SQLAlchemy Core + Alembic (B2) and UUID v4 (B6)? | Yes | open |
 | 5 | Intermediate tag 0.1.0 after L4b, to use the app at the gym before L5 and L6? | Yes | open |
+| 6 | CI on Ubuntu + macOS, without Windows? | Yes | open |
+
+## D. Scope change (user decision, 2026-11-03)
+
+**V1 is a responsive web application, server-rendered with FastAPI + htmx. No PWA, no separate mobile app, no offline mode.** The same pages serve the iPhone (360 px) and the desktop (1280 px). Goal: simplify V1. Offline logging may come back in a later version; V1 closes no door but prepares nothing for it.
+
+### D.1 Removed from V1
+
+- **L0 (offline spike)**: removed entirely.
+- Manifest, service worker, IndexedDB (pre-brief 7.3), read-only pack, outbox, `GET /api/pack`, `POST /api/outbox`.
+- Pre-brief decisions **D-002** (web + PWA), **D-003** (offline limited to the session screen) and **D-004** (pack + outbox keyed by UUID v7) are dropped; D-002 is replaced by the decision above.
+- Requirement "the session screen works without network" and "set confirmation never waits for the network".
+- Challenge points now obsolete: **A.5** split of L4 into L4a / L4b, **B5** (record thresholds in the pack: the server renders the star, no JS formula), **B6** (no client-generated id), **B7** (HTTPS no longer blocks a spike), **B8** (iOS PWA constraints), and the offline part of **B11** (strings cached offline).
+
+### D.2 Consequences on what stays
+
+- **Front end**: Jinja2 templates rendered by FastAPI, htmx for partial updates (fragments swapped in place). htmx and Chart.js are vendored under `static/` at a pinned version (no external resource). JavaScript is limited to htmx configuration and charts. Equinox appendix A.7 is reused for CSS (tokens, base, components) and accessibility rules, not for its ES-module client architecture.
+- **Strings (A.6 adapted)**: one flat catalog `locales/fr.json`, resolved **server-side** in templates; no `GET /api/locale`, no `i18n.js`.
+- **Routes**: HTML routes returning full pages or htmx fragments replace most of the JSON API sketch (pre-brief section 8). JSON stays only where a consumer needs it: chart data (L5) and export (L6). Business logic lives in a service layer under the routes, so a JSON API (or the V2 AI module) can be added without rewriting it.
+- **Security (A.5 adapted)**: htmx posts forms (`application/x-www-form-urlencoded`), so the "JSON body only" rule of Equinox does not apply to HTML routes. Kept: `Origin` / `Sec-Fetch-Site` check on every non-GET request, `SameSite=Strict` `HttpOnly` cookie, `Host` check, CSP `script-src 'self'` (htmx configured with `includeIndicatorStyles: false` so it injects no inline style).
+- **Double submission (B4 reduced)**: a poor gym network can still make a tap be sent twice. Each set form carries a hidden server-issued token; the server ignores a token already applied, and the button is disabled during the request (`hx-disabled-elt`). On a network error the form keeps its values and shows "non enregistré, réessayer"; nothing is lost silently.
+- **Speed targets (pre-brief section 4)**: tap counts kept (1 tap for an unchanged set, ≤ 3 for a modified set, ≤ 3 to start from a template, no keyboard in the nominal case). "< 100 ms, never waits for the network" becomes: server handling of a set < 100 ms, and the confirmed set is visible as soon as the response arrives. **Accepted risk**: without network at the gym, logging is impossible in V1.
+- **Auth (B9)**: unchanged (per-device pairing, `HttpOnly` cookie, revocable). Simpler now: pairing happens in Safari, no separate cookie jar.
+- **Ids**: generated by the server. See question E4.
+- **Browser tests**: Playwright with Chromium and WebKit, 360 / 1280 px, light / dark. No offline test.
+- **Unchanged**: catalog and variables (L2), templates as menus (L3), tracking (L5), operations (L6), storage model (pre-brief 7.1-7.2, 7.4), B1, B2, B3, B10, deployment on the NAS / Jelastic.
+
+### D.3 New milestone order
+
+B0 → **L1a** (FastAPI app, Jinja2 + htmx layout, config, database, migrations, daily backup, CI, Playwright) → **L1b** (per-device auth, NAS deployment; manual steps by the user) → **L2** (catalog) → **L3** (templates) → **L4** (in-session logging, online) → **L5** (tracking) → **L6** (operations).
+
+## E. Questions for the user (current)
+
+| # | Question | Recommendation | Answer |
+|---|---|---|---|
+| 1 | Are the DSM reverse proxy, certificate and DynDNS already working? Needed by L1b (access from the iPhone), no longer blocking at start. | — | open |
+| 2 | Seeds: does the user supply the real exercise list and the content of "Salle 1", "Salle 2", "Maison", "Cardio bonus", or does Claude Code propose a list for correction? | — | open |
+| 3 | Remove the work / rest ratio of intervals from V1 (B3)? | Yes | open |
+| 4 | SQLAlchemy Core + Alembic (B2), with server-generated integer primary keys (UUIDs bring nothing without client-side creation)? | Yes | open |
+| 5 | Intermediate tag 0.1.0 after L4, to use the app at the gym before L5 and L6? | Yes | open |
 | 6 | CI on Ubuntu + macOS, without Windows? | Yes | open |
