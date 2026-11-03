@@ -28,7 +28,10 @@ def main() -> int:
     starts = len(list(args.record.glob("start-*"))) + 1
     for index in range(args.lines):
         print(f"fake line {starts}.{index} {'x' * args.line_bytes}".rstrip(), flush=True)
-    (args.record / f"start-{starts}").write_text(str(os.getpid()), encoding="ascii")
+    # written then renamed: a reader that sees `start-<n>` always finds the PID in it
+    partial = args.record / f".start-{starts}.tmp"
+    partial.write_text(str(os.getpid()), encoding="ascii")
+    os.replace(partial, args.record / f"start-{starts}")
     time.sleep(args.run_s)
     return args.exit
 
