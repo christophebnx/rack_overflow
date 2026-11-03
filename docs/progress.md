@@ -11,7 +11,7 @@ Maintained by the `/build-roadmap` skill. Branch: the session's designated branc
 | L3 Templates | done | fb545d1 | Built: session templates with blocs (exercise or menu), targets, archive, reordering; migration `0003`; seed of the four templates with seed keys (D-058 to D-060); « Séances types » nav, ids beyond int64 → 404.<br>Tests: 1921 passed, 156 WebKit skipped.<br>Open: WebKit run pending; on a full-menu or full-template refusal the limit text (« … au plus ») is shown and read twice (muted line + error) (`session_template_slot_form.html`, `session_template_slots.html`). |
 | L4 Session logging | done | f4bdfb3 | Built: start or resume from home, session page (plan, menus, search recent first), prefill, server steppers, choice chips, settings saved on change, set types, edit / delete sets, records (⭐) and volume computed, close and summary; `[calendar] time_zone` and `tzdata`; migration `0004` (D-061 to D-066).<br>Tests: 2249 passed, 164 WebKit skipped; tap counts checked on Chromium; set confirmation median ≈ 15–20 ms.<br>Open: WebKit run pending, including a check for CSP messages on swaps; the « Autres valeurs » chevron not seen live in the Salle A flow. |
 | L5 Tracking | done | 1a472d6 | Built: history by month with the weekly chart, closed-session corrections, session soft delete; progress per exercise (last performance, records, Chart.js 4.6.1 chart and data table), RM measured or estimated with five formulas and `/reglages`; three-row phone header; no migration (D-067 to D-071).<br>Tests: 2639 passed, 176 WebKit skipped.<br>Open: WebKit run pending; kg values above 999 have no thousands separator (no ui-spec rule). |
-| L6 Operations and release 1.0.0 | todo | | |
+| L6 Operations and release 1.0.0 | in progress | | |
 
 ## Follow-ups
 
