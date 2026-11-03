@@ -12,4 +12,4 @@
 |---|---|
 | `errors.py` | `DomainError(ValueError)`, base of every module's error class |
 | `vocabulary.py` | Allowed values of enumerated columns (`VARIABLE_TYPES`, `VARIABLE_SCOPES`, `CORE_QUANTITIES`, `EXERCISE_CATEGORIES`, `LOCATIONS`, `SESSION_LOCATIONS`, `SESSION_STATUSES`, `SET_TYPES`): stable English keys, turned into `CHECK` constraints by `storage/schema` |
-| `backups.py` | Snapshot rules (D-045): `snapshot_name(now, existing)`, `parse_snapshot_time(name)`, `newest(names)`, `is_due(latest, now)`, `expired(names, now, retention_days)` (never the newest, never a name that does not parse) |
+| `backups.py` | Snapshot rules (D-045): `snapshot_name(now, existing)`, `parse_snapshot_time(name)`, `ordered(names)` (oldest first by time then rank, the only snapshot ordering), `newest(names)`, `is_due(latest, now)`, `expired(names, now, retention_days)` (never the newest, never a name that does not parse) |

@@ -18,8 +18,8 @@ def backup_now(database_path: Path, backups_dir: Path, now: datetime, retention_
 
 def backup_if_due(database_path: Path, backups_dir: Path, now: datetime, retention_days: int) -> Path | None:
     """`backup_now` when the newest snapshot is at least 24 hours old (or none exists), else None."""
-    snapshots = backup.list_snapshots(backups_dir)
-    latest = rules.parse_snapshot_time(snapshots[-1].name) if snapshots else None
+    newest = rules.newest(path.name for path in backup.list_snapshots(backups_dir))
+    latest = rules.parse_snapshot_time(newest) if newest else None
     if not rules.is_due(latest, now):
         return None
     return backup_now(database_path, backups_dir, now, retention_days)

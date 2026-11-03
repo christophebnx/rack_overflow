@@ -42,10 +42,16 @@ def parse_snapshot_time(name: str) -> datetime | None:
     return parsed[0] if parsed else None
 
 
+def ordered(names: Iterable[str]) -> list[str]:
+    """Snapshot names among `names`, oldest first by time then rank (`_100` after `_99`); others dropped."""
+    parsed = [(key, name) for name in names if (key := _parse(name)) is not None]
+    return [name for _, name in sorted(parsed)]
+
+
 def newest(names: Iterable[str]) -> str | None:
     """The newest snapshot name among `names` (names that do not parse are ignored)."""
-    parsed = [(key, name) for name in names if (key := _parse(name)) is not None]
-    return max(parsed)[1] if parsed else None
+    snapshots = ordered(names)
+    return snapshots[-1] if snapshots else None
 
 
 def is_due(latest: datetime | None, now: datetime) -> bool:
@@ -58,8 +64,8 @@ def expired(names: Iterable[str], now: datetime, retention_days: int) -> list[st
     names = list(names)
     keep = newest(names)
     limit = now - timedelta(days=retention_days)
-    return sorted(
+    return [
         name
-        for name in names
+        for name in ordered(names)
         if name != keep and (moment := parse_snapshot_time(name)) is not None and moment < limit
-    )
+    ]

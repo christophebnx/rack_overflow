@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sqlite3
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -176,3 +177,96 @@ def test_corrupt_database_raises_the_specific_error(settings: Settings) -> None:
     with pytest.raises(CorruptDatabaseError):
         backup.take_snapshot(settings.database_path, settings.backups_dir, NOW)
     assert not settings.backups_dir.exists()
+
+
+def test_list_snapshots_puts_rank_100_after_rank_99(settings: Settings) -> None:
+    settings.backups_dir.mkdir()
+    for rank in ("_99", "_100", ""):
+        (settings.backups_dir / f"rack-20261103T180405Z{rank}.sqlite").write_bytes(b"x")
+    assert [path.name for path in backup.list_snapshots(settings.backups_dir)] == [
+        "rack-20261103T180405Z.sqlite",
+        "rack-20261103T180405Z_99.sqlite",
+        "rack-20261103T180405Z_100.sqlite",
+    ]
+
+
+def test_backup_if_due_reads_the_highest_rank(
+    migrated_engine: Engine, settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    del migrated_engine
+    settings.backups_dir.mkdir()
+    for rank in ("_99", "_100"):
+        (settings.backups_dir / f"rack-20261103T180405Z{rank}.sqlite").write_bytes(b"x")
+    seen: list[str] = []
+    real = backups.rules.parse_snapshot_time
+    monkeypatch.setattr(backups.rules, "parse_snapshot_time", lambda name: seen.append(name) or real(name))
+    assert backups.backup_if_due(settings.database_path, settings.backups_dir, NOW, 30) is None
+    assert seen == ["rack-20261103T180405Z_100.sqlite"]
+
+
+def test_backups_folder_that_cannot_be_created(migrated_engine: Engine, settings: Settings) -> None:
+    del migrated_engine
+    settings.backups_dir.write_bytes(b"a file where the folder should be")
+    with pytest.raises(BackupError, match="cannot create backups folder"):
+        backup.take_snapshot(settings.database_path, settings.backups_dir, NOW)
+
+
+def test_backups_folder_that_cannot_be_listed(
+    migrated_engine: Engine, settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    del migrated_engine
+    settings.backups_dir.mkdir()
+
+    def refuse(self: Path) -> None:
+        raise PermissionError(13, "Permission denied")
+
+    monkeypatch.setattr(Path, "iterdir", refuse)
+    with pytest.raises(BackupError, match="cannot list backups folder"):
+        backup.take_snapshot(settings.database_path, settings.backups_dir, NOW)
+    with pytest.raises(BackupError, match="cannot list backups folder"):
+        backup.list_snapshots(settings.backups_dir)
+
+
+def test_expired_snapshot_that_cannot_be_deleted(settings: Settings, monkeypatch: pytest.MonkeyPatch) -> None:
+    _old_snapshots(settings.backups_dir, range(100, 102))
+
+    def refuse(self: Path, missing_ok: bool = False) -> None:
+        raise PermissionError(13, "Permission denied")
+
+    monkeypatch.setattr(Path, "unlink", refuse)
+    with pytest.raises(BackupError, match="cannot delete expired snapshot"):
+        backup.prune(settings.backups_dir, NOW, 30)
+
+
+def test_snapshot_write_failure_is_a_backup_error(
+    migrated_engine: Engine, settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    del migrated_engine
+
+    def disk_full(path: Path, produce: object) -> None:
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(backup.files, "atomic_produce", disk_full)
+    with pytest.raises(BackupError, match="snapshot failed"):
+        backup.take_snapshot(settings.database_path, settings.backups_dir, NOW)
+
+
+def test_rack_backup_reports_an_unwritable_backups_folder(
+    migrated_engine: Engine, settings_file: Path, settings: Settings, capsys: pytest.CaptureFixture[str]
+) -> None:
+    del migrated_engine
+    settings.backups_dir.write_bytes(b"x")
+    assert main(["backup", "--config", str(settings_file)]) == 1
+    assert capsys.readouterr().err.startswith("rack: error: cannot create backups folder")
+
+
+def test_integrity_check_leaves_a_rollback_journal_database_as_it_is(tmp_path: Path) -> None:
+    path = tmp_path / "plain.sqlite"
+    connection = sqlite3.connect(path)
+    connection.execute("CREATE TABLE t (x INTEGER)")
+    connection.commit()
+    connection.close()
+    content = path.read_bytes()
+    assert backup.check_integrity(path)
+    assert path.read_bytes() == content
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["plain.sqlite"]

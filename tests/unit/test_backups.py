@@ -51,3 +51,15 @@ def test_expired_never_removes_the_newest() -> None:
     old = [backups.snapshot_name(NOW - timedelta(days=day), []) for day in (100, 200)]
     assert backups.expired(old, NOW, 30) == [old[1]]
     assert backups.newest([*old, "junk"]) == old[0]
+
+
+def test_ordered_uses_time_then_rank() -> None:
+    base = "rack-20261103T180405Z"
+    names = [f"{base}_100.sqlite", f"{base}_99.sqlite", f"{base}.sqlite", "readme.txt", f"{base}_02.sqlite"]
+    assert backups.ordered(names) == [
+        f"{base}.sqlite",
+        f"{base}_02.sqlite",
+        f"{base}_99.sqlite",
+        f"{base}_100.sqlite",
+    ]
+    assert backups.newest(names) == f"{base}_100.sqlite"

@@ -54,7 +54,7 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Open the database with the project pragmas | `storage/db.create_engine` |
 | Database schema | `storage/schema.metadata` |
 | Apply / inspect migrations | `storage/migrate` |
-| Snapshot naming, due-ness, retention | `domain/backups` |
+| Snapshot naming, ordering, due-ness, retention | `domain/backups` |
 | Take, list and prune database snapshots | `storage/backup` |
 | Backup operation (snapshot then prune, or only when due) | `services/backups` |
 | Daily backup in the server | `web/scheduler` |
