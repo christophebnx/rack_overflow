@@ -5,7 +5,8 @@ Every other path, existing or not, needs the `rack_device` cookie of an active p
 - a browser navigation (GET / HEAD) without one gets `303` to the pairing page;
 - any other request gets `401 {"error": "not_paired"}`, plus `HX-Redirect` for htmx.
 A cookie that did not authenticate is cleared on the response; a renewed device gets its cookie
-re-sent with a fresh `Max-Age` (same token). The device, or None, is in `request.state.device`.
+re-sent with a fresh `Max-Age` (same token); neither when the route sets the device cookie
+itself. The device, or None, is in `request.state.device`.
 """
 
 from __future__ import annotations
@@ -97,14 +98,22 @@ class DeviceAuthMiddleware:
         return device_cookie(token, self.https) if device.renewed else None
 
 
+def _sets_device_cookie(headers: MutableHeaders) -> bool:
+    return any(value.startswith(f"{COOKIE_NAME}=") for value in headers.getlist("set-cookie"))
+
+
 def _with_cookie(send: Send, cookie: str | None) -> Send:
-    """`send` appending `cookie` to the response headers (never replacing a route's `Set-Cookie`)."""
+    """`send` appending `cookie` to the response headers, unless the route already set the device
+    cookie (pairing with a stale cookie: browsers apply `Set-Cookie` in order, so a clear or renewal
+    of the old token appended after the new one would undo the pairing)."""
     if cookie is None:
         return send
 
     async def sending(message: Message) -> None:
         if message["type"] == "http.response.start":
-            MutableHeaders(scope=message).append("set-cookie", cookie)
+            headers = MutableHeaders(scope=message)
+            if not _sets_device_cookie(headers):
+                headers.append("set-cookie", cookie)
         await send(message)
 
     return sending

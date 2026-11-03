@@ -405,12 +405,6 @@ def test_oversized_pairing_body_is_413(web: TestClient) -> None:
 # --- pairing with a stale cookie still in the browser --------------------------------------------------
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="bug: on POST /appairage the middleware appends its cleared cookie after the route's new "
-    "device cookie; browsers apply Set-Cookie in order, so the browser ends with no cookie and the "
-    "one-time code is spent (httpx's cookie jar hides it: it applies deletions first)",
-)
 def test_pairing_with_a_stale_cookie_keeps_the_new_token(web: TestClient, migrated_engine: Engine) -> None:
     _pair(web, migrated_engine, "iPhone")
     devices.revoke_device(migrated_engine, "iPhone", NOW)  # e.g. page restored from the back-forward cache
@@ -421,3 +415,17 @@ def test_pairing_with_a_stale_cookie_keeps_the_new_token(web: TestClient, migrat
     last = [cookie for cookie in _set_cookies(response) if cookie.startswith(f"{COOKIE_NAME}=")][-1]
     assert last != cleared_cookie(False)
     assert devices.authenticate(migrated_engine, last.split(";")[0].split("=", 1)[1], NOW) is not None
+
+
+def test_pairing_with_a_renewable_cookie_keeps_only_the_new_token(
+    web: TestClient, migrated_engine: Engine, clock: Clock
+) -> None:
+    old = _pair(web, migrated_engine, "iPhone")
+    clock.now = NOW + rules.RENEW_AFTER + timedelta(minutes=1)  # the old cookie is due for renewal
+    code = devices.add_device(migrated_engine, "iPad", clock.now).code
+    response = _post_code(web, code)
+    device_cookies = [cookie for cookie in _set_cookies(response) if cookie.startswith(f"{COOKIE_NAME}=")]
+    assert len(device_cookies) == 1
+    assert device_cookies[0] != device_cookie(old, False)
+    new = device_cookies[0].split(";")[0].split("=", 1)[1]
+    assert devices.authenticate(migrated_engine, new, clock.now).name == "iPad"  # type: ignore[union-attr]
