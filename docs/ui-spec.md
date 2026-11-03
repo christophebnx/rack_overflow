@@ -180,3 +180,103 @@ Apostrophes are typographic (’, U+2019).
 | `error.not_saved` | Non enregistré, réessayer |
 
 In `error.forbidden_origin` the space before « : » is a no-break space (U+00A0). The page title in the tab uses the page's title key as `{page}` (home: `home.title`; errors: their `error.title.*` key).
+
+### L1b — Pairing (`GET` / `POST /appairage`, `templates/pairing.html`, `templates/pairing_form.html`)
+
+Task: make this browser a trusted device, once per device, by typing the code `rack device add` printed on the server. Decision: none beyond "type the code and send". Information needed: what to type, where it comes from, whether it worked, and what to do when it did not. Seen on the iPhone (one hand, numeric keypad) and occasionally on the desktop. Public page (D-049): reached by typing the URL printed by the CLI, by a `303` from any protected page when unpaired, or by `HX-Redirect` when an htmx request of a revoked device fails (`401 not_paired`). The page does not say why the user landed here (no `next` parameter, no state): the intro covers first pairing and re-pairing alike.
+
+```
+360 px, unpaired                      1280 px, unpaired
++----------------------------+        +--------------------------------------------------------+
+| Rack Overflow              |        | Rack Overflow                                          |
++----------------------------+        +--------------------------------------------------------+
+| Appairer cet appareil      |        |      Appairer cet appareil                             |
+| Pour utiliser Rack Overflow|        |      Pour utiliser Rack Overflow ici, saisissez le     |
+| ici, saisissez le code à 8 |        |      code à 8 chiffres donné par « rack device add »   |
+| chiffres donné par « rack  |        |      sur le serveur.        (text column max 40rem)    |
+| device add » sur le        |        |                                                        |
+| serveur.                   |        |      Code d’appairage                                  |
+|                            |        |      +----------------------+                          |
+| Code d’appairage           |        |      | 1234 5678            |  form column max 24rem   |
+| +------------------------+ |        |      +----------------------+                          |
+| | 1234 5678              | |  64px  |      8 chiffres, valable 10 minutes.                   |
+| +------------------------+ |        |      [ Appairer ]                                      |
+| 8 chiffres, valable 10     |        |                                                        |
+| minutes.                   |        |                                                        |
+| [        Appairer        ] | 48px   |                                                        |
+|  ~~~ iOS numeric keypad ~~ |        |                                                        |
++----------------------------+        +--------------------------------------------------------+
+
+360 px, wrong code                    360 px, already paired (GET with a valid cookie)
++----------------------------+        +----------------------------+
+| ...intro...                |        | Rack Overflow              |
+| Code d’appairage           |        +----------------------------+
+| +========================+ | 2px    | Appairer cet appareil      |
+| |                        | | danger | Cet appareil est déjà      |
+| +========================+ |        | appairé.                   |
+| Code incorrect. Essais     | danger |                            |
+| restants : 4.              |        |                            |
+| 8 chiffres, valable 10     |        | [  Ouvrir l’application  ] |
+| minutes.                   |        +----------------------------+
+| [        Appairer        ] |
++----------------------------+
+```
+
+Layout:
+
+- One column: h1, intro (body text colour: it is the instruction), then the form (`.pairing-form`, max width 24rem): label, input, error (when any), hint, submit button. Below 40rem the input and the button are full width.
+- **Thumb-zone exception, deliberate.** The submit button sits directly under the input, not at the bottom of the viewport: the iOS numeric keypad (`inputmode="numeric"`) has no return key and covers the bottom half of the screen, so a bottom-anchored button would be hidden behind it while typing. Under the input, it stays visible above the keypad and within thumb reach. The "already paired" state has no keyboard and uses the L1a pair `main--message` + `.actions--thumb`.
+- The input shows large digits: `--text-2xl`, tabular figures, letter spacing 0.08em, left aligned with its label, height ≥ 48 px (≈ 64 px with padding). It accepts « 12345678 », « 1234 5678 » and « 1234-5678 » (server `normalise_code`), so the user may copy the code exactly as the CLI printed it.
+
+Form (`templates/pairing_form.html`, the swappable fragment, included by `pairing.html`):
+
+- `<form class="pairing-form" hx-post="/appairage" hx-target="this" hx-swap="outerHTML" hx-disabled-elt="find button">` (JSON through `json-enc`, set on `<body>`).
+- `<label for="code">` « Code d’appairage ».
+- `<input id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" enterkeyhint="go" maxlength="9" required autofocus spellcheck="false" autocapitalize="off" autocorrect="off" aria-describedby="…">`: `aria-describedby` is `code-aide`, or `code-erreur code-aide` when a message is shown; then also `aria-invalid="true"`. No `pattern`: a malformed entry gets the server's « Code incorrect » message and is not charged (D-049), one rule in one place. `required` uses the browser's native message for an empty submit (no request).
+- Error: `<p id="code-erreur" class="field__error">`, between the input and the hint, so it is read right after the field and seen above the keypad.
+- Hint: `<p id="code-aide" class="field__hint">` « 8 chiffres, valable 10 minutes. »
+- `<button class="button button--primary">` « Appairer ».
+
+States:
+
+| State | Trigger | What the user sees | Focus / announcement |
+|---|---|---|---|
+| Unpaired | `GET`, no valid cookie | intro and empty form | input focused (`autofocus`; on iOS the keypad opens on the first tap, as WebKit allows no programmatic keyboard) |
+| Sending | form submitted | « Appairer » disabled (50 % opacity) until the answer; text unchanged | — |
+| Paired | `POST`, outcome `paired` | `HX-Redirect: /`: htmx loads the home page; this device is now trusted for 400 days of inactivity | the home page loads normally |
+| Paired, fallback | a client that ignores `HX-Redirect` | the form replaced by « Cet appareil est appairé. » and a primary link « Ouvrir l’application » to `/` | — |
+| Wrong code, attempts known | outcome `wrong_code` with `remaining` | form re-rendered, input empty and `--color-danger` 2 px border, message « Code incorrect. Essais restants : {remaining}. » | input keeps focus (same `id`, `autofocus`); message announced once through `#annonce` (`hx-swap-oob`) |
+| Wrong code, otherwise | `wrong_code` without `remaining` (malformed entry, or no live code) | same, message « Code incorrect. Vérifiez les 8 chiffres et réessayez. » | same |
+| Expired / used / revoked | outcome `code_expired` | same, message « Ce code n’est plus valable. Générez-en un nouveau sur le serveur. » | same |
+| Too many attempts | outcome `too_many_attempts` (fifth wrong guess) | same, message « Trop d’essais : ce code est bloqué. Générez-en un nouveau sur le serveur. » | same |
+| Already paired | `GET` with a valid cookie | « Cet appareil est déjà appairé. » and primary « Ouvrir l’application » (thumb zone); no form | no autofocus |
+| Server error on `GET` | unhandled exception (e.g. database down) | L1a 500 page, « Réessayer » reloads `/appairage` | — |
+| Server or network error on `POST` | 5xx, no answer | **L1b: no swap** (htmx does not swap ≥ 400, D-050); the button is enabled again and the typed code stays in the field. The display of « Non enregistré, réessayer » under the form is settled by L2 for every htmx form, this one included | — |
+
+The input is emptied after every refusal (the code is a secret and a wrong one is better retyped than corrected). The error border and the message text both carry the state; colour is never the only signal.
+
+Revoked device during an htmx action (from L2): the server answers `401 {"error": "not_paired"}` with `HX-Redirect: /appairage`; htmx follows the redirect, so the user lands on this page in the "Unpaired" state with the cookie cleared. A navigation lands here through `303`. `error.not_paired` is the 401 message for the rare browser navigation that gets the error page instead, and for L2's generic htmx error display.
+
+Keyboard and focus order: skip link, brand, code input, « Appairer » (already paired: skip link, brand, « Ouvrir l’application »). Enter in the input submits on desktop. Page title in the tab: `pairing.title`. The brand link stays (unpaired, it leads back here through `303`).
+
+Style (no new token): `components.css` gains the reusable field pieces, also used from L2: `.field` (column, gap `--space-2`), `.field__label` (`--text-md`, weight 600), `.input` (min height `--target-min`, padding `--space-3`, 1 px `--color-border`, `--radius-md`, background `--color-bg`, text `--color-text`, font inherit at ≥ `--text-md` so iOS does not zoom), `.input[aria-invalid="true"]` (2 px `--color-danger` border), `.field__error` (`--color-danger`, `--text-md`), `.field__hint` (`--color-muted`, `--text-sm`). `pages/pairing.css`: `.pairing-form` (column, gap `--space-3`, max width 24rem, top margin `--space-6`), `.input--code` (`--text-2xl` / `--leading-2xl`, `font-variant-numeric: tabular-nums`, letter spacing 0.08em), and below 40rem the form button at 100 % width.
+
+Strings (`web/locales/fr.json`; typographic apostrophes; a no-break space U+00A0 before « : » and inside « » guillemets):
+
+| Key | Text |
+|---|---|
+| `pairing.title` | Appairer cet appareil |
+| `pairing.intro` | Pour utiliser Rack Overflow ici, saisissez le code à 8 chiffres donné par « rack device add » sur le serveur. |
+| `pairing.code_label` | Code d’appairage |
+| `pairing.code_hint` | 8 chiffres, valable 10 minutes. |
+| `pairing.submit` | Appairer |
+| `pairing.wrong_code` | Code incorrect. Vérifiez les 8 chiffres et réessayez. |
+| `pairing.wrong_code_remaining` | Code incorrect. Essais restants : {remaining}. |
+| `pairing.code_expired` | Ce code n’est plus valable. Générez-en un nouveau sur le serveur. |
+| `pairing.too_many_attempts` | Trop d’essais : ce code est bloqué. Générez-en un nouveau sur le serveur. |
+| `pairing.paired` | Cet appareil est appairé. |
+| `pairing.already_paired` | Cet appareil est déjà appairé. |
+| `pairing.open_app` | Ouvrir l’application |
+| `error.not_paired` | Cet appareil n’est pas appairé. |
+
+« Essais restants : {remaining} » avoids a plural form (the catalog has none); `{remaining}` is 1 to 4.

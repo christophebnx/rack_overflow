@@ -178,4 +178,49 @@ Database timestamp text → `domain/timestamps`; the V1 user id → `domain/user
 5. `docs(deployment): add the NAS install and update guide` — `docs/deployment/nas.md`, `config.example.toml` comment.
 6. `docs(docs): close milestone L1b` — `docs/architecture.md`, root `CLAUDE.md` commands, `CHANGELOG.md`, `docs/progress.md` (planned stop, user validations), `docs/roadmap.md` notes if any.
 
-<!-- ui-designer adds a "UI design" section here for user-visible changes. -->
+## UI design
+
+Status: APPROVED FOR AUTONOMOUS MODE. Every user-visible behaviour is set by the brief (sections 4, 6 L1b), D-040, D-049 and D-050; the choices below are presentation only. Full specification, wireframes and strings: `docs/ui-spec.md`, "L1b — Pairing" (canonical; this section summarises it for the developer).
+
+**Task and decision.** Once per device, type the 8-digit code printed by `rack device add` and send it. The user needs: what to type and where it comes from, whether it worked, what to do when it did not. Frequent path: open the URL, tap the field, type 8 digits on the numeric keypad, tap « Appairer », land on home. No confirmation (nothing irreversible).
+
+**Layout.** One column at 360 and 1280 px: h1 « Appairer cet appareil », intro, then the form (max 24rem): label, large input, error (when any), hint, primary button. At 360 px input and button are full width; at 1280 px the column sits left in the 72rem main, as on every page. The submit button sits directly under the input, not in the bottom thumb zone: the iOS numeric keypad has no return key and covers the bottom half, so a bottom button would hide behind it; under the input it stays visible and reachable. The "already paired" state (no keyboard) uses the L1a pair `main--message` + `.actions--thumb`.
+
+```
+360 px                         360 px, refusal                360 px, already paired
+| Appairer cet appareil  |     | Code d’appairage       |     | Appairer cet appareil  |
+| Pour utiliser Rack ... |     | [======== empty =====] |     | Cet appareil est déjà  |
+| Code d’appairage       |     | Code incorrect. Essais |     | appairé.               |
+| [ 1234 5678          ] |     | restants : 4.          |     |                        |
+| 8 chiffres, valable 10 |     | 8 chiffres, valable 10 |     |                        |
+| minutes.               |     | minutes.               |     | [ Ouvrir l’application]|
+| [      Appairer      ] |     | [      Appairer      ] |     +------------------------+
+```
+
+**Components and reuse.** `base.html`, `rendering.render`, `t()`, `.button` / `.button--primary`, `.actions--thumb` + `.main--message`, the `#annonce` live region (filled out of band by the refusal fragment, D-050), `error.html` for a `GET` failure. New: `templates/pairing.html` (page, both states) including `templates/pairing_form.html` (the swapped fragment; also rendered alone by `POST` with the outcome message and the OOB `#annonce`). New reusable CSS in `components.css`: `.field`, `.field__label`, `.input`, `.input[aria-invalid="true"]`, `.field__error`, `.field__hint` (L2 forms reuse them). `pages/pairing.css`: `.pairing-form`, `.input--code` (`--text-2xl`, tabular figures, letter spacing 0.08em). No new token.
+
+**Input.** `id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" enterkeyhint="go" maxlength="9" required autofocus spellcheck="false" autocapitalize="off" autocorrect="off"`, `aria-describedby="code-aide"` (or `"code-erreur code-aide"` with `aria-invalid="true"` after a refusal). No `pattern`: the server's `normalise_code` is the one rule; a malformed entry gets « Code incorrect » uncharged. Emptied after every refusal.
+
+**States.** Unpaired form; sending (button disabled through `hx-disabled-elt`); paired (`HX-Redirect: /`, fallback fragment « Cet appareil est appairé. » + « Ouvrir l’application »); wrong code with or without remaining attempts; expired / used / revoked code; too many attempts; already paired; `GET` server error (500 page). `POST` server or network error: no swap in L1b (D-050), button enabled again, typed code kept; L2's general htmx error display (« Non enregistré, réessayer ») must cover this form too. A revoked device's htmx request gets `401` + `HX-Redirect: /appairage` and lands on the unpaired form.
+
+**Keyboard and focus.** Skip link, brand, input, « Appairer »; Enter submits on desktop. Input autofocused on load and after a refusal (same `id`, so htmx keeps it); the refusal message is tied to the input and announced once through `#annonce`. Already paired: no autofocus.
+
+**Strings** (`fr.json`; U+00A0 before « : » and inside « »):
+
+| Key | Text |
+|---|---|
+| `pairing.title` | Appairer cet appareil |
+| `pairing.intro` | Pour utiliser Rack Overflow ici, saisissez le code à 8 chiffres donné par « rack device add » sur le serveur. |
+| `pairing.code_label` | Code d’appairage |
+| `pairing.code_hint` | 8 chiffres, valable 10 minutes. |
+| `pairing.submit` | Appairer |
+| `pairing.wrong_code` | Code incorrect. Vérifiez les 8 chiffres et réessayez. |
+| `pairing.wrong_code_remaining` | Code incorrect. Essais restants : {remaining}. |
+| `pairing.code_expired` | Ce code n’est plus valable. Générez-en un nouveau sur le serveur. |
+| `pairing.too_many_attempts` | Trop d’essais : ce code est bloqué. Générez-en un nouveau sur le serveur. |
+| `pairing.paired` | Cet appareil est appairé. |
+| `pairing.already_paired` | Cet appareil est déjà appairé. |
+| `pairing.open_app` | Ouvrir l’application |
+| `error.not_paired` | Cet appareil n’est pas appairé. |
+
+**Note for the developer.** A pending device whose code expired or was blocked is still active, so `rack device add <same name>` is refused until `rack device revoke <name>`; the CLI error already says so (`revoke it first`), which is why the page says only « Générez-en un nouveau sur le serveur ». Checks: 360 and 1280 px, light and dark, WebKit numeric keypad, no horizontal scroll, contrast of the danger border on `--color-bg` (6.57 / 8.29).
