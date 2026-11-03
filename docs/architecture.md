@@ -90,6 +90,7 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Request authentication by device and the device cookie | `web/auth` |
 | User-facing strings | `web/locale.Catalog` (`web/locales/fr.json`) |
 | Render a page or fragment | `web/rendering.render` |
+| Show a failed htmx request (« Non enregistré, réessayer », focus back) | `web/static/js/request-errors.js` + `web/templates/_form_status.html` |
 | HTTP error → error page or JSON code | `web/errors` |
 | Check a commit message | `tools/check_commit_message.problems` |
 | Block secrets, protected folders, commits and pushes on `main` (Claude Code) | `.claude/hooks/guard_paths.py` |

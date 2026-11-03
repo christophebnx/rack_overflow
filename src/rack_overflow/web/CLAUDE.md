@@ -4,7 +4,8 @@
 - Imports allowed: third-party web libraries, `domain`, `services`, `config` (`tests/unit/test_layering.py`). The database arrives as an `Engine` passed to `app.create_app`.
 - No module-level app: `app.create_app(settings, engine, *, clock, run_scheduler=True)` builds it; the clock is injected (no implicit `datetime.now`).
 - Every page or fragment goes through `rendering.render`. Templates never hard-code French text: every string comes from `locales/fr.json` through `t("key")` (D-036); a new key is added to `docs/ui-spec.md` and `fr.json` together.
-- No inline script, inline style, `style=` or `on*=` attribute, no external URL (CSP, D-034). htmx is configured by the `htmx-config` meta in `base.html`.
+- No inline script, inline style, `style=` or `on*=` attribute, no external URL (CSP, D-034). htmx is configured by the `htmx-config` meta in `base.html` (10 s timeout). The only first-party script is `static/js/request-errors.js` (D-053): no French text, no business rule.
+- Every htmx form or action group starts with the status slot (`_form_status.html` macro `form_status`): the request-error script writes failures there, the server writes a saved state (`kind="ok"`). A test audits that every `hx-post` / `hx-patch` / `hx-delete` sits in an element holding a slot.
 - Every path except `auth.PUBLIC_PATHS` and `/static/` needs a paired device (`auth.DeviceAuthMiddleware`, deny by default, D-049): a new route is protected without any code. Routes read the device from `request.state.device` and take `user_id` from it, never from `domain/users`.
 - Every non-GET request is JSON (`json-enc`) and passes `security.SecurityMiddleware` (D-034, D-047); never add a CORS header or an exception to these checks without a decision.
 - Errors: `errors.py` maps HTTP statuses to stable English codes and message keys explicitly; a browser navigation gets `error.html`, anything else `{"error": "<code>"}`.
@@ -25,7 +26,8 @@
 | `scheduler.py` | `backup_once(settings, clock)`, `run_daily_backup(settings, clock, interval_s)`: daily backup through `services.backups.backup_if_due` |
 | `routes/home.py` | `GET /` → `home.html` |
 | `routes/pairing.py` | `GET /appairage` → `pairing.html` (form, or "already paired"); `POST /appairage` (`PairingRequest`): success → device cookie + `HX-Redirect: /`; refusal → `200` + `pairing_form.html` with the message and the out-of-band `#annonce` (D-050); explicit outcome → message key map |
-| `templates/` | `base.html` (layout), `home.html`, `error.html`, `pairing.html`, `pairing_form.html` (swappable fragment) |
-| `static/css/` | `tokens.css`, `base.css`, `components.css` (buttons, actions, message page, form fields `.field`, `.input`, `.field__error`, `.field__hint`), `pages/home.css`, `pages/pairing.css` |
+| `templates/` | `base.html` (layout: header inner wrapper, `nav` block, `<body data-not-saved>`, scripts; `page_title` text or `title_key`), `_nav.html` (catalog navigation, `section` → `aria-current`), `_form_status.html` (status slot macro), `home.html`, `error.html`, `pairing.html`, `pairing_form.html` (swappable fragment, slot first) |
+| `static/css/` | `tokens.css`, `base.css` (header wrapper, `[hidden]`), `components.css` (buttons, actions, message page, form fields `.field`, `.input`, `.field__error`, `.field__hint`; L2: nav, `.form-status`, `.page-head`, `.section`, `.rows` / `.row`, `.tag`, `.choices` / `.choice`, `.field__optional`, `.button--danger`, `.actions--inline`, `.form`, `.confirm`, `.detail`), `pages/home.css`, `pages/pairing.css` |
+| `static/js/request-errors.js` | Failed htmx request display (D-053): on `htmx:afterRequest` without success and without `HX-Redirect`, clears refusals in the form / `[data-request-scope]`, fills its slot (`data-message`, else `<body data-not-saved>`, `data-kind="error"`) and `#annonce`, focuses the first field (else the trigger); `htmx:beforeRequest` clears the slot |
 | `static/vendor/` | `htmx.min.js` (htmx 2.0.11), `json-enc.js` (htmx-ext-json-enc 2.0.3), `manifest.json` |
 | `locales/fr.json` | Flat `{key: text}` French catalog |

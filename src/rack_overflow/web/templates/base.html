@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <meta name="htmx-config" content='{"includeIndicatorStyles": false, "allowEval": false, "allowScriptTags": false, "selfRequestsOnly": true, "methodsThatUseUrlParams": ["get"]}'>
-  <title>{{ t("layout.title", page=t(title_key)) }}</title>
+  <meta name="htmx-config" content='{"includeIndicatorStyles": false, "allowEval": false, "allowScriptTags": false, "selfRequestsOnly": true, "methodsThatUseUrlParams": ["get"], "timeout": 10000}'>
+  <title>{{ t("layout.title", page=(page_title if page_title is defined else t(title_key))) }}</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/static/css/tokens.css">
   <link rel="stylesheet" href="/static/css/base.css">
@@ -13,14 +13,17 @@
   {% block styles %}{% endblock %}
   <script src="/static/vendor/htmx.min.js" defer></script>
   <script src="/static/vendor/json-enc.js" defer></script>
+  <script src="/static/js/request-errors.js" defer></script>
 </head>
-<body hx-ext="json-enc">
+<body hx-ext="json-enc" data-not-saved="{{ t('error.not_saved') }}">
   <a class="skip-link" href="#contenu">{{ t("layout.skip_to_content") }}</a>
   <header class="site-header">
-    <a class="brand" href="/"{% if current is defined and current == "home" %} aria-current="page"{% endif %}>{{ t("app.name") }}</a>
-    {% if self.nav() | trim %}
-    <nav class="site-nav" aria-label="{{ t('layout.nav_label') }}">{% block nav %}{% endblock %}</nav>
-    {% endif %}
+    <div class="site-header__inner">
+      <a class="brand" href="/"{% if current is defined and current == "home" %} aria-current="page"{% endif %}>{{ t("app.name") }}</a>
+      {% if self.nav() | trim %}
+      <nav class="site-nav" aria-label="{{ t('layout.nav_label') }}">{% block nav %}{% endblock %}</nav>
+      {% endif %}
+    </div>
   </header>
   <main id="contenu" tabindex="-1"{% if self.main_class() | trim %} class="{% block main_class %}{% endblock %}"{% endif %}>
     {% block content %}{% endblock %}
