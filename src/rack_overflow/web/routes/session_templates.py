@@ -20,7 +20,7 @@ from rack_overflow.services import templates
 from rack_overflow.services.templates import SlotForm, SlotView, TemplateDetail, TemplateForm
 from rack_overflow.web.auth import device_user
 from rack_overflow.web.display import Display
-from rack_overflow.web.forms import NO_ERRORS, FormErrors, MoveBody, form_errors, move_focus
+from rack_overflow.web.forms import NO_ERRORS, FormErrors, MoveBody, RowId, form_errors, move_focus, row_id
 from rack_overflow.web.rendering import render
 
 router = APIRouter()
@@ -84,12 +84,13 @@ def _text(request: Request, key: str, **params: object) -> str:
 
 
 def _id(raw: str | None) -> int | None:
-    """An id sent as a select value: empty → None (refused by the service), not an integer → 422."""
+    """An id sent as a select value: empty → None (refused by the service), not an integer → 422,
+    beyond any row id → 404."""
     if raw is None or not raw.strip():
         return None
     if not raw.strip().isdigit():
         raise HTTPException(status_code=422)
-    return int(raw)
+    return row_id(int(raw))
 
 
 def _errors(request: Request, error: CatalogError, ids: dict[str, str], fallback: str) -> FormErrors:
@@ -118,7 +119,7 @@ def list_templates(request: Request, archivees: str | None = None) -> HTMLRespon
 
 
 @router.post(LIST_PATH + "/{template_id}/deplacement", response_class=HTMLResponse)
-def move_template(request: Request, template_id: int, body: MoveBody) -> HTMLResponse:
+def move_template(request: Request, template_id: RowId, body: MoveBody) -> HTMLResponse:
     """Move a template up or down; focus stays on the same button (or the other one at an end)."""
     index = templates.move(_engine(request), device_user(request), template_id, body.direction)
     context = _list_context(request, False)
@@ -187,7 +188,7 @@ def _detail(request: Request, template_id: int) -> TemplateDetail:
 
 
 @router.get(LIST_PATH + "/{template_id}", response_class=HTMLResponse)
-def show_template(request: Request, template_id: int) -> HTMLResponse:
+def show_template(request: Request, template_id: RowId) -> HTMLResponse:
     """The template page: slots, informations, archive block."""
     detail = _detail(request, template_id)
     context = _form_context(detail, _form_values(detail))
@@ -198,7 +199,7 @@ def show_template(request: Request, template_id: int) -> HTMLResponse:
 
 
 @router.patch(LIST_PATH + "/{template_id}", response_class=HTMLResponse)
-def update_template(request: Request, template_id: int, body: TemplateBody) -> HTMLResponse:
+def update_template(request: Request, template_id: RowId, body: TemplateBody) -> HTMLResponse:
     """Save the name and location; the form comes back saved or with its refusals."""
     detail = _detail(request, template_id)
     try:
@@ -219,14 +220,14 @@ def _archive_response(request: Request, template_id: int, focus: str, key: str) 
 
 
 @router.post(LIST_PATH + "/{template_id}/archive", response_class=HTMLResponse)
-def archive_template(request: Request, template_id: int) -> HTMLResponse:
+def archive_template(request: Request, template_id: RowId) -> HTMLResponse:
     """Archive the template (still viewable and editable)."""
     templates.set_archived(_engine(request), device_user(request), template_id, request.app.state.clock())
     return _archive_response(request, template_id, "restore", "template.announce_archived")
 
 
 @router.delete(LIST_PATH + "/{template_id}/archive", response_class=HTMLResponse)
-def restore_template(request: Request, template_id: int) -> HTMLResponse:
+def restore_template(request: Request, template_id: RowId) -> HTMLResponse:
     """Restore the template, last in the order."""
     templates.set_archived(_engine(request), device_user(request), template_id, None)
     return _archive_response(request, template_id, "archive", "template.announce_restored")
@@ -278,7 +279,7 @@ def _slots_response(request: Request, template_id: int, **options: Any) -> HTMLR
 
 
 @router.post(LIST_PATH + "/{template_id}/blocs", response_class=HTMLResponse)
-def add_slot(request: Request, template_id: int, body: AddSlotBody) -> HTMLResponse:
+def add_slot(request: Request, template_id: RowId, body: AddSlotBody) -> HTMLResponse:
     """Add an exercise or a menu (with its first exercise); its « Modifier » opens on the next step."""
     exercise_id = _id(body.exercise_id)
     label = body.label if body.kind == MENU else None
@@ -325,7 +326,7 @@ def _slot_ids(slot_id: int) -> dict[str, str]:
 
 
 @router.patch(LIST_PATH + "/{template_id}/blocs/{slot_id}", response_class=HTMLResponse)
-def update_slot(request: Request, template_id: int, slot_id: int, body: SlotBody) -> HTMLResponse:
+def update_slot(request: Request, template_id: RowId, slot_id: RowId, body: SlotBody) -> HTMLResponse:
     """Save a slot's exercise or label and its target; refused → the row stays open with its messages."""
     form = SlotForm(
         exercise_id=_id(body.exercise_id),
@@ -354,7 +355,7 @@ def update_slot(request: Request, template_id: int, slot_id: int, body: SlotBody
 
 
 @router.post(LIST_PATH + "/{template_id}/blocs/{slot_id}/deplacement", response_class=HTMLResponse)
-def move_slot(request: Request, template_id: int, slot_id: int, body: MoveBody) -> HTMLResponse:
+def move_slot(request: Request, template_id: RowId, slot_id: RowId, body: MoveBody) -> HTMLResponse:
     """Move a slot up or down; focus stays on the same button (or the other one at an end)."""
     index = templates.move_slot(_engine(request), device_user(request), template_id, slot_id, body.direction)
     detail = _detail(request, template_id)
@@ -371,7 +372,7 @@ def move_slot(request: Request, template_id: int, slot_id: int, body: MoveBody) 
 
 
 @router.delete(LIST_PATH + "/{template_id}/blocs/{slot_id}", response_class=HTMLResponse)
-def remove_slot(request: Request, template_id: int, slot_id: int) -> HTMLResponse:
+def remove_slot(request: Request, template_id: RowId, slot_id: RowId) -> HTMLResponse:
     """Remove a slot (soft delete); focus on the next row, else the previous one, else the add form."""
     before = _detail(request, template_id)
     removed = before.slot(slot_id)
@@ -399,7 +400,7 @@ def _option_add_id(slot_id: int) -> str:
 
 
 @router.post(LIST_PATH + "/{template_id}/blocs/{slot_id}/options", response_class=HTMLResponse)
-def add_option(request: Request, template_id: int, slot_id: int, body: OptionBody) -> HTMLResponse:
+def add_option(request: Request, template_id: RowId, slot_id: RowId, body: OptionBody) -> HTMLResponse:
     """Offer one more exercise in a menu; the menu stays open on its add-option select."""
     try:
         option_id = templates.add_option(
@@ -423,7 +424,7 @@ def add_option(request: Request, template_id: int, slot_id: int, body: OptionBod
     LIST_PATH + "/{template_id}/blocs/{slot_id}/options/{option_id}/deplacement", response_class=HTMLResponse
 )
 def move_option(
-    request: Request, template_id: int, slot_id: int, option_id: int, body: MoveBody
+    request: Request, template_id: RowId, slot_id: RowId, option_id: RowId, body: MoveBody
 ) -> HTMLResponse:
     """Move a menu option; the menu stays open, focus on the same button (or the other one)."""
     index = templates.move_option(
@@ -444,7 +445,7 @@ def move_option(
 
 
 @router.delete(LIST_PATH + "/{template_id}/blocs/{slot_id}/options/{option_id}", response_class=HTMLResponse)
-def remove_option(request: Request, template_id: int, slot_id: int, option_id: int) -> HTMLResponse:
+def remove_option(request: Request, template_id: RowId, slot_id: RowId, option_id: RowId) -> HTMLResponse:
     """Remove a menu option; focus on the next « Retirer », else the previous one, else the select."""
     before = _detail(request, template_id).slot(slot_id).options
     index = next((i for i, option in enumerate(before) if option.id == option_id), None)

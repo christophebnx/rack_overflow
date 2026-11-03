@@ -77,6 +77,7 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Variable queries | `storage/variables` |
 | Exercise, field and alias queries | `storage/exercises` |
 | Per-user settings (`app_setting`) | `storage/app_settings` |
+| An id from a request within the database integer range (path, body), else 404 | `web/forms.RowId`, `row_id` |
 | Unique-constraint guard of a write (savepoint) | `storage/db.guarded_write` |
 | Unknown or foreign row | `domain/errors.NotFoundError` |
 | Template, slot and menu-option queries | `storage/templates` |

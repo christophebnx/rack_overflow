@@ -1,18 +1,37 @@
-"""Catalog form helpers shared by the routes (D-050): JSON form values as json-enc sends them, and
-refused input (`domain.catalog.CatalogError`) turned into messages per field."""
+"""Catalog form helpers shared by the routes (D-050): row ids within the database's integer range,
+JSON form values as json-enc sends them, and refused input (`domain.catalog.CatalogError`) turned
+into messages per field."""
 
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel
+from fastapi import HTTPException
+from pydantic import AfterValidator, BaseModel
 
 from rack_overflow.domain.catalog import CatalogError, Problem
 from rack_overflow.web.locale import Catalog
 
 ERROR_KEY_PREFIX = "catalog.error."
+MAX_ID = 2**63 - 1  # largest SQLite INTEGER / Postgres BIGINT
+
+
+def in_id_range(value: int) -> bool:
+    """Whether `value` can be a row id (1..`MAX_ID`): a larger one cannot even be bound to a query."""
+    return 0 < value <= MAX_ID
+
+
+def row_id(value: int) -> int:
+    """`value` when it can be a row id, else a 404: no row has it (never a 500 from the driver)."""
+    if not in_id_range(value):
+        raise HTTPException(status_code=404)
+    return value
+
+
+# A path id: an integer (else 422) that can be a row id (else 404, raised through the validator)
+RowId = Annotated[int, AfterValidator(row_id)]
 
 
 class MoveBody(BaseModel):

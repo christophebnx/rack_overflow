@@ -17,7 +17,7 @@ from rack_overflow.domain.vocabulary import VARIABLE_TYPES
 from rack_overflow.services import exercises, variables
 from rack_overflow.services.variables import VariableDetail, VariableForm
 from rack_overflow.web.auth import device_user
-from rack_overflow.web.forms import NO_ERRORS, FormErrors, as_list, form_errors
+from rack_overflow.web.forms import NO_ERRORS, FormErrors, RowId, as_list, form_errors, in_id_range
 from rack_overflow.web.rendering import render
 
 router = APIRouter()
@@ -78,7 +78,7 @@ def _form(body: VariableBody, frozen: VariableDetail | None = None) -> VariableF
 
 def _exercise_name(request: Request, raw: str | None) -> tuple[int, str] | None:
     """The exercise a variable is created for (`?exercice=`), when it is the user's."""
-    if raw is None or not raw.isdigit():
+    if raw is None or not raw.isdigit() or not in_id_range(int(raw)):
         return None
     try:
         detail = exercises.get_detail(request.app.state.engine, device_user(request), int(raw))
@@ -198,7 +198,7 @@ def _detail(request: Request, variable_id: int) -> VariableDetail:
 
 
 @router.get(LIST_PATH + "/{variable_id}", response_class=HTMLResponse)
-def show_variable(request: Request, variable_id: int) -> HTMLResponse:
+def show_variable(request: Request, variable_id: RowId) -> HTMLResponse:
     """The edit page: form, linked exercises, archive and delete."""
     detail = _detail(request, variable_id)
     context = _form_context(request, detail=detail, values=_values_of(detail))
@@ -206,7 +206,7 @@ def show_variable(request: Request, variable_id: int) -> HTMLResponse:
 
 
 @router.patch(LIST_PATH + "/{variable_id}", response_class=HTMLResponse)
-def update_variable(request: Request, variable_id: int, body: VariableBody) -> HTMLResponse:
+def update_variable(request: Request, variable_id: RowId, body: VariableBody) -> HTMLResponse:
     """Save the shared variable; the form comes back with the saved state or the refusals."""
     detail = _detail(request, variable_id)
     try:
@@ -236,7 +236,7 @@ def _archive_block(
 
 
 @router.post(LIST_PATH + "/{variable_id}/archive", response_class=HTMLResponse)
-def archive_variable(request: Request, variable_id: int) -> HTMLResponse:
+def archive_variable(request: Request, variable_id: RowId) -> HTMLResponse:
     """Archive the variable (always allowed); the block shows « Restaurer »."""
     state = request.app.state
     variables.set_archived(state.engine, device_user(request), variable_id, state.clock())
@@ -245,7 +245,7 @@ def archive_variable(request: Request, variable_id: int) -> HTMLResponse:
 
 
 @router.delete(LIST_PATH + "/{variable_id}/archive", response_class=HTMLResponse)
-def restore_variable(request: Request, variable_id: int) -> HTMLResponse:
+def restore_variable(request: Request, variable_id: RowId) -> HTMLResponse:
     """Restore the variable; the block shows « Archiver »."""
     state = request.app.state
     variables.set_archived(state.engine, device_user(request), variable_id, None)
@@ -254,7 +254,7 @@ def restore_variable(request: Request, variable_id: int) -> HTMLResponse:
 
 
 @router.get(LIST_PATH + "/{variable_id}/suppression", response_class=HTMLResponse)
-def confirm_delete_variable(request: Request, variable_id: int, annuler: str | None = None) -> HTMLResponse:
+def confirm_delete_variable(request: Request, variable_id: RowId, annuler: str | None = None) -> HTMLResponse:
     """The in-place delete confirmation, or (`?annuler=1`) the block back with focus on « Supprimer… »."""
     detail = _detail(request, variable_id)
     if annuler == "1":
@@ -263,7 +263,7 @@ def confirm_delete_variable(request: Request, variable_id: int, annuler: str | N
 
 
 @router.delete(LIST_PATH + "/{variable_id}", response_class=HTMLResponse)
-def delete_variable(request: Request, variable_id: int) -> Response:
+def delete_variable(request: Request, variable_id: RowId) -> Response:
     """Delete a variable without values (→ the list); with values, the block explains the refusal."""
     state = request.app.state
     try:

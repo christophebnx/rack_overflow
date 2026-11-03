@@ -18,7 +18,16 @@ from rack_overflow.services import exercises
 from rack_overflow.services.exercises import ExerciseDetail, ExerciseForm, FieldForm, FieldView
 from rack_overflow.web.auth import device_user
 from rack_overflow.web.display import Display
-from rack_overflow.web.forms import NO_ERRORS, FormErrors, MoveBody, checked, form_errors, move_focus
+from rack_overflow.web.forms import (
+    NO_ERRORS,
+    FormErrors,
+    MoveBody,
+    RowId,
+    checked,
+    form_errors,
+    move_focus,
+    row_id,
+)
 from rack_overflow.web.rendering import render
 
 router = APIRouter()
@@ -203,7 +212,7 @@ def _detail(request: Request, exercise_id: int) -> ExerciseDetail:
 
 
 @router.get(LIST_PATH + "/{exercise_id}", response_class=HTMLResponse)
-def show_exercise(request: Request, exercise_id: int, ajout: str | None = None) -> HTMLResponse:
+def show_exercise(request: Request, exercise_id: RowId, ajout: str | None = None) -> HTMLResponse:
     """The exercise page; `?ajout={variable_id}` preselects that variable in « Ajouter un champ »."""
     detail = _detail(request, exercise_id)
     selected = f"{VARIABLE_PREFIX}{ajout}" if ajout and ajout.isdigit() else None
@@ -217,7 +226,7 @@ def show_exercise(request: Request, exercise_id: int, ajout: str | None = None) 
 
 
 @router.patch(LIST_PATH + "/{exercise_id}", response_class=HTMLResponse)
-def update_exercise(request: Request, exercise_id: int, body: ExerciseBody) -> HTMLResponse:
+def update_exercise(request: Request, exercise_id: RowId, body: ExerciseBody) -> HTMLResponse:
     """Save the exercise's attributes; the form comes back saved or with its refusals."""
     detail = _detail(request, exercise_id)
     try:
@@ -239,14 +248,14 @@ def _archive_response(request: Request, exercise_id: int, focus: str, key: str) 
 
 
 @router.post(LIST_PATH + "/{exercise_id}/archive", response_class=HTMLResponse)
-def archive_exercise(request: Request, exercise_id: int) -> HTMLResponse:
+def archive_exercise(request: Request, exercise_id: RowId) -> HTMLResponse:
     """Archive the exercise (history untouched)."""
     exercises.set_archived(_engine(request), device_user(request), exercise_id, request.app.state.clock())
     return _archive_response(request, exercise_id, "restore", "exercise.announce_archived")
 
 
 @router.delete(LIST_PATH + "/{exercise_id}/archive", response_class=HTMLResponse)
-def restore_exercise(request: Request, exercise_id: int) -> HTMLResponse:
+def restore_exercise(request: Request, exercise_id: RowId) -> HTMLResponse:
     """Restore the exercise."""
     exercises.set_archived(_engine(request), device_user(request), exercise_id, None)
     return _archive_response(request, exercise_id, "archive", "exercise.announce_restored")
@@ -294,12 +303,12 @@ def _source(raw: str | None) -> dict[str, Any]:
         return {"core_quantity": raw.removeprefix(CORE_PREFIX)}
     number = raw.removeprefix(VARIABLE_PREFIX)
     if raw.startswith(VARIABLE_PREFIX) and number.isdigit():
-        return {"variable_id": int(number)}
+        return {"variable_id": row_id(int(number))}
     raise CatalogError([Problem("source", "invalid_choice")])
 
 
 @router.post(LIST_PATH + "/{exercise_id}/champs", response_class=HTMLResponse)
-def add_field(request: Request, exercise_id: int, body: AddFieldBody) -> HTMLResponse:
+def add_field(request: Request, exercise_id: RowId, body: AddFieldBody) -> HTMLResponse:
     """Link a core quantity or a variable; the new row opens on « Obligatoire »."""
     _detail(request, exercise_id)
     try:
@@ -331,7 +340,7 @@ def _field_ids(field_id: int) -> dict[str, str]:
 
 
 @router.patch(LIST_PATH + "/{exercise_id}/champs/{field_id}", response_class=HTMLResponse)
-def update_field(request: Request, exercise_id: int, field_id: int, body: FieldBody) -> HTMLResponse:
+def update_field(request: Request, exercise_id: RowId, field_id: RowId, body: FieldBody) -> HTMLResponse:
     """Save a field's parameters; refused → the row stays open with its messages."""
     form = FieldForm(
         required=checked(body.required),
@@ -352,7 +361,7 @@ def update_field(request: Request, exercise_id: int, field_id: int, body: FieldB
 
 
 @router.post(LIST_PATH + "/{exercise_id}/champs/{field_id}/deplacement", response_class=HTMLResponse)
-def move_field(request: Request, exercise_id: int, field_id: int, body: MoveBody) -> HTMLResponse:
+def move_field(request: Request, exercise_id: RowId, field_id: RowId, body: MoveBody) -> HTMLResponse:
     """Move a field up or down; focus stays on the same button (or the other one at an end)."""
     index = exercises.move_field(
         _engine(request), device_user(request), exercise_id, field_id, body.direction
@@ -373,7 +382,7 @@ def move_field(request: Request, exercise_id: int, field_id: int, body: MoveBody
 
 
 @router.delete(LIST_PATH + "/{exercise_id}/champs/{field_id}", response_class=HTMLResponse)
-def remove_field(request: Request, exercise_id: int, field_id: int) -> HTMLResponse:
+def remove_field(request: Request, exercise_id: RowId, field_id: RowId) -> HTMLResponse:
     """Remove a field (stored values stay); the last measure is refused in place."""
     before = _detail(request, exercise_id)
     index = next((i for i, field in enumerate(before.fields) if field.id == field_id), None)
@@ -418,7 +427,7 @@ def _aliases_response(
 
 
 @router.post(LIST_PATH + "/{exercise_id}/alias", response_class=HTMLResponse)
-def add_alias(request: Request, exercise_id: int, body: AliasBody) -> HTMLResponse:
+def add_alias(request: Request, exercise_id: RowId, body: AliasBody) -> HTMLResponse:
     """Add an alias; the input comes back empty and focused (aliases often come in twos)."""
     try:
         alias = exercises.add_alias(_engine(request), device_user(request), exercise_id, body.alias)
@@ -433,7 +442,7 @@ def add_alias(request: Request, exercise_id: int, body: AliasBody) -> HTMLRespon
 
 
 @router.delete(LIST_PATH + "/{exercise_id}/alias/{alias_id}", response_class=HTMLResponse)
-def remove_alias(request: Request, exercise_id: int, alias_id: int) -> HTMLResponse:
+def remove_alias(request: Request, exercise_id: RowId, alias_id: RowId) -> HTMLResponse:
     """Remove an alias."""
     alias = exercises.remove_alias(_engine(request), device_user(request), exercise_id, alias_id)
     return _aliases_response(

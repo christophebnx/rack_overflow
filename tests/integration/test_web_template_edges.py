@@ -248,14 +248,7 @@ def test_an_option_of_another_menu_is_404(client: TestClient, migrated_engine: E
     [
         "/seances-types/0",
         "/seances-types/-1",
-        pytest.param(
-            "/seances-types/9223372036854775808",
-            marks=pytest.mark.xfail(
-                strict=True,
-                reason="an id above SQLite INTEGER raises OverflowError in storage → 500 instead of 404 "
-                "(also /exercices/{id}, /variables/{id}: path ints are not bounded)",
-            ),
-        ),
+        "/seances-types/9223372036854775808",
     ],
 )
 def test_odd_template_ids_on_pages_are_404_pages(client: TestClient, path: str) -> None:
