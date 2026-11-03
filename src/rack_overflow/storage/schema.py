@@ -89,7 +89,7 @@ variable = sa.Table(
         name="enum_values",
     ),
     sa.CheckConstraint(
-        "(type = 'decimal' AND decimal_scale BETWEEN 1 AND 6) OR "
+        "(type = 'decimal' AND decimal_scale IS NOT NULL AND decimal_scale BETWEEN 1 AND 6) OR "
         "(type != 'decimal' AND decimal_scale IS NULL)",
         name="decimal_scale",
     ),

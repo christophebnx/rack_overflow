@@ -16,7 +16,7 @@ def test_migrate_creates_the_database_and_is_idempotent(
     database = settings_file.parent / "data" / "rack.sqlite"
     assert main(["migrate", "--config", str(settings_file)]) == 0
     first = capsys.readouterr().out
-    assert first == f"database {database} at revision 0001\n"
+    assert first == f"database {database} at revision 0002\n"
     assert main(["migrate", "--config", str(settings_file)]) == 0
     assert capsys.readouterr().out == first
 

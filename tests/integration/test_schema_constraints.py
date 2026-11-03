@@ -179,14 +179,7 @@ def test_unknown_variable_type_is_refused(connection: sa.Connection) -> None:
     [
         {"type": "enum"},  # enum without values
         {"type": "int", "enum_values": ["a"]},  # values on a non-enum
-        pytest.param(
-            {"type": "decimal"},
-            marks=pytest.mark.xfail(
-                strict=True,
-                reason="product bug: ck_variable_decimal_scale is NULL (passes) when decimal_scale is NULL",
-            ),
-            id="decimal-without-scale",
-        ),
+        pytest.param({"type": "decimal"}, id="decimal-without-scale"),
         {"type": "decimal", "decimal_scale": 0},
         {"type": "decimal", "decimal_scale": 7},
         {"type": "int", "decimal_scale": 2},  # scale on a non-decimal

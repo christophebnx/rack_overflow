@@ -25,7 +25,7 @@ def test_python_dash_m_prints_the_version() -> None:
 def test_migrate_in_a_subprocess(settings_file: Path) -> None:
     result = run_cli("migrate", "--config", str(settings_file))
     assert result.returncode == 0, result.stderr
-    assert result.stdout.endswith("at revision 0001\n")
+    assert result.stdout.endswith("at revision 0002\n")
     assert (settings_file.parent / "data" / "rack.sqlite").is_file()
 
 

@@ -89,8 +89,9 @@ def test_foreign_keys_are_enforced(migrated_engine: Engine) -> None:
 
 
 def test_head_revision_is_shipped() -> None:
-    assert migrate.head_revision() == "0001"
+    assert migrate.head_revision() == "0002"
     assert (migrate.MIGRATIONS / "versions" / "0001_initial_schema.py").is_file()
+    assert (migrate.MIGRATIONS / "versions" / "0002_variable_decimal_scale_not_null.py").is_file()
 
 
 def test_engine_uses_an_absolute_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

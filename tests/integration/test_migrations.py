@@ -130,3 +130,35 @@ def test_transactions_take_the_write_lock_up_front(migrated_engine: Engine, sett
             assert driver.execute("SELECT count(*) FROM exercise").fetchone() == (0,)  # WAL: reads still pass
     finally:
         other.dispose()
+
+
+def test_0002_keeps_variables_and_their_links(settings: Settings, monkeypatch: pytest.MonkeyPatch) -> None:
+    def upgrade_to_0001(config: Config, revision: str, **kwargs: Any) -> None:
+        REAL_UPGRADE(config, "0001", **kwargs)
+
+    engine = db.create_engine(settings.database_path)
+    try:
+        with monkeypatch.context() as patch:
+            patch.setattr(migrate.command, "upgrade", upgrade_to_0001)
+            migrate.upgrade_to_head(engine)
+        assert migrate.current_revision(engine) == "0001"
+        variable = {"user_id": 1, "code": "band", "label": "Band", "type": "decimal", "scope": "setting"}
+        exercise = {"user_id": 1, "name": "Squat", "category": "strength", "location": "gym"}
+        with engine.begin() as connection:
+            connection.execute(sa.insert(schema.variable).values(**variable, decimal_scale=1))
+            connection.execute(sa.insert(schema.exercise).values(exercise))
+            connection.execute(
+                sa.insert(schema.exercise_field).values(exercise_id=1, variable_id=1, position=1)
+            )
+        migrate.upgrade_to_head(engine)
+        assert migrate.current_revision(engine) == "0002"
+        with engine.connect() as connection:
+            assert connection.execute(sa.select(schema.variable.c.decimal_scale)).scalars().all() == [1]
+            assert (
+                connection.execute(sa.select(sa.func.count()).select_from(schema.exercise_field)).scalar()
+                == 1
+            )
+            with pytest.raises(sa.exc.IntegrityError):
+                connection.execute(sa.insert(schema.variable).values({**variable, "code": "other"}))
+    finally:
+        engine.dispose()
