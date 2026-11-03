@@ -17,6 +17,16 @@ from rack_overflow.storage.errors import MigrationError
 REAL_UPGRADE = migrate.command.upgrade
 
 
+def upgrade_to(target: str) -> Any:
+    """A replacement of `command.upgrade` that stops at `target` instead of the head."""
+
+    def upgrade(config: Config, revision: str, **kwargs: Any) -> None:
+        del revision
+        REAL_UPGRADE(config, target, **kwargs)
+
+    return upgrade
+
+
 def _tables(engine: Engine) -> set[str]:
     return set(sa.inspect(engine).get_table_names())
 
@@ -133,13 +143,10 @@ def test_transactions_take_the_write_lock_up_front(migrated_engine: Engine, sett
 
 
 def test_0002_keeps_variables_and_their_links(settings: Settings, monkeypatch: pytest.MonkeyPatch) -> None:
-    def upgrade_to_0001(config: Config, revision: str, **kwargs: Any) -> None:
-        REAL_UPGRADE(config, "0001", **kwargs)
-
     engine = db.create_engine(settings.database_path)
     try:
         with monkeypatch.context() as patch:
-            patch.setattr(migrate.command, "upgrade", upgrade_to_0001)
+            patch.setattr(migrate.command, "upgrade", upgrade_to("0001"))
             migrate.upgrade_to_head(engine)
         assert migrate.current_revision(engine) == "0001"
         variable = {"user_id": 1, "code": "band", "label": "Band", "type": "decimal", "scope": "setting"}
@@ -150,7 +157,9 @@ def test_0002_keeps_variables_and_their_links(settings: Settings, monkeypatch: p
             connection.execute(
                 sa.insert(schema.exercise_field).values(exercise_id=1, variable_id=1, position=1)
             )
-        migrate.upgrade_to_head(engine)
+        with monkeypatch.context() as patch:
+            patch.setattr(migrate.command, "upgrade", upgrade_to("0002"))
+            migrate.upgrade_to_head(engine)
         assert migrate.current_revision(engine) == "0002"
         with engine.connect() as connection:
             assert connection.execute(sa.select(schema.variable.c.decimal_scale)).scalars().all() == [1]
@@ -182,3 +191,75 @@ def test_non_database_file_is_a_migration_error(settings: Settings) -> None:
             migrate.upgrade_to_head(engine)
     finally:
         engine.dispose()
+
+
+def _columns(engine: Engine, table: str) -> set[str]:
+    return {column["name"] for column in sa.inspect(engine).get_columns(table)}
+
+
+def _unique_indexes(engine: Engine, table: str) -> set[str]:
+    return {index["name"] for index in sa.inspect(engine).get_indexes(table) if index["unique"]}
+
+
+def test_0003_upgrades_a_0002_database_with_exercises(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    engine = db.create_engine(settings.database_path)
+    try:
+        with monkeypatch.context() as patch:
+            patch.setattr(migrate.command, "upgrade", upgrade_to("0002"))
+            migrate.upgrade_to_head(engine)
+        with engine.begin() as connection:
+            connection.exec_driver_sql(
+                "INSERT INTO exercise (user_id, name, category, location) VALUES "
+                "(1, 'Squat', 'strength', 'gym'), (1, 'Dips', 'bodyweight', 'gym')"
+            )
+            connection.exec_driver_sql(
+                "INSERT INTO exercise_field (exercise_id, core_quantity, position, required) "
+                "VALUES (1, 'reps', 0, 1)"
+            )
+        migrate.upgrade_to_head(engine)
+        assert migrate.current_revision(engine) == "0003"
+        assert "deleted_at" in _columns(engine, "template_slot")
+        assert "seed_key" in _columns(engine, "exercise")
+        assert "uq_exercise_user_id_seed_key" in _unique_indexes(engine, "exercise")
+        assert "uq_template_user_id_name" in _unique_indexes(engine, "template")
+        with engine.begin() as connection:
+            assert connection.exec_driver_sql("PRAGMA foreign_key_check").fetchall() == []
+            rows = connection.execute(sa.select(schema.exercise.c.name, schema.exercise.c.seed_key))
+            assert rows.all() == [("Squat", None), ("Dips", None)]
+            connection.execute(
+                sa.update(schema.exercise).where(schema.exercise.c.id == 1).values(seed_key="squat")
+            )
+            with pytest.raises(sa.exc.IntegrityError):
+                connection.execute(
+                    sa.update(schema.exercise).where(schema.exercise.c.id == 2).values(seed_key="squat")
+                )
+    finally:
+        engine.dispose()
+
+
+def test_template_names_are_unique_per_user(migrated_engine: Engine) -> None:
+    row = {"user_id": 1, "name": "Salle A", "location": "gym", "position": 0}
+    with migrated_engine.begin() as connection:
+        connection.execute(sa.insert(schema.template).values(row))
+        connection.execute(sa.insert(schema.template).values({**row, "user_id": 2}))
+    with pytest.raises(sa.exc.IntegrityError), migrated_engine.begin() as connection:
+        connection.execute(sa.insert(schema.template).values({**row, "position": 1}))
+
+
+def test_0003_downgrades_to_0002(migrated_engine: Engine) -> None:
+    with migrated_engine.connect() as connection:
+        driver = connection.connection.driver_connection
+        driver.execute("PRAGMA foreign_keys = OFF")
+        try:
+            with connection.begin():
+                migrate.command.downgrade(migrate._config(connection), "0002")
+        finally:
+            driver.execute("PRAGMA foreign_keys = ON")
+    assert migrate.current_revision(migrated_engine) == "0002"
+    assert "deleted_at" not in _columns(migrated_engine, "template_slot")
+    assert "seed_key" not in _columns(migrated_engine, "exercise")
+    assert "uq_template_user_id_name" not in _unique_indexes(migrated_engine, "template")
+    migrate.upgrade_to_head(migrated_engine)
+    assert migrate.current_revision(migrated_engine) == "0003"
