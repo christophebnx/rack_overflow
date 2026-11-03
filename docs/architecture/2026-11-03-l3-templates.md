@@ -238,3 +238,27 @@ Tab order follows the DOM (skip link, brand, nav, then the page as listed). Afte
 ### Style changes
 
 `base.css` / `components.css`: nav row below 40rem (`.site-nav { flex-basis: 100% }`, list gap `--space-4`). New `pages/templates.css` as specified in `docs/ui-spec.md` "L3 — Style". No new token, no new breakpoint, no script.
+
+## Review (reviewer, loop 1)
+
+Checks: 1864 passed, 156 skipped (WebKit), 2 strict xfails (tester findings 1, 2); ruff and format clean; duplicate-code 10.00. Migration 0003 additive and Postgres-compatible, upgrade of a populated L2 database tested; seed attaches keys only to keyless exercises, never renames, one transaction (D-060); layering and invariants 7-12 hold. The developer's changes to existing tests (head 0003, `SeedReport`, seed version 2, fake steps moved to 3, seed items with `key`) are legitimate consequences, not weakening.
+
+1. **BLOCKING** (duplication) "next position after the last row" computed in `storage/templates.py:26` (`_next`, used at :99, :166, :240) and inline in `storage/exercises.py:218` (`insert_field`): one helper in `storage/positions.py`, used by both.
+2. **TO FIX** (tester 1, D-053) `templates/session_template_slot_form.html:101`: after a refused add-option whose form became the muted line, nothing has focus (route passes `focus=None`, `routes/session_templates.py:409-411`). Autofocus the muted line when there are option errors, link the error with `aria-describedby`; remove the strict xfail.
+3. **TO FIX** (tester 2) path ids above int64 return 500 on `/seances-types`, `/exercices`, `/variables`, and body ids parsed by `_id` (`routes/session_templates.py:86-92`). Fix once for all routes (bounded id type or `OverflowError` → 404), separate commit; remove the strict xfail.
+4. **TO FIX** `storage/templates.py:161` `get_slot` has no caller: delete it and its line in `storage/CLAUDE.md`.
+5. **TO FIX** `web/forms.py:24` `move_focus`: with `total == 1` it returns the disabled « Descendre »; return the row's « Modifier » (or the row link in the template list). Covers exercise fields too.
+6. **TO FIX** milestone docs commit (CHANGELOG, progress, roadmap): done by the orchestrator.
+7. **SUGGESTION** `web/forms.py:18` `MoveBody` and `move_focus` hard-code "up"/"down": use `domain/ordering.UP` / `DIRECTIONS`.
+8. **SUGGESTION** `domain/templates.py:60` `check_template_name` repeats `catalog.py:311` `check_name` with another error code: add an optional code parameter to `check_name`.
+
+## UI review (ui-designer, loop 1)
+
+Rendered in Chromium at 360 and 1280 px, light and dark, on a migrated database with the four seed templates: no BLOCKING. Two-row header below 40rem with no regression on L2 pages, no horizontal scroll, no control under 48 px, focus targets and strings match the spec.
+
+1. **TO FIX** = reviewer 2 (`session_template_slot_form.html:99`).
+2. **TO FIX** = reviewer 5 (`move_focus` with a single item; `session_templates_list.html:18` has no buttons for a single template).
+3. **TO FIX** `session_template_slots.html:72,77`: the add select always references `bloc-ajout-exercice-aide`, a menu-only hint hidden by CSS but still read by screen readers when « Exercice » is checked. Reference it only for a menu, or reword it for both kinds.
+4. **SUGGESTION** `session_template_slots.html:32-36`: at 1280 px « Modifier » sits on its own line under Monter / Descendre (≈ 56 px per slot); put it on the same line from 40rem as in the wireframe.
+5. **SUGGESTION** `session_template_slot_form.html:64`: add `hx-disabled-elt="this"` on « Retirer ce bloc » (a double tap shows « Non enregistré, réessayer » over a removal that succeeded).
+6. **SUGGESTION** `session_template_slots.html:53,55`: give the muted lines a dedicated id (e.g. `bloc-ajout-etat`).
