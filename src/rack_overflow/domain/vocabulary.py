@@ -27,4 +27,4 @@ SESSION_STATUSES: tuple[str, ...] = ("open", "closed")
 """Life cycle of a session; at most one open session per user."""
 
 SET_TYPES: tuple[str, ...] = ("warmup", "work", "rm_test")
-"""Type of a set; only work sets count for records."""
+"""Type of a set; warm-ups never count for records or volume, work and RM-test sets do (D-064)."""

@@ -1,0 +1,33 @@
+{# Start form (docs/ui-spec.md "L4 — Home: start or resume"): location chips filter the template
+   buttons by CSS :has(); the submitter's template_id is sent with the checked location. #}
+{% from "_form_status.html" import form_status %}
+{% from "_fields.html" import field_error, oob_announce %}
+{% from "_labels.html" import LOCATION_KEYS %}
+<form class="start" id="demarrer" hx-post="/seances" hx-target="this" hx-swap="outerHTML" hx-disabled-elt="#demarrer button">
+  {{ form_status() }}
+  <h1>{{ t("home.start_title") }}</h1>
+  <fieldset class="chips">
+    <legend class="field__label">{{ t("home.location_legend") }}</legend>
+    {% for place in ("gym", "home") %}
+    <label class="chip"><input class="chip__input" type="radio" name="location" value="{{ place }}" id="lieu-{{ place }}"{% if place == location %} checked{% endif %}>{{ t(LOCATION_KEYS[place]) }}</label>
+    {% endfor %}
+  </fieldset>
+  <h2 id="start-templates" class="field__label">{{ t("home.templates_heading") }}</h2>
+  {{ field_error("demarrer-modele", errors) }}
+  <div class="start__templates" aria-labelledby="start-templates" role="group">
+    {% for template in page.templates %}
+    <button class="button start__template" name="template_id" value="{{ template.id }}" data-location="{{ template.location }}"{% if errors.first_id == "demarrer-modele" and loop.first %} autofocus{% endif %}>
+      <span class="start__name">{{ template.name }}</span>
+      {% if template.last_used %}<span class="tag">{{ t("home.last_used") }}</span>{% endif %}
+    </button>
+    {% endfor %}
+    {% for place, key in (("gym", "home.no_template_gym"), ("home", "home.no_template_home")) %}
+    {% if not page.offered(place) %}
+    <p class="muted start__none" data-location="{{ place }}">{{ t(key) }} <a href="/seances-types/nouvelle">{{ t("templates.new") }}</a></p>
+    {% endif %}
+    {% endfor %}
+  </div>
+  <button class="button start__free" name="template_id" value="" aria-describedby="demarrer-libre-aide">{{ t("home.free_session") }}</button>
+  <p id="demarrer-libre-aide" class="field__hint">{{ t("home.free_session_hint") }}</p>
+</form>
+{{ oob_announce(errors.first_message) }}

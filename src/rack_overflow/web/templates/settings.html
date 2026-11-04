@@ -1,0 +1,29 @@
+{# Settings (docs/ui-spec.md "L5 — Settings", "L6 — Settings: export"): the 1RM formula and the
+   data export (plain links: no htmx, no script, no `download` attribute, D-074). #}
+{% extends "base.html" %}
+{% block nav %}{% include "_nav.html" %}{% endblock %}
+{% block styles %}<link rel="stylesheet" href="/static/css/pages/progress.css">{% endblock %}
+{% block content %}
+<h1>{{ t("settings.title") }}</h1>
+<section class="section settings" aria-labelledby="formule-titre">
+  <h2 id="formule-titre">{{ t("settings.formula_heading") }}</h2>
+  {% include "settings_formula.html" %}
+</section>
+<section class="section settings" id="donnees" aria-labelledby="donnees-titre">
+  <h2 id="donnees-titre">{{ t("settings.data_heading") }}</h2>
+  <p class="muted">{{ t("settings.data_intro") }}</p>
+  <ul class="exports">
+    <li class="export">
+      <a class="button export__link" id="export-json" href="/api/export?format=json" aria-describedby="export-json-aide">{{ t("settings.export_json") }}</a>
+      <p class="muted export__hint" id="export-json-aide">{{ t("settings.export_json_hint") }}</p>
+    </li>
+    <li class="export">
+      <a class="button export__link" id="export-csv" href="/api/export?format=csv" aria-describedby="export-csv-aide">{{ t("settings.export_csv") }}</a>
+      <p class="muted export__hint" id="export-csv-aide">{{ t("settings.export_csv_hint") }}</p>
+    </li>
+  </ul>
+  <p class="muted export__note">{{ t("settings.export_units") }}</p>
+  <p class="muted export__note">{{ t("settings.export_not_backup") }}</p>
+</section>
+<div class="actions"><a class="button" href="/progression">{{ t("progress.link") }}</a></div>
+{% endblock %}

@@ -1,0 +1,33 @@
+{# One page of history (docs/ui-spec.md "L5 — History"): month groups, then « Plus anciennes ».
+   Also the fragment of « Plus anciennes » (`fragment`): a month continued from the previous page
+   gets no heading; the first new link takes the focus; the count is announced. #}
+{% from "_form_status.html" import form_status %}
+{% from "_fields.html" import oob_announce %}
+{% from "_labels.html" import LOCATION_KEYS %}
+{% set appended = fragment is defined and fragment %}
+{% for group in page.months %}
+{% set outer_first = loop.first %}
+{% set continued = outer_first and appended and page.continues_month %}
+{% if not continued %}<section class="section history-month" aria-labelledby="mois-{{ group.key }}">
+  <h2 id="mois-{{ group.key }}">{{ show.month(group.key) }}</h2>{% endif %}
+  <ul class="rows history-list">
+    {% for item in group.items %}
+    <li>
+      <a class="row history-item" href="/seances/{{ item.id }}"{% if appended and outer_first and loop.first %} autofocus{% endif %}>
+        <span class="row__title history-item__title">{{ item.title or t("home.free_session") }}{% if item.open %}<span class="tag">{{ t("history.open_tag") }}</span>{% endif %}</span>
+        <span class="row__meta history-item__when">{{ t("history.item_when", weekday=show.weekday(item.local_date), date=show.short_date(item.local_date), time=show.local_time(item.started_at, item.time_zone)) }}{{ "\u00a0· " }}{{ t(LOCATION_KEYS[item.location]) }}</span>
+        <span class="row__meta history-item__counts">{% if item.exercises %}<span class="history-item__count">{{ t("session.summary.sets", count=item.sets) }}</span>{% if item.load_g %}<span class="history-item__sep"> · </span><span class="history-item__count">{{ t("session.summary.volume", value=show.value("weight", item.load_g)) }}</span>{% endif %}{% else %}{{ t("history.no_sets") }}{% endif %}</span>
+        {% if item.exercises %}<span class="row__meta history-item__exercises">{# a no-break space keeps each « · » after its name: no line starts with one #}{% for name in item.exercises %}{{ name }}{% if not loop.last %}{{ "\u00a0· " }}{% endif %}{% endfor %}</span>{% endif %}
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+{% if not continued %}</section>{% endif %}
+{% endfor %}
+{% if page.next_before %}
+<div id="historique-suite" class="history-more" data-request-scope>
+  {{ form_status() }}
+  <a class="button history-more__button" href="/historique?avant={{ page.next_before }}" hx-get="/historique?avant={{ page.next_before }}" hx-target="#historique-suite" hx-swap="outerHTML" hx-disabled-elt="this">{{ t("history.more") }}</a>
+</div>
+{% endif %}
+{% if appended %}{{ oob_announce(t("history.loaded", count=page.count)) }}{% endif %}

@@ -1,0 +1,18 @@
+{% from "_form_status.html" import form_status %}
+{% from "_fields.html" import oob_announce %}
+<section id="exercice-archivage" class="section" aria-labelledby="exercice-archivage-titre" data-request-scope>
+  {{ form_status() }}
+  <h2 id="exercice-archivage-titre">{{ t("exercise.section_archive") }}</h2>
+  <p class="section__intro">{{ t("exercise.archived_text") if detail.archived else t("exercise.archive_text") }}</p>
+  <div class="actions actions--inline">
+    {% if detail.archived %}
+    <button class="button button--primary" id="exercice-restaurer" hx-delete="/exercices/{{ detail.id }}/archive" hx-target="#exercice-archivage" hx-swap="outerHTML"{% if archive_focus == "restore" %} autofocus{% endif %}>{{ t("action.restore") }}</button>
+    {% else %}
+    <button class="button" id="exercice-archiver" hx-post="/exercices/{{ detail.id }}/archive" hx-target="#exercice-archivage" hx-swap="outerHTML"{% if archive_focus == "archive" %} autofocus{% endif %}>{{ t("action.archive") }}</button>
+    {% endif %}
+  </div>
+</section>
+{% if oob_state %}
+<span id="exercice-etat" hx-swap-oob="true">{% if detail.archived %}<span class="tag">{{ t("tag.archived_m") }}</span>{% endif %}</span>
+{{ oob_announce(announce) }}
+{% endif %}

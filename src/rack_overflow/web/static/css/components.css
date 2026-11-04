@@ -119,3 +119,422 @@
   font-size: var(--text-sm);
   line-height: var(--leading-sm);
 }
+
+/* ---- L2 components (docs/ui-spec.md, L2 — Header and navigation, L2 — Components) ---- */
+
+.site-nav__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--target-gap);
+  padding: 0;
+  list-style: none;
+}
+
+.site-nav__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min);
+  padding-inline: 0;
+  color: var(--color-text);
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+}
+
+.site-nav__link:hover {
+  text-decoration: underline;
+}
+
+.site-nav__link[aria-current="page"] {
+  color: var(--color-accent);
+  box-shadow: inset 0 -3px 0 var(--color-accent);
+}
+
+@media (min-width: 40rem) {
+  .site-nav__link {
+    padding-inline: var(--space-2);
+  }
+}
+
+/* L5: two link groups (tracking, then catalog). Below 40rem the nav takes its own row under the
+   brand and is a column of the two lists, one 48 px row each (three header rows in all); each
+   list still wraps as the last fallback for a very wide system font. From 40rem both lists sit
+   on one row, --space-6 apart. */
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-6);
+}
+
+@media (max-width: 39.999rem) {
+  .site-nav {
+    flex-basis: 100%;
+    flex-direction: column;
+  }
+
+  .site-nav__list {
+    gap: var(--space-4);
+  }
+}
+
+/* L5: a text link made a 48 px target (« Voir la progression », date links). */
+.inline-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min);
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+
+/* L5: a success notice outside a form (after a redirect). */
+p.form-status[role="status"] {
+  margin-top: var(--space-3);
+}
+
+/* Status slot of an htmx form or scope (D-053): first child, above the first field (the next-set
+   form's follows its ✓). Shown, it is scrolled into view with a margin, so it is never cut. */
+.form-status {
+  padding: var(--space-3);
+  scroll-margin-block: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+}
+
+.form-status[data-kind="error"] {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.form-status[data-kind="ok"] {
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+@media (max-width: 39.999rem) {
+  .page-head > .button {
+    width: 100%;
+  }
+}
+
+.section {
+  margin-top: var(--space-8);
+}
+
+.section > h2 + .muted,
+.section__intro {
+  margin-top: var(--space-1);
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+}
+
+.rows {
+  margin-top: var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.rows > li + li {
+  border-top: 1px solid var(--color-divider);
+}
+
+.row {
+  display: block;
+  min-height: var(--target-min);
+  padding: var(--space-3) 0;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.row:hover {
+  background: var(--color-surface);
+}
+
+.row__title {
+  font-weight: var(--weight-semibold);
+}
+
+.row__meta {
+  display: block;
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+}
+
+.tag {
+  display: inline-block;
+  margin-left: var(--space-2);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-sm);
+  vertical-align: middle;
+}
+
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: 0 var(--space-4);
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.choices > legend {
+  margin-bottom: var(--space-2);
+  padding: 0;
+}
+
+@media (min-width: 40rem) {
+  .choices--row {
+    flex-flow: row wrap;
+  }
+
+  .choices--row > .field__hint,
+  .choices--row > .field__error {
+    flex-basis: 100%;
+  }
+}
+
+.choice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--target-min);
+  cursor: pointer;
+}
+
+.choice > input {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+  accent-color: var(--color-accent);
+}
+
+.choice__hint {
+  margin: 0 0 var(--space-2) calc(1.25rem + var(--space-3));
+}
+
+select.input {
+  appearance: auto;
+}
+
+textarea.input {
+  min-height: 10rem;
+  resize: vertical;
+}
+
+.field__optional {
+  margin-left: var(--space-2);
+  color: var(--color-muted);
+  font-weight: var(--weight-regular);
+}
+
+.button--danger {
+  border-color: var(--color-danger);
+  background: transparent;
+  color: var(--color-danger);
+}
+
+.actions--inline {
+  margin-top: 0;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: var(--text-max);
+  margin-top: var(--space-6);
+}
+
+.form > .actions {
+  margin-top: var(--space-2);
+}
+
+@media (max-width: 39.999rem) {
+  .form > .actions {
+    flex-direction: column;
+  }
+
+  .form > .actions > .button {
+    width: 100%;
+  }
+}
+
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-md);
+}
+
+.confirm__title {
+  font-weight: var(--weight-semibold);
+}
+
+/* Two-column detail pages from 64rem; one column in DOM order below. */
+@media (min-width: 64rem) {
+  .detail {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0 var(--space-8);
+    align-items: start;
+  }
+}
+
+/* ---- L4 components (docs/ui-spec.md, L4 — Components) ---- */
+
+/* Choice chips: a native radio, visually hidden but focusable, inside a 48 px label. */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--target-gap);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.chips > legend:not(.visually-hidden) {
+  width: 100%;
+  margin-bottom: var(--space-2);
+  padding: 0;
+}
+
+.chips > .field__error {
+  flex-basis: 100%;
+}
+
+.chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--target-min);
+  min-height: var(--target-min);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  cursor: pointer;
+}
+
+.chip__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  opacity: 0;
+}
+
+.chip:has(:checked) {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.chip:has(:focus-visible) {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.confirm--neutral {
+  border-color: var(--color-border);
+}
+
+/* L5: chips in a fixed grid of six (the RM rep count: two rows of six at 360 px). */
+.chips--grid6 {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(var(--target-min), 1fr));
+}
+
+.chips--grid6 > .chip {
+  padding: 0;
+}
+
+.chips--grid6 > .field__error {
+  grid-column: 1 / -1;
+}
+
+/* L5: data tables (records, chart data); the scroll wrapper is the last fallback only. */
+.data-table__scroll {
+  max-width: 100%;
+  margin-top: var(--space-3);
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+}
+
+.data-table > caption {
+  margin-bottom: var(--space-2);
+  font-weight: var(--weight-semibold);
+  text-align: left;
+}
+
+.data-table th,
+.data-table td {
+  padding: var(--space-2);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.data-table thead th {
+  color: var(--color-muted);
+  font-weight: var(--weight-semibold);
+}
+
+.data-table tbody tr {
+  border-top: 1px solid var(--color-divider);
+}
+
+.data-table tbody th {
+  font-weight: var(--weight-regular);
+}
+
+.data-table .num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* The table's outer edges align with the text around it (no side padding): four columns fit
+   in 328 px at 360. */
+.data-table th:first-child,
+.data-table td:first-child {
+  padding-left: 0;
+}
+
+.data-table th:last-child,
+.data-table td:last-child {
+  padding-right: 0;
+}
+
+/* A header carrying its column's unit may wrap: « 1RM estimé (kg) » on two lines at 360 px. */
+.data-table thead th.num {
+  white-space: normal;
+}

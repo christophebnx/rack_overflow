@@ -1,0 +1,20 @@
+{# The current pending menu (docs/ui-spec.md "L4 — Session page", current pending menu). #}
+{% from "_form_status.html" import form_status %}
+{% from "_fields.html" import field_error %}
+{% set target = show.target(menu.target) %}
+<section class="session-block" id="menu-{{ menu.slot_id }}" aria-labelledby="menu-{{ menu.slot_id }}-titre">
+  <h2 id="menu-{{ menu.slot_id }}-titre">{{ menu.label }}<span class="tag">{{ t("template.tag_menu") }}</span></h2>
+  {% if target %}<p class="muted">{{ target }}</p>{% endif %}
+  <p class="muted">{{ t("session.menu_intro") }}</p>
+  <form class="menu-pick" id="menu-{{ menu.slot_id }}-choix" hx-post="/seances/{{ view.session.id }}/exercices" hx-target="#seance-plan" hx-swap="outerHTML show:.session-block:top" hx-disabled-elt="#menu-{{ menu.slot_id }}-choix button">
+    {{ form_status() }}
+    {{ field_error("menu-" ~ menu.slot_id, menu_errors) }}
+    <input type="hidden" name="slot_id" value="{{ menu.slot_id }}">
+    {% for option in menu.options %}
+    <button class="button menu-pick__option" name="exercise_id" value="{{ option.id }}" id="menu-{{ menu.slot_id }}-option-{{ option.id }}"{% if menu_errors.first_id == "menu-" ~ menu.slot_id and loop.first %} autofocus{% endif %}>{{ option.name }}</button>
+    {% endfor %}
+  </form>
+  <div class="session-block__actions" id="menu-{{ menu.slot_id }}-actions">
+    {% include "session_actions.html" %}
+  </div>
+</section>

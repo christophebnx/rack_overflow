@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block nav %}{% include "_nav.html" %}{% endblock %}
+{% block styles %}<link rel="stylesheet" href="/static/css/pages/catalog.css">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ t("exercise.new_title") }}</h1>
+</div>
+{% include "exercise_form.html" %}
+{% endblock %}

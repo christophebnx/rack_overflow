@@ -1,0 +1,42 @@
+{% from "_labels.html" import CATEGORY_KEYS, LOCATION_KEYS %}
+{% from "_fields.html" import oob_announce %}
+{% macro row(exercise) -%}
+{% set d = exercise.draft %}
+<li>
+  <a class="row row--exercise" href="/exercices/{{ exercise.id }}">
+    <span class="row__title">{{ d.name }}{% if exercise.archived %}<span class="tag">{{ t("tag.archived_m") }}</span>{% endif %}</span>
+    <span class="row__meta row__part">{{ d.movement_pattern or "" }}</span>
+    <span class="row__meta row__part">{{ d.equipment or "" }}</span>
+    <span class="row__meta row__part">{{ t(LOCATION_KEYS[d.location]) }}</span>
+  </a>
+</li>
+{%- endmacro %}
+{% if q.strip() %}
+  {% if count %}
+  <ul class="rows">
+    {% for exercise in groups[0][1] %}{{ row(exercise) }}{% endfor %}
+  </ul>
+  {% else %}
+  <div class="empty">
+    <p class="empty__title">{{ t("exercises.no_match", query=q) }}</p>
+    <p class="muted">{{ t("exercises.no_match_hint") }}</p>
+  </div>
+  {% endif %}
+{% elif count %}
+  {% for category, rows in groups if rows %}
+  <section class="section" aria-labelledby="categorie-{{ category }}">
+    <h2 id="categorie-{{ category }}">{{ t(CATEGORY_KEYS[category]) }}</h2>
+    <ul class="rows">
+      {% for exercise in rows %}{{ row(exercise) }}{% endfor %}
+    </ul>
+  </section>
+  {% endfor %}
+{% else %}
+  <div class="empty">
+    <p class="empty__title">{{ t("exercises.empty_title") }}</p>
+    <p class="muted">{{ t("exercises.empty_text") }}</p>
+  </div>
+{% endif %}
+{% if announce_count is defined and announce_count and q.strip() %}
+{{ oob_announce(t("exercises.results", count=count)) }}
+{% endif %}

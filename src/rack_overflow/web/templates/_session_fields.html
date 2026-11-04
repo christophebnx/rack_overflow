@@ -1,0 +1,101 @@
+{# Inputs of the set, set edit and settings forms (docs/ui-spec.md "L4 — Components", "L4 — Session
+   page"). `f` is a services.sessions.FieldInfo, `texts` the inputs' display texts by field name,
+   `errors` a web.forms.FormErrors keyed by input id (`<prefix>-<field name>`). #}
+{% from "_fields.html" import described, field_error, field_hint %}
+
+{% macro word(f) -%}
+{{ show.quantity(f.core_quantity) if f.core_quantity else f.label }}
+{%- endmacro %}
+
+{% macro label_text(f) -%}
+{% set unit = show.unit(f.field.kind.kind, f.unit) %}
+{{ t("session.field_unit", field=word(f), unit=unit) if unit else word(f) }}
+{%- endmacro %}
+
+{% macro inputmode(f) -%}
+{{ {"int": "numeric", "weight": "decimal", "decimal": "decimal"}.get(f.field.kind.kind, "text") }}
+{%- endmacro %}
+
+{% macro chip_group(f, id, value, errors) -%}
+{% set items = show.choices(f, value) %}
+{% if items | length > show.CHIP_LIMIT + 1 %}
+<div class="field">
+  <label class="field__label" for="{{ id }}">{{ label_text(f) }}</label>
+  <select class="input" id="{{ id }}" name="{{ f.name }}"{{ described(id, errors, hint=false) }}>
+    {% for item_value, text in items %}
+    <option value="{{ item_value }}"{% if item_value == value %} selected{% endif %}>{{ text }}</option>
+    {% endfor %}
+  </select>
+  {{ field_error(id, errors) }}
+</div>
+{% else %}
+<fieldset class="chips" id="{{ id }}"{% if errors.get(id) %} aria-describedby="{{ id }}-erreur"{% endif %}>
+  <legend class="field__label">{{ label_text(f) }}</legend>
+  {% for item_value, text in items %}
+  <label class="chip"><input class="chip__input" type="radio" name="{{ f.name }}" value="{{ item_value }}" id="{{ id }}-{{ loop.index }}"{% if item_value == value %} checked{% endif %}{% if errors.first_id == id and loop.first %} autofocus{% endif %}>{{ text }}</label>
+  {% endfor %}
+  {{ field_error(id, errors) }}
+</fieldset>
+{% endif %}
+{%- endmacro %}
+
+{% macro text_input(f, id, value, errors, hint="") -%}
+<div class="field">
+  <label class="field__label" for="{{ id }}">{{ label_text(f) }}</label>
+  <input class="input" id="{{ id }}" name="{{ f.name }}" type="text" inputmode="{{ inputmode(f) }}" value="{{ value }}" maxlength="40" autocomplete="off" spellcheck="false" autocapitalize="off" enterkeyhint="done"{{ described(id, errors, hint=hint != "") }}>
+  {{ field_error(id, errors) }}
+  {% if hint %}{{ field_hint(id, hint) }}{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro at_zero(value) -%}
+{{ "1" if not (value or "").replace(",", "").replace(":", "").replace("m", "").strip().strip("0") else "" }}
+{%- endmacro %}
+
+{% macro stepper(f, id, value, errors, step_url, form_id, confirm_id, hint="") -%}
+{% set kind = f.field.kind %}
+{% set step = show.value(kind.kind, f.field.params.increment, kind.scale, f.unit) %}
+<div class="stepper">
+  <label class="field__label" for="{{ id }}">{{ label_text(f) }}</label>
+  <div class="stepper__row">
+    <button type="button" class="button stepper__button" id="{{ id }}-moins" name="pas" value="{{ f.name }}:down" hx-get="{{ step_url }}" hx-include="closest form" hx-target="#{{ form_id }}" hx-swap="outerHTML" hx-sync="closest form:replace" hx-disabled-elt="#{{ confirm_id }}" aria-label="{{ t('session.step_down', field=word(f), step=step) }}"{% if at_zero(value) %} disabled{% endif %}>−</button>
+    <input class="input stepper__input" id="{{ id }}" name="{{ f.name }}" type="text" inputmode="{{ inputmode(f) }}" value="{{ value }}" maxlength="20" autocomplete="off" spellcheck="false" autocapitalize="off" enterkeyhint="done"{{ described(id, errors, hint=hint != "") }}>
+    <button type="button" class="button stepper__button" id="{{ id }}-plus" name="pas" value="{{ f.name }}:up" hx-get="{{ step_url }}" hx-include="closest form" hx-target="#{{ form_id }}" hx-swap="outerHTML" hx-sync="closest form:replace" hx-disabled-elt="#{{ confirm_id }}" aria-label="{{ t('session.step_up', field=word(f), step=step) }}">+</button>
+  </div>
+  {{ field_error(id, errors) }}
+  {% if hint %}{{ field_hint(id, hint) }}{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro input(f, prefix, texts, errors, step_url=None, form_id="", confirm_id="") -%}
+{% set id = prefix ~ "-" ~ f.name %}
+{% set value = texts.get(f.name) or "" %}
+{% set kind = f.field.kind %}
+{% set hint = t("session.first_value_hint") if step_url and f.field.params.required and not value else "" %}
+{% if kind.kind in ("bool", "enum") or (kind.numeric and f.field.params.discrete_values) %}
+{{ chip_group(f, id, value, errors) }}
+{% elif step_url and f.field.stepped %}
+{{ stepper(f, id, value, errors, step_url, form_id, confirm_id, hint) }}
+{% else %}
+{{ text_input(f, id, value, errors, hint) }}
+{% endif %}
+{%- endmacro %}
+
+{% macro type_chips(types, checked_type, id, errors) -%}
+<fieldset class="chips chips--row" id="{{ id }}"{% if errors.get(id) %} aria-describedby="{{ id }}-erreur"{% endif %}>
+  <legend class="visually-hidden">{{ t("session.set_type_legend") }}</legend>
+  {% for kind in types %}
+  <label class="chip"><input class="chip__input" type="radio" name="type" value="{{ kind }}" id="{{ id }}-{{ kind }}"{% if kind == checked_type %} checked{% endif %}{% if errors.first_id == id and loop.first %} autofocus{% endif %}>{{ t({"warmup": "session.set_type.warmup", "work": "session.set_type.work", "rm_test": "session.set_type.rm_test"}[kind]) }}</label>
+  {% endfor %}
+  {{ field_error(id, errors) }}
+</fieldset>
+{%- endmacro %}
+
+{% macro values_text(fields, texts_or_values, block) -%}
+{% set parts = [] %}
+{% for f in fields %}
+  {% set value = texts_or_values.get(f.field.variable_id) %}
+  {% set _ = parts.append(t("session.set.variable", label=f.label, value=(show.field_value(f, value) if value is not none else t("session.no_value")))) %}
+{% endfor %}
+{{ parts | join(" · ") }}
+{%- endmacro %}

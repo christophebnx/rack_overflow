@@ -1,6 +1,6 @@
 [project]
 name = "rack-overflow"
-version = "0.1.0"
+version = "1.0.0"
 description = "Personal training tracker: exercise catalog, session templates, set logging and progress tracking, as a responsive web app."
 readme = "README.md"
 license = "MIT"
@@ -12,6 +12,7 @@ dependencies = [
     "pydantic>=2.8",
     "python-dotenv>=1.0",
     "sqlalchemy>=2.0",
+    "tzdata>=2026.6",
     "uvicorn>=0.30",
 ]
 

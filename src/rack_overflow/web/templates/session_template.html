@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% from "_labels.html" import LOCATION_KEYS %}
+{% block nav %}{% include "_nav.html" %}{% endblock %}
+{% block styles %}<link rel="stylesheet" href="/static/css/pages/catalog.css"><link rel="stylesheet" href="/static/css/pages/templates.css">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1><span id="seance-type-titre">{{ detail.draft.name }}</span><span id="seance-type-etat">{% if detail.archived %}<span class="tag">{{ t("tag.archived_f") }}</span>{% endif %}</span></h1>
+</div>
+<p id="seance-type-lieu" class="muted template-location">{{ t(LOCATION_KEYS[detail.draft.location]) }}</p>
+<div class="template-detail">
+  <div class="template-detail__slots">
+    {% include "session_template_slots.html" %}
+  </div>
+  <section class="section template-detail__info" aria-labelledby="seance-type-infos-titre">
+    <h2 id="seance-type-infos-titre">{{ t("template.section_info") }}</h2>
+    {% include "session_template_form.html" %}
+  </section>
+  <div class="template-detail__archive">
+    {% include "session_template_archive.html" %}
+  </div>
+</div>
+{% endblock %}

@@ -61,7 +61,6 @@ def test_page_loads_clean(watched: Watched, live_server: str, path: str, tmp_pat
     response = page.goto(live_server + path)
     assert response is not None and response.status == PATHS[path]
     page.wait_for_load_state("load")
-    page.screenshot(path=str(tmp_path / "page.png"), full_page=True)
     assert watched.foreign == []
     assert not [text for text in watched.console if "Content Security Policy" in text or "Refused" in text]
     inline = page.evaluate(
@@ -72,6 +71,8 @@ def test_page_loads_clean(watched: Watched, live_server: str, path: str, tmp_pat
         })"""
     )
     assert inline == {"styles": 0, "inlineScripts": 0, "styleAttributes": 0}
+    # after the audit: the screenshot leaves `style=""` on inputs (Playwright hides their caret)
+    page.screenshot(path=str(tmp_path / "page.png"), full_page=True)
     overflow = page.evaluate(
         "() => document.documentElement.scrollWidth - document.documentElement.clientWidth"
     )

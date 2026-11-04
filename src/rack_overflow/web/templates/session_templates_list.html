@@ -1,0 +1,34 @@
+{# The active templates in order: the fragment of a move (docs/ui-spec.md "L3 — Template list"). #}
+{% from "_form_status.html" import form_status %}
+{% from "_fields.html" import oob_announce %}
+{% from "_labels.html" import LOCATION_KEYS %}
+{% if active %}
+<section id="seances-types-liste" class="templates-list" aria-label="{{ t('templates.title') }}" data-request-scope>
+  {{ form_status() }}
+  <ul class="rows">
+    {% for template in active %}
+    {% set prefix = "seance-type-" ~ template.id %}
+    {% set name = template.draft.name %}
+    <li class="template-row" id="{{ prefix }}">
+      <a class="row row--template" id="{{ prefix }}-lien" href="/seances-types/{{ template.id }}"{% if focus == prefix ~ "-lien" %} autofocus{% endif %}>
+        <span class="row__title">{{ name }}</span>
+        <span class="row__meta">{{ t(LOCATION_KEYS[template.draft.location]) }}</span>
+        <span class="row__meta row__count">{{ t("templates.slot_count", count=template.slot_count) }}</span>
+      </a>
+      {% if active | length > 1 %}
+      <div class="actions actions--inline">
+        <button class="button" type="button" id="{{ prefix }}-monter" hx-post="/seances-types/{{ template.id }}/deplacement" hx-vals='{"direction": "up"}' hx-target="#seances-types-liste" hx-swap="outerHTML" hx-disabled-elt="this" aria-label="{{ t('template.move_up_named', name=name) }}"{% if loop.first %} disabled{% endif %}{% if focus == prefix ~ "-monter" %} autofocus{% endif %}>{{ t("action.move_up") }}</button>
+        <button class="button" type="button" id="{{ prefix }}-descendre" hx-post="/seances-types/{{ template.id }}/deplacement" hx-vals='{"direction": "down"}' hx-target="#seances-types-liste" hx-swap="outerHTML" hx-disabled-elt="this" aria-label="{{ t('template.move_down_named', name=name) }}"{% if loop.last %} disabled{% endif %}{% if focus == prefix ~ "-descendre" %} autofocus{% endif %}>{{ t("action.move_down") }}</button>
+      </div>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% else %}
+<div class="empty">
+  <p class="empty__title">{{ t("templates.empty_title") }}</p>
+  <p class="muted">{{ t("templates.empty_text") }}</p>
+</div>
+{% endif %}
+{{ oob_announce(announce) }}

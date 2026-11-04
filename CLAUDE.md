@@ -22,18 +22,22 @@ uv run pytest -q -n auto -m "not live"    # tests in parallel; drop -n auto to d
 uv run pytest -q -n auto -m "not live and not browser"   # skip the Playwright browser tests
 uv run pytest -q tests/e2e                # browser tests only; an engine not installed is skipped
 RACK_REQUIRE_BROWSER=1 uv run pytest -q tests/e2e        # fail instead of skip (Chromium and WebKit)
+uv run pytest -q tests/integration/test_session_performance.py   # time the set confirmation alone (median < 100 ms, D-066)
+uv run pytest -q tests/integration/test_progress_performance.py  # time progress page + chart JSON and history pages alone (median < 1 s, D-071)
 uv run ruff check . && uv run ruff format --check .
 uv run pylint --disable=all --enable=duplicate-code src
 uv run rack --version                                  # the CLI
-uv run rack migrate --config config.example.toml       # create / upgrade the dev database (.local/dev-data/)
+uv run rack migrate --config config.example.toml       # create / upgrade the dev database (.local/dev-data/), seed the exercise catalog and the four templates (versioned, idempotent, D-057, D-060)
 uv run rack backup --config config.example.toml        # snapshot the dev database now, prune expired snapshots
+uv run rack export PATH --config config.example.toml   # JSON export to a new file (--format csv: a zip); never overwrites
+uv run rack restore SNAPSHOT --config config.example.toml   # server stopped: snapshot path or bare name in <data_dir>/backups/; current db kept aside
 uv run rack serve --config config.example.toml         # dev server on http://127.0.0.1:8765 (run migrate first)
 uv run rack device add NAME --config config.example.toml     # print a one-time pairing code (also: list, revoke NAME)
 uv run rack supervise --config config.example.toml     # run serve, restart on crash, logs in <data_dir>/logs/ (POSIX)
 uv run rack update --config config.toml                # deployed clone only: pull main, sync, migrate, restart (D-052)
 ```
 
-Always pass `--config config.example.toml` in development: the default `config.toml` is the machine's real settings file (invariant 4). For `rack device`, `--config` comes after the action (`rack device list --config …`). Every page except `/appairage` needs a paired device: pair the dev browser with `rack device add`. NAS install: `docs/deployment/nas.md`.
+Always pass `--config config.example.toml` in development: the default `config.toml` is the machine's real settings file (invariant 4). For `rack device`, `--config` comes after the action (`rack device list --config …`); for `rack export` and `rack restore`, after the command (`rack restore NAME --config …`). Session dates and times use `[calendar] time_zone` of the settings file (default `Europe/Brussels`, D-065). Every page except `/appairage` needs a paired device: pair the dev browser with `rack device add`. NAS install: `docs/deployment/nas.md`.
 
 ## Invariants — never violate
 

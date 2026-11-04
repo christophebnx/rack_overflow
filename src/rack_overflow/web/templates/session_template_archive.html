@@ -1,0 +1,18 @@
+{% from "_form_status.html" import form_status %}
+{% from "_fields.html" import oob_announce %}
+<section id="seance-type-archivage" class="section" aria-labelledby="seance-type-archivage-titre" data-request-scope>
+  {{ form_status() }}
+  <h2 id="seance-type-archivage-titre">{{ t("template.section_archive") }}</h2>
+  <p class="section__intro">{{ t("template.archived_text") if detail.archived else t("template.archive_text") }}</p>
+  <div class="actions actions--inline">
+    {% if detail.archived %}
+    <button class="button button--primary" id="seance-type-restaurer" hx-delete="/seances-types/{{ detail.id }}/archive" hx-target="#seance-type-archivage" hx-swap="outerHTML"{% if archive_focus == "restore" %} autofocus{% endif %}>{{ t("action.restore") }}</button>
+    {% else %}
+    <button class="button" id="seance-type-archiver" hx-post="/seances-types/{{ detail.id }}/archive" hx-target="#seance-type-archivage" hx-swap="outerHTML"{% if archive_focus == "archive" %} autofocus{% endif %}>{{ t("action.archive") }}</button>
+    {% endif %}
+  </div>
+</section>
+{% if oob_state %}
+<span id="seance-type-etat" hx-swap-oob="true">{% if detail.archived %}<span class="tag">{{ t("tag.archived_f") }}</span>{% endif %}</span>
+{{ oob_announce(announce) }}
+{% endif %}

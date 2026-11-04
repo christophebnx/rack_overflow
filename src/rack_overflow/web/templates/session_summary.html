@@ -1,0 +1,25 @@
+{# A closed session (docs/ui-spec.md "L4 — Session summary", "L5 — Session detail and
+   corrections"): totals, each exercise with its corrections, the session delete. #}
+{% extends "base.html" %}
+{% from "_labels.html" import LOCATION_KEYS %}
+{% block nav %}{% include "_nav.html" %}{% endblock %}
+{% block styles %}<link rel="stylesheet" href="/static/css/pages/catalog.css"><link rel="stylesheet" href="/static/css/pages/session.css">{% endblock %}
+{% block content %}
+{% set info = summary.session %}
+<div class="session">
+  <h1>{{ page_title }}</h1>
+  <p class="muted">{{ t("session.summary_meta", location=t(LOCATION_KEYS[info.location])) }}</p>
+  <p class="muted">{{ t("session.summary_when", date=show.local_date(info.local_date), start=show.local_time(info.started_at, info.time_zone), end=show.local_time(info.ended_at, info.time_zone), duration=show.elapsed(info.started_at, info.ended_at)) }}</p>
+  {% if closed_notice %}<p class="form-status" data-kind="error" role="alert">{{ t("session.closed_notice") }}</p>{% endif %}
+  {% if summary.rows %}
+  {% include "session_totals.html" %}
+  {% for r in summary.rows %}{% include "session_detail_exercise.html" %}{% endfor %}
+  {% else %}
+  <div class="empty"><p class="empty__title">{{ t("session.summary_empty") }}</p></div>
+  {% endif %}
+  <div class="actions">
+    <a class="button button--primary" href="/">{{ t("action.home") }}</a>
+  </div>
+  {% include "session_delete.html" %}
+</div>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% from "_labels.html" import LOCATION_KEYS %}
+{% block nav %}{% include "_nav.html" %}{% endblock %}
+{% block styles %}<link rel="stylesheet" href="/static/css/pages/catalog.css"><link rel="stylesheet" href="/static/css/pages/templates.css">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ t("templates.title") }}</h1>
+  <a class="button button--primary" href="/seances-types/nouvelle">{{ t("templates.new") }}</a>
+</div>
+<p class="muted catalog-intro">{{ t("templates.intro") }}</p>
+{% if show_archived %}
+<a class="toggle-link" href="/seances-types">{{ t("templates.hide_archived") }}</a>
+{% else %}
+<a class="toggle-link" href="/seances-types?archivees=1">{{ t("templates.show_archived") }}</a>
+{% endif %}
+{% include "session_templates_list.html" %}
+{% if archived %}
+<section class="section" aria-labelledby="seances-types-archivees">
+  <h2 id="seances-types-archivees">{{ t("templates.archived_heading") }}</h2>
+  <ul class="rows">
+    {% for template in archived %}
+    <li class="template-row">
+      <a class="row row--template" href="/seances-types/{{ template.id }}">
+        <span class="row__title">{{ template.draft.name }}<span class="tag">{{ t("tag.archived_f") }}</span></span>
+        <span class="row__meta">{{ t(LOCATION_KEYS[template.draft.location]) }}</span>
+        <span class="row__meta row__count">{{ t("templates.slot_count", count=template.slot_count) }}</span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,306 @@
+/* Catalog pages (docs/ui-spec.md, L2 — Exercise and Variable screens). */
+.catalog-intro {
+  margin-top: var(--space-2);
+  max-width: var(--text-max);
+}
+
+.toggle-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min);
+  margin-top: var(--space-2);
+}
+
+.empty {
+  margin-top: var(--space-6);
+  max-width: var(--text-max);
+}
+
+.empty__title {
+  font-weight: var(--weight-semibold);
+}
+
+@media (min-width: 40rem) {
+  .row--variable {
+    display: grid;
+    /* fixed tracks (no auto column): every row of the list has the same columns */
+    grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1fr);
+    gap: var(--space-4);
+    align-items: baseline;
+  }
+
+  .row--variable .row__meta {
+    font-size: var(--text-md);
+    line-height: var(--leading-md);
+  }
+
+  .row__count {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+}
+
+/* Variable form: the inputs of the chosen type only (CSS :has on the type select; frozen type: class). */
+.only-unit,
+.only-decimal,
+.only-enum {
+  display: none;
+}
+
+.variable-form:has(#type option[value="int"]:checked) .only-unit,
+.variable-form:has(#type option[value="decimal"]:checked) .only-unit,
+.variable-form:has(#type option[value="decimal"]:checked) .only-decimal,
+.variable-form:has(#type option[value="enum"]:checked) .only-enum,
+.variable-form--int .only-unit,
+.variable-form--decimal .only-unit,
+.variable-form--decimal .only-decimal,
+.variable-form--enum .only-enum {
+  display: flex;
+}
+
+.enum-values {
+  gap: var(--space-2);
+}
+
+.enum-value {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+@media (min-width: 40rem) {
+  .enum-value {
+    display: grid;
+    grid-template-columns: 7rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .enum-value > .field__hint {
+    margin: 0;
+  }
+}
+
+/* Exercise list rows: one line on a grid from 40rem. */
+.row--exercise .row__part:empty {
+  display: none;
+}
+
+@media (max-width: 39.999rem) {
+  .row--exercise .row__part {
+    display: inline;
+  }
+
+  .row--exercise .row__part:not(:empty) + .row__part:not(:empty)::before {
+    content: " · ";
+  }
+
+  .row--exercise .row__title {
+    display: block;
+  }
+}
+
+@media (min-width: 40rem) {
+  .row--exercise {
+    display: grid;
+    /* fixed tracks (no auto column): columns align across rows; location stays left-aligned */
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-4);
+    align-items: baseline;
+  }
+
+  .row--exercise .row__part,
+  .row--exercise .row__part:empty {
+    display: block;
+    font-size: var(--text-md);
+    line-height: var(--leading-md);
+  }
+}
+
+.search {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: var(--text-max);
+  margin-top: var(--space-6);
+}
+
+#resultats {
+  margin-top: var(--space-4);
+}
+
+/* Exercise detail: Informations + Alias | Champs, Archivage full width (from 64rem). */
+@media (min-width: 64rem) {
+  .exercise-detail {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "info fields"
+      "aliases fields"
+      "archive archive";
+    gap: 0 var(--space-8);
+    align-items: start;
+  }
+
+  .exercise-detail__info {
+    grid-area: info;
+  }
+
+  .exercise-detail__fields {
+    grid-area: fields;
+  }
+
+  .exercise-detail__aliases {
+    grid-area: aliases;
+  }
+
+  .exercise-detail__archive {
+    grid-area: archive;
+  }
+}
+
+.exercise-detail .form {
+  margin-top: var(--space-3);
+}
+
+.fields {
+  margin-top: var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.field-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+}
+
+.field-row + .field-row {
+  border-top: 1px solid var(--color-divider);
+}
+
+.field-row__position {
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.field-row__name {
+  font-weight: var(--weight-semibold);
+}
+
+.field-row__summary {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+}
+
+.field-row__edit > summary {
+  list-style: none;
+  width: fit-content;
+}
+
+.field-row__edit > summary::-webkit-details-marker {
+  display: none;
+}
+
+.field-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.field-row__edit:has(input[name="mode"][value="values"]:checked) .only-step,
+.field-row__edit:has(input[name="mode"][value="step"]:checked) .only-values {
+  display: none;
+}
+
+.add-field,
+.alias-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.add-field__line,
+.alias-form__line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--target-gap);
+}
+
+.add-field__line > .input,
+.alias-form__line > .input {
+  flex: 1 1 12rem;
+  width: auto;
+  min-width: 0; /* a select is otherwise as wide as its longest option */
+}
+
+@media (max-width: 39.999rem) {
+  /* the hint right under the label, before the input and button line */
+  .alias-form .field__label {
+    order: -2;
+  }
+
+  .alias-form .field__hint {
+    order: -1;
+  }
+}
+
+@media (max-width: 39.999rem) {
+  .add-field__line > .button {
+    width: 100%;
+  }
+
+  /* a shown status box does not touch the heading or field right under it */
+  .form-status {
+    margin-bottom: var(--space-3);
+  }
+}
+
+.aliases {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--target-gap);
+  margin-top: var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.alias {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  max-width: 100%;
+  padding-left: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.alias > .button {
+  border: 0;
+  border-left: 1px solid var(--color-border);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+.alias__text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.alias > .button {
+  flex-shrink: 0;
+}
+
+.aliases-empty {
+  margin-top: var(--space-3);
+}
+
+/* Archive blocks: space between the explanation and the buttons. */
+#exercice-archivage > .actions--inline,
+#variable-archivage > .actions--inline {
+  margin-top: var(--space-4);
+}

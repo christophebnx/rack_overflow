@@ -1,0 +1,108 @@
+{% from "_form_status.html" import form_status %}
+{% from "_fields.html" import described, field_error, field_hint, optional, oob_announce %}
+{% from "_labels.html" import SCOPE_KEYS, SCOPE_HINT_KEYS, TYPE_KEYS %}
+{% set editing = detail is not none %}
+{% set frozen = editing and detail.has_values %}
+<form id="variable-formulaire" class="form variable-form{% if frozen %} variable-form--{{ form.type }}{% endif %}" {% if editing %}hx-patch="/variables/{{ detail.id }}"{% else %}hx-post="/variables"{% endif %} hx-target="this" hx-swap="outerHTML" hx-disabled-elt="#variable-formulaire button">
+  {{ form_status(t("status.saved") if saved else "", "ok" if saved else "") }}
+  {% if for_exercise %}<input type="hidden" name="exercice" value="{{ for_exercise[0] }}">{% endif %}
+  <div class="field">
+    <label class="field__label" for="libelle">{{ t("variable.label_label") }}</label>
+    <input class="input" id="libelle" name="label" type="text" value="{{ form.label }}" maxlength="40" required autocomplete="off" spellcheck="false"{{ described("libelle", errors) }}{% if not editing and not errors %} autofocus{% endif %}>
+    {{ field_error("libelle", errors) }}
+    {{ field_hint("libelle", t("variable.label_hint")) }}
+  </div>
+
+  {% if frozen %}
+  <div class="field">
+    <span class="field__label">{{ t("variable.scope_legend") }}</span>
+    <p>{{ t(SCOPE_KEYS[form.scope]) }}</p>
+    <p class="field__hint">{{ t("variable.frozen_hint") }}</p>
+  </div>
+  <div class="field">
+    <span class="field__label">{{ t("variable.type_label") }}</span>
+    <p>{{ t(TYPE_KEYS[form.type]) }}</p>
+    <p class="field__hint">{{ t("variable.frozen_hint") }}</p>
+  </div>
+  {% else %}
+  <fieldset class="choices">
+    <legend class="field__label">{{ t("variable.scope_legend") }}</legend>
+    {% for scope in ("set", "setting") %}
+    <label class="choice"><input type="radio" id="role-{{ scope }}" name="scope" value="{{ scope }}" required aria-describedby="role-{{ scope }}-aide{% if loop.first and errors.get('role-set') %} role-set-erreur{% endif %}"{% if form.scope == scope %} checked{% endif %}{% if loop.first and errors.first_id == "role-set" %} autofocus{% endif %}> {{ t(SCOPE_KEYS[scope]) }}</label>
+    <p id="role-{{ scope }}-aide" class="field__hint choice__hint">{{ t(SCOPE_HINT_KEYS[scope]) }}</p>
+    {% endfor %}
+    {{ field_error("role-set", errors) }}
+  </fieldset>
+  <div class="field">
+    <label class="field__label" for="type">{{ t("variable.type_label") }}</label>
+    <select class="input" id="type" name="type" required{{ described("type", errors, hint=false) }}>
+      <option value="">{{ t("form.choose") }}</option>
+      {% for type in types %}
+      <option value="{{ type }}"{% if form.type == type %} selected{% endif %}>{{ t(TYPE_KEYS[type]) }}</option>
+      {% endfor %}
+    </select>
+    {{ field_error("type", errors) }}
+  </div>
+  {% endif %}
+
+  <div class="field only-unit">
+    <label class="field__label" for="unite">{{ t("variable.unit_label") }}{{ optional() }}</label>
+    <input class="input" id="unite" name="unit" type="text" value="{{ form.unit }}" maxlength="12" autocomplete="off" spellcheck="false"{{ described("unite", errors) }}>
+    {{ field_error("unite", errors) }}
+    {{ field_hint("unite", t("variable.unit_hint")) }}
+  </div>
+
+  <div class="field only-decimal">
+    {% if frozen %}
+    <span class="field__label">{{ t("variable.scale_label") }}</span>
+    <p>{{ form.decimal_scale }}</p>
+    <p class="field__hint">{{ t("variable.frozen_hint") }}</p>
+    {% else %}
+    <label class="field__label" for="decimales">{{ t("variable.scale_label") }}</label>
+    <select class="input" id="decimales" name="decimal_scale"{{ described("decimales", errors, hint=false) }}>
+      {% for scale in ("1", "2", "3") %}
+      <option value="{{ scale }}"{% if form.decimal_scale == scale %} selected{% endif %}>{{ scale }}</option>
+      {% endfor %}
+    </select>
+    {{ field_error("decimales", errors) }}
+    {% endif %}
+  </div>
+
+  {% if editing and form.rows %}
+  <fieldset class="choices only-enum enum-values">
+    <legend class="field__label">{{ t("variable.values_legend") }}</legend>
+    {% for row in form.rows %}
+    <div class="enum-value">
+      <label class="field__label" for="valeur-{{ loop.index }}">{{ t("variable.value_label", position=loop.index) }}</label>
+      <input class="input" id="valeur-{{ loop.index }}" name="value_label" type="text" value="{{ row.label }}" maxlength="40" autocomplete="off" spellcheck="false">
+      <input type="hidden" name="value_key" value="{{ row.key }}">
+      {% if row.key in detail.used_enum_keys %}
+      <p class="field__hint">{{ t("variable.value_in_use") }}</p>
+      {% else %}
+      <label class="choice"><input type="checkbox" name="value_remove" value="{{ row.key }}"{% if row.remove %} checked{% endif %}> {{ t("action.remove") }}<span class="visually-hidden"> {{ row.label }}</span></label>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </fieldset>
+  {% endif %}
+  <div class="field only-enum">
+    {% set values_id = "valeurs-ajout" if editing else "valeurs" %}
+    <label class="field__label" for="{{ values_id }}">{{ t("variable.values_add_label") if editing else t("variable.values_label") }}</label>
+    <textarea class="input" id="{{ values_id }}" name="values" rows="6" spellcheck="false"{{ described(values_id, errors) }}>{{ form["values"] }}</textarea>
+    {{ field_error(values_id, errors) }}
+    {{ field_hint(values_id, t("variable.values_hint")) }}
+  </div>
+
+  <div class="actions">
+    {% if editing %}
+    <button class="button button--primary" type="submit">{{ t("action.save") }}</button>
+    {% else %}
+    <button class="button button--primary" type="submit">{{ t("variable.create") }}</button>
+    <a class="button" href="{% if for_exercise %}/exercices/{{ for_exercise[0] }}{% else %}/variables{% endif %}">{{ t("action.cancel") }}</a>
+    {% endif %}
+  </div>
+</form>
+{{ oob_announce(announce) }}
+{% if retitle is defined and retitle %}
+<span id="variable-titre" hx-swap-oob="true">{{ detail.draft.label }}</span>
+{% endif %}

@@ -1,9 +1,16 @@
 import os
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
 
-from rack_overflow.config import DEFAULT_RETENTION_DAYS, SECRETS_FILE_NAME, ConfigError, load_settings
+from rack_overflow.config import (
+    DEFAULT_RETENTION_DAYS,
+    DEFAULT_TIME_ZONE,
+    SECRETS_FILE_NAME,
+    ConfigError,
+    load_settings,
+)
 
 VALID = """
 [server]
@@ -182,3 +189,37 @@ def test_settings_are_immutable(tmp_path: Path) -> None:
 def test_loading_creates_nothing(tmp_path: Path) -> None:
     load_settings(write(tmp_path, VALID))
     assert sorted(path.name for path in tmp_path.iterdir()) == ["settings.toml"]
+
+
+def test_calendar_defaults_to_brussels(tmp_path: Path) -> None:
+    settings = load_settings(write(tmp_path, VALID))
+    assert settings.calendar.time_zone == DEFAULT_TIME_ZONE == "Europe/Brussels"
+    assert settings.calendar.tz.key == "Europe/Brussels"  # type: ignore[attr-defined]
+
+
+def test_calendar_time_zone_is_read(tmp_path: Path) -> None:
+    settings = load_settings(write(tmp_path, VALID + '\n[calendar]\ntime_zone = "America/Montreal"\n'))
+    assert settings.calendar.time_zone == "America/Montreal"
+    assert settings.calendar.tz.utcoffset(datetime(2026, 1, 15)) == timedelta(hours=-5)
+
+
+def test_example_file_sets_the_calendar(tmp_path: Path) -> None:
+    example = Path(__file__).resolve().parents[2] / "config.example.toml"
+    settings = load_settings(write(tmp_path, example.read_text(encoding="utf-8")))
+    assert settings.calendar.time_zone == "Europe/Brussels"
+
+
+@pytest.mark.parametrize(
+    ("calendar", "fragment"),
+    [
+        ('time_zone = "Mars/Olympus"', "calendar.time_zone: unknown time zone 'Mars/Olympus'"),
+        ('time_zone = ""', "calendar.time_zone: unknown time zone ''"),
+        ('time_zone = "../etc/passwd"', "calendar.time_zone: unknown time zone"),
+        ("time_zone = 1", "calendar.time_zone must be of type str"),
+        ('zone = "Europe/Paris"', "unknown key calendar.zone"),
+    ],
+)
+def test_invalid_calendar(tmp_path: Path, calendar: str, fragment: str) -> None:
+    with pytest.raises(ConfigError) as error:
+        load_settings(write(tmp_path, VALID + f"\n[calendar]\n{calendar}\n"))
+    assert fragment in str(error.value)

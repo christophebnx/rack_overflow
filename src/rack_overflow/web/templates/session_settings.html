@@ -1,0 +1,18 @@
+{# The settings form of a row, saved on each change (docs/ui-spec.md "L4 — Session page"): the
+   open session's current block, or `settings_row` (a SummaryRow) on a closed session's detail (L5). #}
+{% from "_form_status.html" import form_status %}
+{% from "_fields.html" import field_hint, oob_announce %}
+{% import "_session_fields.html" as fields with context %}
+{% set closed_row = settings_row is defined and settings_row is not none %}
+{% set b = settings_row if closed_row else view.block %}
+{% set prefix = "exercice-" ~ b.id %}
+<form class="settings-form" id="{{ prefix }}-reglages" hx-patch="/seances/{{ session_id }}/exercices/{{ b.id }}/reglages" hx-trigger="change" hx-target="this" hx-swap="outerHTML">
+  {{ form_status(t("session.settings_saved") if settings_saved else "", "ok" if settings_saved else "") }}
+  {{ field_hint(prefix ~ "-reglages", t("session.settings_hint_closed") if closed_row else t("session.settings_hint")) }}
+  {% set texts = settings_texts if settings_texts is not none else b.settings_texts %}
+  {% for f in b.setting_fields %}{{ fields.input(f, prefix ~ "-reglages", texts, settings_errors) }}{% endfor %}
+</form>
+{% if settings_oob %}
+<span id="{{ prefix }}-reglages-resume" hx-swap-oob="innerHTML">{{ t("session.settings_summary", values=fields.values_text(b.setting_fields, b.settings, b)) }}</span>
+{{ oob_announce(announce) }}
+{% endif %}

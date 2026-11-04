@@ -1,4 +1,5 @@
-"""The backup operation, shared by `rack backup`, `rack migrate` and the server (D-037, D-045)."""
+"""The backup operation, shared by `rack backup`, `rack migrate` and the server (D-037, D-045), and
+the restore of a snapshot (`rack restore`, D-075)."""
 
 from __future__ import annotations
 
@@ -23,3 +24,9 @@ def backup_if_due(database_path: Path, backups_dir: Path, now: datetime, retenti
     if not rules.is_due(latest, now):
         return None
     return backup_now(database_path, backups_dir, now, retention_days)
+
+
+def restore(snapshot: Path, database_path: Path, now: datetime) -> backup.Restored:
+    """Restore `snapshot` as the database, the current one kept aside (the caller has stopped the
+    server; an older revision is migrated by the caller, as `rack migrate` does)."""
+    return backup.restore_snapshot(snapshot, database_path, now)

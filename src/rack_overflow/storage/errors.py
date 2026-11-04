@@ -19,3 +19,11 @@ class CorruptDatabaseError(BackupError):
 
 class DeviceNameTakenError(StorageError):
     """An active device already has this name (unique index on active names)."""
+
+
+class NameTakenError(StorageError):
+    """A unique constraint of the catalog refused a write (variable code, exercise name, alias)."""
+
+
+class SessionOpenError(StorageError):
+    """The user already has an open session (partial unique index `uq_session_one_open`)."""

@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import IO
 
 from rack_overflow.domain.supervision import RestartPolicy, next_delay
-from rack_overflow.ops.errors import OpsError
+from rack_overflow.ops.errors import OpsError, SupervisorRunningError
 from rack_overflow.ops.logs import utc_formatter
 from rack_overflow.storage.files import atomic_write
 
@@ -164,7 +164,7 @@ def acquire_lock(data_dir: Path) -> int:
         fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
         os.close(descriptor)
-        raise OpsError("another rack supervise is running") from None
+        raise SupervisorRunningError("another rack supervise is running") from None
     return descriptor
 
 

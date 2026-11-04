@@ -1,0 +1,32 @@
+{% from "_form_status.html" import form_status %}
+{% from "_fields.html" import described, field_error, field_hint, oob_announce %}
+<section id="exercice-alias" class="section" aria-labelledby="exercice-alias-titre" data-request-scope>
+  {{ form_status() }}
+  <h2 id="exercice-alias-titre">{{ t("exercise.section_aliases") }}</h2>
+  <p class="muted section__intro">{{ t("exercise.aliases_intro") }}</p>
+  {% if detail.aliases %}
+  <ul class="aliases">
+    {% for alias in detail.aliases %}
+    <li class="alias">
+      <span class="alias__text">{{ alias.alias }}</span>
+      <button class="button" type="button" hx-delete="/exercices/{{ detail.id }}/alias/{{ alias.id }}" hx-target="#exercice-alias" hx-swap="outerHTML" aria-label="{{ t('exercise.alias_remove', alias=alias.alias) }}">{{ t("action.remove") }}</button>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted aliases-empty">{{ t("exercise.no_alias") }}</p>
+  {% endif %}
+  <form id="alias-formulaire" class="alias-form" hx-post="/exercices/{{ detail.id }}/alias" hx-target="#exercice-alias" hx-swap="outerHTML" hx-disabled-elt="#alias-formulaire button">
+    {{ form_status() }}
+    <div class="field">
+      <label class="field__label" for="alias-nouveau">{{ t("exercise.alias_label") }}</label>
+      <div class="alias-form__line">
+        <input class="input" id="alias-nouveau" name="alias" type="text" value="{{ alias_value }}" maxlength="60" autocomplete="off" autocapitalize="off" enterkeyhint="done"{{ described("alias-nouveau", alias_errors) }}{% if alias_focus and not alias_errors %} autofocus{% endif %}>
+        <button class="button" type="submit">{{ t("action.add") }}</button>
+      </div>
+      {{ field_error("alias-nouveau", alias_errors) }}
+      {{ field_hint("alias-nouveau", t("exercise.alias_hint")) }}
+    </div>
+  </form>
+</section>
+{{ oob_announce(announce) }}

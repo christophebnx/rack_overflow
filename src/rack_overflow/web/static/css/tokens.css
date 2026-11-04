@@ -13,6 +13,14 @@
   --color-danger: #b42318;
   --color-focus: #0b57b8;
 
+  /* L5 chart series (each >= 4.5:1 on bg and surface), paired with a point shape */
+  --chart-1: #0b57b8;
+  --chart-2: #b04a00;
+  --chart-3: #1f7a3a;
+  --chart-4: #9c2f8f;
+  --chart-5: #00707a;
+  --chart-6: #5b5f00;
+
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --text-sm: 0.875rem;
   --leading-sm: 1.4;
@@ -66,5 +74,12 @@
     --color-on-accent: #0d1726;
     --color-danger: #ff8f84;
     --color-focus: #7cb0ff;
+
+    --chart-1: #7cb0ff;
+    --chart-2: #ffa25c;
+    --chart-3: #5fd38a;
+    --chart-4: #f08ad8;
+    --chart-5: #4fd1d9;
+    --chart-6: #d9d55a;
   }
 }

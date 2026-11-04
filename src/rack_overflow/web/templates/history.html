@@ -1,0 +1,37 @@
+{# History (docs/ui-spec.md "L5 — History"): consistency, then the sessions by month. Context:
+   page (HistoryPage), consistency (Consistency or None), deleted (bool). #}
+{% extends "base.html" %}
+{% block nav %}{% include "_nav.html" %}{% endblock %}
+{% block styles %}<link rel="stylesheet" href="/static/css/pages/catalog.css"><link rel="stylesheet" href="/static/css/pages/history.css">{% endblock %}
+{% block content %}
+<h1>{{ t("history.title") }}</h1>
+{% if deleted %}<p class="form-status" data-kind="ok" role="status">{{ t("history.deleted_notice") }}</p>{% endif %}
+{% if page.count %}
+{% if consistency %}
+<section class="section consistency" aria-labelledby="regularite-titre">
+  <h2 id="regularite-titre">{{ t("history.consistency_heading") }}</h2>
+  <p>{{ t("history.this_week", count=consistency.this_week) }}</p>
+  <p>{{ t("history.week_average", value=show.decimal1(consistency.average_tenths)) }}</p>
+  <ol class="week-chart" aria-label="{{ t('history.weeks_label') }}">
+    {% for week in consistency.weeks %}
+    {% set week_date = show.short_date(week.start) %}
+    <li class="week-chart__item{% if loop.last %} week-chart__item--current{% endif %}">
+      <span class="visually-hidden">{{ t("history.week_item_current" if loop.last else "history.week_item", date=week_date, count=week.count) }}</span>
+      <span class="week-chart__count" aria-hidden="true">{{ week.count }}</span>
+      <span class="week-chart__bar week-chart__bar--{{ [week.count, 7] | min }}" aria-hidden="true"></span>
+      <span class="week-chart__week" aria-hidden="true">{{ week_date }}</span>
+    </li>
+    {% endfor %}
+  </ol>
+  <p class="muted week-chart__caption">{{ t("history.weeks_caption") }}</p>
+</section>
+{% endif %}
+{% include "history_page.html" %}
+{% else %}
+<div class="empty">
+  <p class="empty__title">{{ t("history.empty_title") }}</p>
+  <p class="muted">{{ t("history.empty_text") }}</p>
+  <div class="actions"><a class="button" href="/">{{ t("home.start_title") }}</a></div>
+</div>
+{% endif %}
+{% endblock %}

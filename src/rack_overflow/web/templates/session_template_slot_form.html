@@ -1,0 +1,116 @@
+{# One slot's exercise or menu name, target, and a menu's options (included by
+   session_template_slots.html inside the row's <details>). #}
+{% set v = typed if (is_open and typed) else values[slot.id] %}
+{% set errs = slot_errors if is_open else no_errors %}
+{% set option_errs = option_errors if is_open else no_errors %}
+<form id="{{ prefix }}-formulaire" class="slot-form" hx-patch="{{ base }}/{{ slot.id }}" hx-target="#blocs" hx-swap="outerHTML" hx-disabled-elt="#{{ prefix }}-formulaire button">
+  {{ form_status() }}
+  {% if slot.kind == "menu" %}
+  <div class="field">
+    <label class="field__label" for="{{ prefix }}-menu">{{ t("template.menu_label") }}</label>
+    <input class="input" id="{{ prefix }}-menu" name="label" type="text" value="{{ v.label }}" maxlength="40" required list="mouvements" autocomplete="off" autocapitalize="sentences"{{ described(prefix ~ "-menu", errs) }}>
+    {{ field_error(prefix ~ "-menu", errs) }}
+    {{ field_hint(prefix ~ "-menu", t("template.menu_hint")) }}
+  </div>
+  {% else %}
+  <div class="field">
+    <label class="field__label" for="{{ prefix }}-exercice">{{ t("template.exercise_label") }}</label>
+    <select class="input" id="{{ prefix }}-exercice" name="exercise_id" required{{ described(prefix ~ "-exercice", errs, hint=false) }}>
+      {% if slot.exercise.archived %}
+      <option value="{{ slot.exercise.id }}"{% if v.exercise_id == slot.exercise.id | string %} selected{% endif %}>{{ t("template.option_archived", name=slot.exercise.name) }}</option>
+      {% endif %}
+      {{ exercise_options(detail.groups(), v.exercise_id) }}
+    </select>
+    {{ field_error(prefix ~ "-exercice", errs) }}
+  </div>
+  {% endif %}
+  <fieldset class="target">
+    <legend class="field__label">{{ t("template.target_legend") }}<span class="field__optional">{{ t("form.optional") }}</span></legend>
+    <p class="muted target__intro">{{ t("template.target_intro") }}</p>
+    <div class="target__grid">
+      <div class="field">
+        <label class="field__label" for="{{ prefix }}-series">{{ t("template.sets_label") }}</label>
+        <input class="input" id="{{ prefix }}-series" name="sets" type="text" inputmode="numeric" maxlength="2" value="{{ v.sets }}" autocomplete="off" spellcheck="false" enterkeyhint="done"{{ described(prefix ~ "-series", errs, hint=false) }}{% if focus == prefix ~ "-series" %} autofocus{% endif %}>
+        {{ field_error(prefix ~ "-series", errs) }}
+      </div>
+      <div class="field">
+        <label class="field__label" for="{{ prefix }}-reps">{{ t("template.reps_label") }}</label>
+        <input class="input" id="{{ prefix }}-reps" name="reps" type="text" inputmode="text" maxlength="12" value="{{ v.reps }}" autocomplete="off" spellcheck="false" enterkeyhint="done"{{ described(prefix ~ "-reps", errs) }}>
+        {{ field_error(prefix ~ "-reps", errs) }}
+        {{ field_hint(prefix ~ "-reps", t("template.reps_hint")) }}
+      </div>
+      <div class="field">
+        <label class="field__label" for="{{ prefix }}-duree">{{ t("template.duration_label") }}</label>
+        <input class="input" id="{{ prefix }}-duree" name="duration" type="text" inputmode="text" maxlength="20" value="{{ v.duration }}" autocomplete="off" spellcheck="false" enterkeyhint="done"{{ described(prefix ~ "-duree", errs) }}>
+        {{ field_error(prefix ~ "-duree", errs) }}
+        {{ field_hint(prefix ~ "-duree", t("unit.hint.duration")) }}
+      </div>
+      <div class="field">
+        <label class="field__label" for="{{ prefix }}-distance">{{ t("template.distance_label") }}</label>
+        <input class="input" id="{{ prefix }}-distance" name="distance" type="text" inputmode="text" maxlength="20" value="{{ v.distance }}" autocomplete="off" spellcheck="false" enterkeyhint="done"{{ described(prefix ~ "-distance", errs) }}>
+        {{ field_error(prefix ~ "-distance", errs) }}
+        {{ field_hint(prefix ~ "-distance", t("unit.hint.distance")) }}
+      </div>
+      <div class="field target__note">
+        <label class="field__label" for="{{ prefix }}-note">{{ t("template.note_label") }}</label>
+        <input class="input" id="{{ prefix }}-note" name="note" type="text" maxlength="40" value="{{ v.note }}" autocomplete="off" spellcheck="false" enterkeyhint="done"{{ described(prefix ~ "-note", errs) }}>
+        {{ field_error(prefix ~ "-note", errs) }}
+        {{ field_hint(prefix ~ "-note", t("template.note_hint")) }}
+      </div>
+    </div>
+  </fieldset>
+  <div class="actions actions--inline">
+    <button class="button button--primary" type="submit">{{ t("action.save") }}</button>
+    <button class="button button--danger" type="button" id="{{ prefix }}-retirer" hx-delete="{{ base }}/{{ slot.id }}" hx-target="#blocs" hx-swap="outerHTML" hx-disabled-elt="this" aria-describedby="{{ prefix }}-retirer-aide">{{ t("template.remove_slot") }}</button>
+  </div>
+  {{ field_hint(prefix ~ "-retirer", t("template.remove_slot_hint")) }}
+</form>
+{% if slot.kind == "menu" %}
+{% set single = slot.options | length == 1 %}
+<div class="menu-options" data-request-scope>
+  {{ form_status() }}
+  <h3>{{ t("template.options_heading") }}</h3>
+  <p class="muted section__intro">{{ t("template.options_intro") }}</p>
+  <ol class="options" id="{{ prefix }}-options">
+    {% for option in slot.options %}
+    {% set option_prefix = "option-" ~ option.id %}
+    {% set option_name = option.exercise.name %}
+    {% set option_path = base ~ "/" ~ slot.id ~ "/options/" ~ option.id %}
+    <li class="option" id="{{ option_prefix }}">
+      <span class="option__name">{{ option_name }}{% if option.exercise.archived %}<span class="tag">{{ t("tag.archived_m") }}</span>{% endif %}</span>
+      <div class="actions actions--inline">
+        <button class="button" type="button" id="{{ option_prefix }}-monter" hx-post="{{ option_path }}/deplacement" hx-vals='{"direction": "up"}' hx-target="#blocs" hx-swap="outerHTML" hx-disabled-elt="this" aria-label="{{ t('template.move_up_named', name=option_name) }}"{% if loop.first %} disabled{% endif %}{% if focus == option_prefix ~ "-monter" %} autofocus{% endif %}>{{ t("action.move_up") }}</button>
+        <button class="button" type="button" id="{{ option_prefix }}-descendre" hx-post="{{ option_path }}/deplacement" hx-vals='{"direction": "down"}' hx-target="#blocs" hx-swap="outerHTML" hx-disabled-elt="this" aria-label="{{ t('template.move_down_named', name=option_name) }}"{% if loop.last %} disabled{% endif %}{% if focus == option_prefix ~ "-descendre" %} autofocus{% endif %}>{{ t("action.move_down") }}</button>
+        {% if not single %}
+        <button class="button button--danger" type="button" id="{{ option_prefix }}-retirer" hx-delete="{{ option_path }}" hx-target="#blocs" hx-swap="outerHTML" hx-disabled-elt="this" aria-label="{{ t('template.option_remove_named', name=option_name) }}"{% if focus == option_prefix ~ "-retirer" %} autofocus{% endif %}>{{ t("action.remove") }}</button>
+        {% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ol>
+  {{ field_error(prefix ~ "-options", option_errs) }}
+  {% if single %}<p class="muted">{{ t("template.last_option_hint") }}</p>{% endif %}
+</div>
+{% set addable = detail.option_groups(slot) %}
+{% set add_id = prefix ~ "-option-ajout" %}
+<form id="{{ prefix }}-option-ajout-formulaire" class="add-field add-option" hx-post="{{ base }}/{{ slot.id }}/options" hx-target="#blocs" hx-swap="outerHTML" hx-disabled-elt="#{{ prefix }}-option-ajout-formulaire button">
+  {{ form_status() }}
+  {% if slot.options | length >= max_options or not addable %}
+  {% set refused = option_errs.get(add_id) %}
+  <p class="muted" id="{{ add_id }}" tabindex="-1"{% if refused %} aria-describedby="{{ add_id }}-erreur"{% endif %}{% if focus == add_id or refused %} autofocus{% endif %}>{{ t("template.options_full") if slot.options | length >= max_options else t("template.options_none_left") }}</p>
+  {{ field_error(add_id, option_errs) }}
+  {% else %}
+  <div class="field">
+    <label class="field__label" for="{{ add_id }}">{{ t("template.add_option_label") }}</label>
+    <div class="add-field__line">
+      <select class="input" id="{{ add_id }}" name="exercise_id" required{{ described(add_id, option_errs, hint=false) }}{% if focus == add_id and not option_errs %} autofocus{% endif %}>
+        <option value="">{{ t("form.choose") }}</option>
+        {{ exercise_options(addable, none) }}
+      </select>
+      <button class="button" type="submit">{{ t("action.add") }}</button>
+    </div>
+    {{ field_error(add_id, option_errs) }}
+  </div>
+  {% endif %}
+</form>
+{% endif %}

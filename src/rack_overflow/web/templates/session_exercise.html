@@ -1,0 +1,42 @@
+{# The current exercise block (docs/ui-spec.md "L4 — Session page"): the fragment of ✓, edit and
+   delete. Context: view (SessionView, block set), errors, edit, settings_errors, settings_saved,
+   change_errors, focus, announce. #}
+{% from "_form_status.html" import form_status %}
+{% from "_fields.html" import field_error, oob_announce %}
+{% import "_session_fields.html" as fields with context %}
+{% from "_set_list.html" import set_list with context %}
+{% set b = view.block %}
+{% set sid = view.session.id %}
+{% set row = b.id %}
+{% set prefix = "exercice-" ~ row %}
+<section class="session-block" id="{{ prefix }}" aria-labelledby="{{ prefix }}-titre">
+  <h2 id="{{ prefix }}-titre">{{ b.exercise.name }}{% if b.exercise.archived %}<span class="tag">{{ t("tag.archived_m") }}</span>{% endif %}</h2>
+  {% if b.card.target and show.target(b.card.target) %}<p class="muted">{{ show.target(b.card.target) }}</p>{% endif %}
+
+  {% if not b.has_facts and (b.change_options or b.card.slot_id is none) %}
+  <details class="session-change"{% if change_errors %} open{% endif %}{% if b.card.slot_id is none %} hx-get="/seances/{{ sid }}/recherche?ligne={{ row }}" hx-trigger="toggle once" hx-target="#{{ prefix }}-changer-resultats" hx-swap="innerHTML"{% endif %}>
+    <summary class="button" id="{{ prefix }}-changer">{{ t("session.change_exercise") }}</summary>
+    <div class="session-change__body" data-request-scope>
+      {{ form_status() }}
+      {{ field_error(prefix ~ "-changer", change_errors) }}
+      <p class="muted">{{ t("session.change_intro") }}</p>
+      {% for option in b.change_options %}
+      <button class="button menu-pick__option" name="exercise_id" value="{{ option.id }}" hx-patch="/seances/{{ sid }}/exercices/{{ row }}" hx-target="#seance-plan" hx-swap="outerHTML show:.session-block:top" hx-disabled-elt="this">{{ option.name }}</button>
+      {% endfor %}
+      {% if b.card.slot_id is none %}<div class="session-change__results" id="{{ prefix }}-changer-resultats"></div>{% endif %}
+    </div>
+  </details>
+  {% endif %}
+
+  {% if b.setting_fields %}
+  <details class="session-settings"{% if settings_errors %} open{% endif %}>
+    <summary class="session-settings__summary" id="{{ prefix }}-reglages-resume">{{ t("session.settings_summary", values=fields.values_text(b.setting_fields, b.settings, b)) }}</summary>
+    {% include "session_settings.html" %}
+  </details>
+  {% endif %}
+
+  {% if b.sets %}{{ set_list(b, prefix, edit, focus, no_errors) }}{% endif %}
+
+  {% include "session_set_form.html" %}
+</section>
+{{ oob_announce(announce) }}

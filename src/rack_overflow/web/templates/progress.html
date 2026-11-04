@@ -1,0 +1,113 @@
+{# Progress of an exercise (docs/ui-spec.md "L5 — Progress of an exercise"; D-068). Context: view
+   (ProgressView), chart ({days, first, last}), the RM section's context (progress_rm.html). #}
+{% extends "base.html" %}
+{% from "_labels.html" import CATEGORY_KEYS, INTRO_KEYS, COLUMN_KEYS, RECORD_KEYS, RECORD_KINDS %}
+{% from "_set_list.html" import read_list with context %}
+{% block nav %}{% include "_nav.html" %}{% endblock %}
+{% block styles %}<link rel="stylesheet" href="/static/css/pages/catalog.css"><link rel="stylesheet" href="/static/css/pages/session.css"><link rel="stylesheet" href="/static/css/pages/progress.css">{% endblock %}
+{% block scripts %}{% if chart.days >= 2 %}
+  <script src="/static/vendor/chart.umd.min.js" defer></script>
+  <script src="/static/js/progress-chart.js" defer></script>
+{% endif %}{% endblock %}
+{% macro session_link(best) -%}
+<a class="inline-link" href="/seances/{{ best.session_id }}"><span class="visually-hidden">{{ t("progress.session_of") }} </span>{{ show.local_date(best.local_date) }}</a>
+{%- endmacro %}
+{% block content %}
+{% set exercise = view.exercise %}
+<h1>{{ exercise.name }}{% if exercise.archived %}<span class="tag">{{ t("tag.archived_m") }}</span>{% endif %}</h1>
+<p class="muted progress-head">{{ t(CATEGORY_KEYS[exercise.category]) }} · <a class="inline-link" href="/exercices/{{ exercise.id }}">{{ t("progress.sheet_link") }}</a></p>
+<div class="progress">
+  <div class="progress__side">
+    <section class="section" aria-labelledby="derniere-titre">
+      <h2 id="derniere-titre">{{ t("progress.last_heading") }}</h2>
+      {% if view.last %}
+      {% set last = view.last.session %}
+      <a class="inline-link" href="/seances/{{ last.id }}">{{ t("progress.last_session", date=show.local_date(last.local_date), name=last.title or t("home.free_session")) }}</a>
+      {{ read_list(view.last.sets, view.fields) }}
+      {% else %}
+      <p class="muted">{{ t("progress.last_empty") }}</p>
+      {% endif %}
+    </section>
+    {% if rm.available %}{% include "progress_rm.html" %}{% endif %}
+  </div>
+  <div class="progress__main">
+    <section class="section" aria-labelledby="evolution-titre">
+      <h2 id="evolution-titre">{{ t("progress.chart_heading") }}</h2>
+      {% if not view.series %}
+      <p class="muted">{{ t("progress.chart_empty") }}</p>
+      {% else %}
+      {% set main = view.series[0] %}
+      <p class="muted chart-note">{{ t(INTRO_KEYS[main.key]) }}</p>
+      {% if chart.days >= 2 %}
+      {% if view.series | length >= 2 %}
+      <ul class="chart-legend">
+        {% for series in view.series %}<li class="chart-legend__item chart-legend__item--{{ loop.index }}">{{ show.series_label(series, view.formula) }}</li>{% endfor %}
+      </ul>
+      {% endif %}
+      <figure class="chart-figure">
+        <div class="chart" hidden><canvas data-chart-src="/api/progression/{{ exercise.id }}" role="img" aria-labelledby="evolution-titre evolution-resume"></canvas></div>
+        <p class="chart__error" data-chart-error hidden>{{ t("progress.chart_error") }}</p>
+        <figcaption id="evolution-resume" class="muted">{{ t("progress.chart_span", count=chart.days, first=show.local_date(chart.first), last=show.local_date(chart.last)) }}{% if view.series | length == 1 %} {{ t("progress.chart_latest", value=show.series_value(main, main.points[-1].value), best=show.series_value(main, main.best)) }}{% endif %}</figcaption>
+      </figure>
+      {% else %}
+      <p class="muted chart-note">{{ t("progress.chart_one_point") }}</p>
+      {% endif %}
+      <details class="chart-data">
+        <summary class="chart-data__summary">{{ t("progress.data_toggle") }}</summary>
+        <div class="data-table__scroll" role="region" tabindex="0" aria-labelledby="donnees-legende">
+          <table class="data-table">
+            <caption id="donnees-legende" class="visually-hidden">{{ t("progress.data_caption") }}</caption>
+            <thead><tr><th scope="col">{{ t("progress.col.date") }}</th>{% for key, kind in view.table.columns %}{% set unit = show.column_unit(kind) %}<th scope="col" class="num">{{ t("progress.col.with_unit", label=t(COLUMN_KEYS[key]), unit=unit) if unit else t(COLUMN_KEYS[key]) }}</th>{% endfor %}</tr></thead>
+            <tbody>
+              {% for row in view.table.rows %}
+              <tr><th scope="row">{{ show.local_date(row.local_date) }}</th>{% for value in row.values %}<td class="num">{{ show.column_cell(view.table.columns[loop.index0][1], value) }}</td>{% endfor %}</tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </details>
+      {% endif %}
+    </section>
+    <section class="section" aria-labelledby="records-titre">
+      <h2 id="records-titre">{{ t("progress.records_heading") }}</h2>
+      {% set bests = view.bests %}
+      {% if bests.empty %}
+      <p class="muted">{{ t("progress.records_empty") }}</p>
+      {% endif %}
+      {% if bests.by_reps %}
+      <div class="data-table__scroll" role="region" tabindex="0" aria-labelledby="records-reps">
+        <table class="data-table">
+          <caption id="records-reps">{{ t("progress.record.max_load_by_reps") }}</caption>
+          <thead><tr><th scope="col">{{ t("progress.col.reps") }}</th><th scope="col" class="num">{{ t("progress.col.load") }}</th><th scope="col">{{ t("progress.col.date") }}</th></tr></thead>
+          <tbody>
+            {% for reps, best in bests.by_reps %}
+            <tr><th scope="row">{{ t("progress.reps_13_plus") if reps == 13 else reps }}</th><td class="num">{{ show.value("weight", best.value) }}</td><td>{{ session_link(best) }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+      {% if bests.by_load %}
+      <div class="data-table__scroll" role="region" tabindex="0" aria-labelledby="records-charges">
+        <table class="data-table">
+          <caption id="records-charges">{{ t("progress.record.max_reps_by_load") }}</caption>
+          <thead><tr><th scope="col">{{ t("progress.col.load") }}</th><th scope="col" class="num">{{ t("progress.col.reps") }}</th><th scope="col">{{ t("progress.col.date") }}</th></tr></thead>
+          <tbody>
+            {% for load, best in bests.by_load %}
+            <tr><th scope="row">{{ show.value("weight", load) }}</th><td class="num">{{ best.value }}</td><td>{{ session_link(best) }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+      {% if bests.singles %}
+      <dl class="records">
+        {% for key, best in bests.singles.items() %}
+        <div class="records__item"><dt>{{ t(RECORD_KEYS[key]) }}</dt><dd><span class="records__value">{{ show.cell(RECORD_KINDS[key], best.value) }}</span> {{ session_link(best) }}</dd></div>
+        {% endfor %}
+      </dl>
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endblock %}

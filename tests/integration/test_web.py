@@ -32,7 +32,9 @@ def test_home_page(client: TestClient) -> None:
     assert "<title>Accueil · Rack Overflow</title>" in response.text
     assert 'aria-current="page"' in response.text
     assert 'id="annonce"' in response.text
-    assert "<nav" not in response.text
+    nav = response.text.split('<nav class="site-nav"', 1)[1].split("</nav>", 1)[0]
+    assert 'href="/exercices"' in nav and 'href="/variables"' in nav
+    assert 'aria-current="page"' not in nav
     assert_security_headers(response)
 
 
@@ -133,7 +135,7 @@ def test_unhandled_error_gives_the_500_page_with_headers(client: TestClient) -> 
     response = client.get("/boom?x=1", headers=PAGE)
     assert response.status_code == 500
     assert "Erreur du serveur" in response.text
-    assert 'href="/boom"' in response.text
+    assert 'href="/boom?x=1"' in response.text  # the query is kept (L6: a retried export keeps its format)
     assert_security_headers(response)
     assert client.get("/boom").json() == {"error": "internal"}
 
@@ -160,4 +162,4 @@ def test_retry_link_keeps_an_encoded_question_mark(client: TestClient) -> None:
     client.app.include_router(router)  # type: ignore[attr-defined]
     response = client.get("/panne/a%3Fb?x=1", headers=PAGE)
     assert response.status_code == 500
-    assert 'href="/panne/a%3Fb"' in response.text
+    assert 'href="/panne/a%3Fb?x=1"' in response.text

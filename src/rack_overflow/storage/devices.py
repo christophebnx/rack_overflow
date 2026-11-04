@@ -7,6 +7,7 @@ from collections.abc import Sequence
 
 import sqlalchemy as sa
 
+from rack_overflow.storage.db import guarded_write
 from rack_overflow.storage.errors import DeviceNameTakenError
 from rack_overflow.storage.schema import device, pairing_code
 
@@ -16,15 +17,9 @@ ACTIVE = device.c.revoked_at.is_(None)
 def insert_device(connection: sa.Connection, user_id: int, name: str, created_at: str) -> int:
     """Insert an unpaired device and return its id; an active device with this name is refused
     (`DeviceNameTakenError`, the one place this rule is checked: the unique index also covers races)."""
-    savepoint = connection.begin_nested()
-    try:
-        result = connection.execute(
-            sa.insert(device).values(user_id=user_id, name=name, created_at=created_at)
-        )
-    except sa.exc.IntegrityError:
-        savepoint.rollback()
-        raise DeviceNameTakenError(f'device "{name}" already exists; revoke it first') from None
-    savepoint.commit()
+    statement = sa.insert(device).values(user_id=user_id, name=name, created_at=created_at)
+    refusal = DeviceNameTakenError(f'device "{name}" already exists; revoke it first')
+    result = guarded_write(connection, lambda: connection.execute(statement), refusal)
     return int(result.inserted_primary_key[0])
 
 

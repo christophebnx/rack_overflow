@@ -1,0 +1,36 @@
+{# Name and location of a template: create mode (no detail) or edit mode (docs/ui-spec.md
+   "L3 — New template", "L3 — Template detail" Informations). #}
+{% from "_form_status.html" import form_status %}
+{% from "_fields.html" import described, field_error, field_hint, oob_announce %}
+{% from "_labels.html" import LOCATION_KEYS %}
+{% set editing = detail is not none %}
+<form id="seance-type-formulaire" class="form template-form" {% if editing %}hx-patch="/seances-types/{{ detail.id }}"{% else %}hx-post="/seances-types"{% endif %} hx-target="this" hx-swap="outerHTML" hx-disabled-elt="#seance-type-formulaire button">
+  {{ form_status(t("status.saved") if saved else "", "ok" if saved else "") }}
+  <div class="field">
+    <label class="field__label" for="seance-nom">{{ t("template.name_label") }}</label>
+    <input class="input" id="seance-nom" name="name" type="text" value="{{ form.name or '' }}" maxlength="60" required autocomplete="off" autocapitalize="sentences"{{ described("seance-nom", errors) }}{% if not editing and not errors %} autofocus{% endif %}>
+    {{ field_error("seance-nom", errors) }}
+    {{ field_hint("seance-nom", t("template.name_hint")) }}
+  </div>
+  <fieldset class="choices choices--row" id="seance-lieu">
+    <legend class="field__label">{{ t("template.location_label") }}</legend>
+    {% for location in locations %}
+    <label class="choice"><input type="radio" id="seance-lieu-{{ location }}" name="location" value="{{ location }}" required{% if loop.first %} aria-describedby="{% if errors.get('seance-lieu-gym') %}seance-lieu-gym-erreur {% endif %}seance-lieu-aide"{% if errors.get('seance-lieu-gym') %} aria-invalid="true"{% endif %}{% if errors.first_id == "seance-lieu-gym" %} autofocus{% endif %}{% endif %}{% if form.location == location %} checked{% endif %}> {{ t(LOCATION_KEYS[location]) }}</label>
+    {% endfor %}
+    {{ field_error("seance-lieu-gym", errors) }}
+    {{ field_hint("seance-lieu", t("template.location_hint")) }}
+  </fieldset>
+  <div class="actions">
+    {% if editing %}
+    <button class="button button--primary" type="submit">{{ t("action.save") }}</button>
+    {% else %}
+    <button class="button button--primary" type="submit">{{ t("template.create") }}</button>
+    <a class="button" href="/seances-types">{{ t("action.cancel") }}</a>
+    {% endif %}
+  </div>
+</form>
+{{ oob_announce(announce) }}
+{% if retitle is defined and retitle %}
+<span id="seance-type-titre" hx-swap-oob="true">{{ detail.draft.name }}</span>
+<p id="seance-type-lieu" class="muted template-location" hx-swap-oob="true">{{ t(LOCATION_KEYS[detail.draft.location]) }}</p>
+{% endif %}

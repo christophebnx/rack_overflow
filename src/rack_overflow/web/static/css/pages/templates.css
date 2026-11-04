@@ -1,0 +1,289 @@
+/* Session template pages (docs/ui-spec.md, L3 — Template list, New template, Template detail,
+   Style). Reuses components.css and catalog.css (toggle link, empty state, add-field line). */
+
+/* List: the row link, then its move buttons (under it on the phone, beside it from 40rem). */
+.templates-list {
+  margin-top: var(--space-2);
+}
+
+.template-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-bottom: var(--space-3);
+}
+
+.row--template .row__title {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 39.999rem) {
+  .row--template .row__meta {
+    display: inline;
+  }
+
+  .row--template .row__title {
+    display: block;
+  }
+
+  .row--template .row__meta + .row__meta::before {
+    content: " · ";
+  }
+}
+
+@media (min-width: 40rem) {
+  .template-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-4);
+    padding-block: var(--space-2);
+  }
+
+  .row--template {
+    display: grid;
+    /* fixed tracks (no auto column): columns align across rows */
+    grid-template-columns: minmax(0, 3fr) minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-4);
+    align-items: baseline;
+  }
+
+  .row--template .row__meta {
+    font-size: var(--text-md);
+    line-height: var(--leading-md);
+  }
+
+  .row--template .row__count {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+}
+
+/* Detail: Blocs | Informations + Archivage from 64rem; one column in DOM order before. */
+.template-location {
+  margin-top: var(--space-1);
+}
+
+@media (min-width: 64rem) {
+  .template-detail {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    /* the slots span both rows: the last row takes the extra height, so Archivage follows Informations */
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      "slots info"
+      "slots archive";
+    gap: 0 var(--space-8);
+    align-items: start;
+  }
+
+  .template-detail__slots {
+    grid-area: slots;
+  }
+
+  .template-detail__info {
+    grid-area: info;
+  }
+
+  .template-detail__archive {
+    grid-area: archive;
+  }
+}
+
+.template-detail .form {
+  margin-top: var(--space-3);
+}
+
+#seance-type-archivage > .actions--inline {
+  margin-top: var(--space-4);
+}
+
+/* Slots: the L2 field-row look. */
+.slots {
+  margin-top: var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.slot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-3) 0;
+}
+
+.slot + .slot {
+  border-top: 1px solid var(--color-divider);
+}
+
+.slot__head {
+  overflow-wrap: anywhere;
+}
+
+.slot__position {
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.slot__name {
+  font-weight: var(--weight-semibold);
+}
+
+.slot__options,
+.slot__skipped {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  overflow-wrap: anywhere;
+}
+
+.slot__target {
+  font-variant-numeric: tabular-nums;
+}
+
+.slot__edit > summary {
+  list-style: none;
+  width: fit-content;
+}
+
+.slot__edit > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* From 40rem « Modifier » sits on the line of Monter / Descendre (wireframe): the move buttons float
+   and the summary flows beside them; the open form clears them, so nothing moves when it opens. */
+@media (min-width: 40rem) {
+  .slot {
+    display: flow-root;
+  }
+
+  .slot > * + * {
+    margin-top: var(--space-2);
+  }
+
+  .slot > .actions {
+    float: left;
+    margin-inline-end: var(--target-gap);
+  }
+
+  .slot__edit > :not(summary) {
+    clear: left;
+  }
+}
+
+.slot-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.slot-form .input,
+.add-slot .input {
+  min-width: 0; /* a select is otherwise as wide as its longest option */
+}
+
+.target {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.target > legend {
+  padding: 0;
+}
+
+.target__intro {
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+}
+
+.target__grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+@media (min-width: 40rem) {
+  .target__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-3);
+    align-items: start;
+  }
+
+  .target__note {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Menu options editor inside « Modifier ». */
+.menu-options {
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-divider);
+}
+
+.menu-options h3 {
+  font-size: var(--text-md);
+  line-height: var(--leading-md);
+  font-weight: var(--weight-semibold);
+}
+
+.options {
+  margin-top: var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.option {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+}
+
+.option__name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 40rem) {
+  .option {
+    flex-flow: row wrap;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+/* Add a slot: the menu name and hint only when « Menu » is checked (CSS :has, no script). */
+.add-slot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: var(--text-max);
+  margin-top: var(--space-6);
+}
+
+.add-slot h3 {
+  font-size: var(--text-md);
+  line-height: var(--leading-md);
+  font-weight: var(--weight-semibold);
+}
+
+.only-menu {
+  display: none;
+}
+
+.add-slot:has(input[name="kind"][value="menu"]:checked) .only-menu {
+  display: flex;
+}
+
+@media (max-width: 39.999rem) {
+  .add-slot .actions > .button {
+    width: 100%;
+  }
+}

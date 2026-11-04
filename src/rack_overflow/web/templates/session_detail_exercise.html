@@ -1,0 +1,32 @@
+{# One exercise of a closed session (docs/ui-spec.md "L5 — Session detail and corrections"): the
+   fragment answering a set or setting correction. Context: summary (SummaryView), r (SummaryRow),
+   session_id, edit, focus, announce, no_errors, settings_errors, settings_saved, settings_texts,
+   totals_oob. #}
+{% from "_fields.html" import oob_announce %}
+{% import "_session_fields.html" as fields with context %}
+{% from "_set_list.html" import set_list with context %}
+{% set prefix = "exercice-" ~ r.id %}
+{% set meta = [t("session.summary.sets", count=r.volume.sets)] if r.volume.sets else [] %}
+{% if r.warmups %}{% set _ = meta.append(t("session.summary.warmups", count=r.warmups)) %}{% endif %}
+{% set vol = show.volume(r.volume) %}
+{% if vol %}{% set _ = meta.append(vol) %}{% endif %}
+{% if r.records %}{% set _ = meta.append(t("session.summary.records", count=r.records)) %}{% endif %}
+<section class="section session-block session-detail" id="{{ prefix }}" aria-labelledby="{{ prefix }}-titre">
+  <h2 id="{{ prefix }}-titre">{{ r.exercise.name }}{% if r.exercise.archived %}<span class="tag">{{ t("tag.archived_m") }}</span>{% endif %}</h2>
+  {% if meta %}<p class="muted">{{ meta | join(" · ") }}</p>{% endif %}
+  <a class="inline-link" id="{{ prefix }}-progression" href="/progression/{{ r.exercise.id }}"{% if focus == prefix ~ "-progression" %} autofocus{% endif %}>{{ t("progress.link") }}</a>
+  {% if r.setting_fields %}
+  {% set settings_row = r %}
+  <details class="session-settings"{% if settings_errors %} open{% endif %}>
+    <summary class="session-settings__summary" id="{{ prefix }}-reglages-resume">{{ t("session.settings_summary", values=fields.values_text(r.setting_fields, r.settings, r)) }}</summary>
+    {% include "session_settings.html" %}
+  </details>
+  {% endif %}
+  {% if r.sets %}
+  {{ set_list(r, prefix, edit, focus, no_errors) }}
+  {% else %}
+  <div class="empty"><p class="empty__title">{{ t("session.exercise_no_sets") }}</p></div>
+  {% endif %}
+</section>
+{% if totals_oob %}{% include "session_totals.html" %}{% endif %}
+{{ oob_announce(announce) }}

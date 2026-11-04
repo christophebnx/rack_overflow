@@ -1,0 +1,11 @@
+{# Options of an exercise <select> grouped by movement pattern (services.templates.ExerciseGroup;
+   docs/ui-spec.md "L3 — Template detail"). `selected` is the chosen id as text. #}
+{% macro exercise_options(groups, selected) -%}
+{% for group in groups %}
+<optgroup label="{{ group.movement_pattern or t('template.no_pattern_group') }}">
+  {% for exercise in group.exercises %}
+  <option value="{{ exercise.id }}"{% if selected == exercise.id | string %} selected{% endif %}>{{ exercise.name }}</option>
+  {% endfor %}
+</optgroup>
+{% endfor %}
+{%- endmacro %}

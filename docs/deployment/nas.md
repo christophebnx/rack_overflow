@@ -1,6 +1,6 @@
 # Install and update on the Synology NAS (LAN only)
 
-Target: Synology DS224+ on DSM 7.2, the app reachable from the home network only (D-013, D-024). No Docker, no reverse proxy, no certificate, no router port forward. Design: `docs/architecture/2026-11-03-l1b-auth-and-deployment.md`; decisions D-038, D-049, D-051.
+Target: Synology DS224+ on DSM 7.2, the app reachable from the home network only (D-013, D-024). No Docker, no reverse proxy, no certificate, no router port forward. Design: `docs/architecture/2026-11-03-l1b-auth-and-deployment.md` and `docs/architecture/2026-11-03-l6-operations.md`; decisions D-038, D-049, D-051, D-052, D-074, D-075. Written for `rack 1.0.0`.
 
 Each step ends with a **Check**: a command and the output to expect. Commands run over SSH as the dedicated user unless stated otherwise. Paths below assume the volume `/volume1`; adapt if yours differs.
 
@@ -60,9 +60,12 @@ data_dir = "/volume1/rack/data"   # absolute, on a local volume
 
 [backup]
 retention_days = 30
+
+[calendar]
+time_zone = "Europe/Brussels"   # where the sessions take place (optional, this is the default)
 ```
 
-`public_host` must be exactly the host name typed in the browser: other `Host` headers are refused, and the device cookie is bound to that name.
+`public_host` must be exactly the host name typed in the browser: other `Host` headers are refused, and the device cookie is bound to that name. `time_zone` gives each session its local date and the times shown on its pages; it does not depend on the NAS's own zone (D-065).
 
 **Check**: `grep -E '^(host|public_host|data_dir)' config.toml` → the three values above.
 
@@ -74,7 +77,7 @@ uv sync --frozen
 .venv/bin/rack migrate --config config.toml
 ```
 
-**Check**: `rack 0.1.0` (or the current version), then `database /volume1/rack/data/rack.sqlite at revision 0002` (or the current head).
+**Check**: `rack 1.0.0` (or the current version), then `database /volume1/rack/data/rack.sqlite at revision 0004` (or the current head), then `seeded 41 exercises` and `seeded 4 templates` on the first run (the exercise catalog and the session templates, D-057, D-060; later runs add nothing).
 
 ## 7. Start at boot
 
@@ -142,7 +145,56 @@ It refuses to run unless the clone is on `main` with no local changes (`config.t
 
 **Check**: the last line is `restart requested (supervisor pid N)`; `grep 'supervisor started' /volume1/rack/data/logs/rack.log | tail -n 1` shows a fresh timestamp after an update.
 
-## 12. Reboot check
+## 12. Export the data
+
+A complete copy of every stored fact (archived and deleted items included), to keep or to open in another tool. It is not a backup: the app cannot be restored from it (section 13 restores a backup).
+
+- From a browser: « Réglages » (linked from « Progression ») → « Données » → « Exporter en JSON » (one lossless file) or « Exporter en CSV » (a zip with one table per kind of data, for Excel, Numbers or LibreOffice). Safari on the iPhone asks where to save the file (Files).
+- From the NAS, while the server runs:
+
+  ```bash
+  cd /volume1/rack/rack_overflow
+  .venv/bin/rack export /volume1/rack/export-$(date +%Y%m%d).json --config config.toml
+  .venv/bin/rack export /volume1/rack/export-$(date +%Y%m%d).zip --format csv --config config.toml
+  ```
+
+  The file must not exist yet (an existing file is never replaced) and its folder must exist.
+
+Values are in stored units: weights in grams (`weight_g`), durations in seconds, distances in metres; enum values by key, with their labels in the `variable` table. The device and pairing-code hashes are not exported (D-072). CSV files are UTF-8 with a BOM and `;` as separator; an empty cell means "no value" (the JSON tells an empty text from no value, the CSV cannot).
+
+**Check**: the command prints `exported N rows to /volume1/rack/export-….json`; `head -c 200 /volume1/rack/export-….json` shows `"format": "rack-overflow-export"`.
+
+## 13. Restore a backup
+
+Restore replaces the database by one of the daily snapshots in `/volume1/rack/data/backups/` (or any snapshot file). **Stop the server first**: `rack restore` refuses while `rack supervise` holds its lock or while anything answers on the configured port, and then changes nothing.
+
+1. Stop: `kill $(cat /volume1/rack/data/supervise.pid)`. Do not start the server again (task **Run**, a reboot) until step 4: `rack restore` holds the supervise lock while it runs, so `rack supervise` cannot start meanwhile, but it probes the port only once, at its start, so a plain `rack serve` started during the restore would not be caught.
+2. Choose the snapshot: `ls /volume1/rack/data/backups` → `rack-20261103T020000Z.sqlite` … (UTC times, newest last).
+3. Restore (a bare name is looked up in the backups folder; a path works too):
+
+   ```bash
+   cd /volume1/rack/rack_overflow
+   .venv/bin/rack restore rack-20261103T020000Z.sqlite --config config.toml
+   ```
+
+   It copies the snapshot (with its `-wal` / `-journal` files when present) into a scratch folder beside the database, writes one checked single-file copy of it (latest writes included), checks its schema revision, then moves the current database aside, **never deleting it**: `kept /volume1/rack/data/rack.sqlite.before-restore-<UTC time>` (with its `-wal` / `-shm` files when present, so the copy opens with its latest writes), then `restored … as /volume1/rack/data/rack.sqlite at revision 0004`. A snapshot taken by an older version is then migrated as `rack migrate` does (`database … at revision …`). The snapshot file itself is only read.
+4. Start again with the task's **Run** button (DSM → Control Panel → Task Scheduler → `rack`).
+
+Refusals print `rack: error: …`, exit with code 1 and leave the current database as it was: a corrupt or truncated snapshot (`snapshot failed the integrity check`), a file that is not a Rack Overflow database, a snapshot from a newer version (`… unknown to this version …; update the code first`: run `rack update` first), the database itself, a running server (`… stop it first`).
+
+If the restore is interrupted between moving the current database aside and the final rename (power cut, disk error), `rack.sqlite` is missing and the server refuses to start (`database is not up to date; run rack migrate`): **run the same `rack restore` command again**; it completes (nothing is left to move aside). Keep the `.before-restore-*` files until you are sure you do not need them: they are not snapshots and are never pruned. The restore needs free space for about two copies of the snapshot while it runs; the scratch folder is removed at the end.
+
+To **undo a restore**, restore the set kept aside, by its full path (a bare name is looked up in the backups folder): stop the server, then
+
+```bash
+.venv/bin/rack restore /volume1/rack/data/rack.sqlite.before-restore-<UTC time> --config config.toml
+```
+
+It reads the file and the `-wal` / `-journal` beside it without changing them (a `-shm` is ignored), keeps every row (those still in the `-wal` included), and moves the database it replaces aside in its turn (`….before-restore-<new time>`).
+
+**Check**: `ls /volume1/rack/data` → `rack.sqlite` and `rack.sqlite.before-restore-…`; after **Run**, « Historique » ends at the snapshot's date. The snapshot holds the devices as they were then: a device paired, or whose cookie was renewed, after the snapshot is sent to « Appairage »; pair it again with `rack device revoke <name>` then `rack device add <name>`.
+
+## 14. Reboot check
 
 Reboot the NAS (DSM → Restart). After it is back:
 
@@ -150,4 +202,9 @@ Reboot the NAS (DSM → Restart). After it is back:
 
 ## Later: exposure through the DDNS (not V1 development)
 
-Exposing the app on the Internet is a router change made by the user: forward a high, non-standard external port to `<NAS>:8765`. `public_host` then becomes the DDNS name. The device cookie is bound to the host name typed in the browser, so each device pairs again under the new name. HTTPS and a reverse proxy are V2 (D-013). Jelastic deployment is milestone L6.
+Exposing the app on the Internet is a router change made by the user: forward a high, non-standard external port to `<NAS>:8765`. `public_host` then becomes the DDNS name. The device cookie is bound to the host name typed in the browser, so each device pairs again under the new name. HTTPS and a reverse proxy are V2 (D-013).
+
+## Other hosts
+
+- Infomaniak Jelastic Cloud: `docs/deployment/jelastic.md`.
+- Moving the data between the NAS and Jelastic, in either direction: `docs/deployment/migration.md`.

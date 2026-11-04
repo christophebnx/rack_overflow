@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% from "_labels.html" import GROUP_KEYS, TYPE_KEYS %}
+{% block nav %}{% include "_nav.html" %}{% endblock %}
+{% block styles %}<link rel="stylesheet" href="/static/css/pages/catalog.css">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ t("variables.title") }}</h1>
+  <a class="button button--primary" href="/variables/nouvelle">{{ t("variables.new") }}</a>
+</div>
+<p class="muted catalog-intro">{{ t("variables.intro") }}</p>
+{% if show_archived %}
+<a class="toggle-link" href="/variables">{{ t("variables.hide_archived") }}</a>
+{% else %}
+<a class="toggle-link" href="/variables?archivees=1">{{ t("variables.show_archived") }}</a>
+{% endif %}
+{% if empty %}
+<div class="empty">
+  <p class="empty__title">{{ t("variables.empty_title") }}</p>
+  <p class="muted">{{ t("variables.empty_text") }}</p>
+</div>
+{% else %}
+{% for scope, rows in groups if rows %}
+<section class="section" aria-labelledby="groupe-{{ scope }}">
+  <h2 id="groupe-{{ scope }}">{{ t(GROUP_KEYS[scope]) }}</h2>
+  <ul class="rows">
+    {% for variable in rows %}
+    {% set unit = show.unit(variable.draft.type, variable.draft.unit) %}
+    <li>
+      <a class="row row--variable" href="/variables/{{ variable.id }}">
+        <span class="row__title">{{ variable.draft.label }}{% if variable.archived %}<span class="tag">{{ t("tag.archived_f") }}</span>{% endif %}</span>
+        <span class="row__meta">{{ t(TYPE_KEYS[variable.draft.type]) }}{% if unit %} · {{ unit }}{% endif %}</span>
+        <span class="row__meta row__count">{{ t("variables.linked_count", count=variable.linked_count) }}</span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endfor %}
+{% endif %}
+{% endblock %}

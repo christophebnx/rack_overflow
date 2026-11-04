@@ -1,11 +1,59 @@
-/* Home (docs/ui-spec.md, L1a — Home): empty state spacing only. */
-.home-empty {
+/* Home (docs/ui-spec.md, L4 — Home: start or resume). */
+.start,
+.resume {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-4);
   max-width: var(--text-max);
 }
 
-.home-empty__title {
-  margin-top: var(--space-2);
+.start__templates {
+  display: flex;
+  flex-direction: column;
+  gap: var(--target-gap);
+}
+
+.start__template {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 4rem;
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.start__template > .tag {
+  margin-left: 0;
+}
+
+.start__none {
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+}
+
+/* The place switch: templates of the other place are hidden (CSS only, no request). */
+.start:has([name="location"][value="gym"]:checked) [data-location="home"],
+.start:has([name="location"][value="home"]:checked) [data-location="gym"] {
+  display: none;
+}
+
+.resume__title {
+  font-weight: var(--weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 39.999rem) {
+  .start__free {
+    width: 100%;
+  }
+
+  .main--nav {
+    min-height: calc(100dvh - 3 * var(--target-min) - 1px);
+  }
+
+  .main--nav > .resume {
+    flex: 1;
+  }
 }

@@ -1,0 +1,13 @@
+{# In-place confirmation of a session delete (docs/ui-spec.md "L5 — Session detail and corrections"). #}
+{% from "_form_status.html" import form_status %}
+<section id="seance-suppression" class="section session-delete" data-request-scope>
+  {{ form_status() }}
+  <div class="confirm" role="group" aria-labelledby="seance-suppression-titre">
+    <p class="confirm__title" id="seance-suppression-titre">{{ t("session.delete_confirm_title") }}</p>
+    <p>{{ t("session.delete_confirm_text") }}</p>
+    <div class="actions actions--inline">
+      <button type="button" class="button" id="seance-suppression-annuler" hx-get="/seances/{{ session_id }}/suppression?annuler=1" hx-target="#seance-suppression" hx-swap="outerHTML" hx-disabled-elt="#seance-suppression button" autofocus>{{ t("action.cancel") }}</button>
+      <button type="button" class="button button--danger" id="seance-supprimer-confirmer" hx-delete="/seances/{{ session_id }}" hx-disabled-elt="#seance-suppression button">{{ t("session.delete") }}</button>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,48 @@
+{# The session plan (docs/ui-spec.md "L4 — Session page"): one card per item, the current one
+   expanded. The fragment answered by pick, add and change. #}
+{% from "_fields.html" import oob_announce %}
+{% set sid = view.session.id %}
+<ol class="session-plan" id="seance-plan">
+  {% for item in view.items %}
+  {% if item == view.current %}
+  <li aria-current="step">
+    {% if item.row_id is not none %}{% include "session_exercise.html" %}{% else %}{% set menu = view.menus[item.menu_slot_id] %}{% include "session_pending_menu.html" %}{% endif %}
+  </li>
+  {% elif item.row_id is not none %}
+  {% set card = view.cards[item.row_id] %}
+  {% set meta = [] %}
+  {% if card.target and show.target(card.target) %}{% set _ = meta.append(show.target(card.target)) %}{% endif %}
+  {% if card.set_count %}{% set _ = meta.append(t("session.item_sets", count=card.set_count)) %}{% endif %}
+  {% if card.record_count %}{% set _ = meta.append(t("session.item_records", count=card.record_count)) %}{% endif %}
+  <li>
+    <a class="row session-card" id="carte-exercice-{{ card.id }}" href="/seances/{{ sid }}?exercice={{ card.id }}#exercice-{{ card.id }}">
+      <span class="session-card__number">{{ loop.index }}</span>
+      <span class="session-card__body">
+        <span class="row__title">{{ card.exercise.name }}{% if card.exercise.archived %}<span class="tag">{{ t("tag.archived_m") }}</span>{% endif %}</span>
+        {% if meta %}<span class="row__meta">{{ meta | join(" · ") }}</span>{% endif %}
+      </span>
+    </a>
+  </li>
+  {% else %}
+  {% set menu = view.menus[item.menu_slot_id] %}
+  {% set target = show.target(menu.target) %}
+  <li>
+    <a class="row session-card" id="carte-menu-{{ menu.slot_id }}" href="/seances/{{ sid }}?menu={{ menu.slot_id }}#menu-{{ menu.slot_id }}">
+      <span class="session-card__number">{{ loop.index }}</span>
+      <span class="session-card__body">
+        <span class="row__title">{{ menu.label }}<span class="tag">{{ t("template.tag_menu") }}</span></span>
+        <span class="row__meta">{{ t("session.menu_pending") }}{% if target %} · {{ target }}{% endif %}</span>
+      </span>
+    </a>
+  </li>
+  {% endif %}
+  {% endfor %}
+</ol>
+{% if not view.items %}
+<div class="empty" id="seance-vide">
+  <p class="empty__title">{{ t("session.empty_title") }}</p>
+  <p class="muted">{{ t("session.empty_text") }}</p>
+</div>
+{% endif %}
+{% if plan_oob is defined and plan_oob %}{% include "session_search.html" %}{% endif %}
+{{ oob_announce(announce) }}

@@ -1,0 +1,35 @@
+{# The next-set form (docs/ui-spec.md "L4 — Session page", next-set form): the stepper answer. Its
+   status slot sits in the action bar, right after the ✓ (L4 fix loop 1). #}
+{% from "_form_status.html" import form_status %}
+{% from "_fields.html" import field_error %}
+{% import "_session_fields.html" as fields with context %}
+{% set b = view.block %}
+{% set sid = view.session.id %}
+{% set prefix = "exercice-" ~ b.id %}
+{% set intervals = b.exercise.category == "intervals" %}
+{% set more = b.more_fields %}
+<form class="set-form" id="{{ prefix }}-serie" data-request-focus="trigger" hx-post="/seances/{{ sid }}/series" hx-target="#{{ prefix }}" hx-swap="outerHTML show:#{{ prefix }}-actions:bottom" hx-disabled-elt="#{{ prefix }}-serie button">
+  <input type="hidden" name="session_exercise_id" value="{{ b.id }}">
+  <h3 id="{{ prefix }}-serie-titre">{{ t("session.next_round" if intervals else "session.next_set", n=b.number) }}</h3>
+  {{ field_error(prefix ~ "-serie", errors) }}
+  {{ fields.type_chips(b.types, b.form.type, prefix ~ "-type", errors) }}
+  <div class="set-form__fields">
+    {% for f in b.fields if f.visible %}{{ fields.input(f, prefix, b.form.texts, errors, "/seances/" ~ sid ~ "/exercices/" ~ b.id ~ "/serie", prefix ~ "-serie", prefix ~ "-valider") }}{% endfor %}
+  </div>
+  {% if more %}
+  {% set shown = [] %}
+  {% for f in more if b.form.texts.get(f.name) %}{% set _ = shown.append(t("session.set.variable", label=f.label, value=b.form.texts.get(f.name))) %}{% endfor %}
+  <details class="set-form__more"{% if b.form.open_more or errors %} open{% endif %}>
+    <summary class="session-settings__summary">{{ t("session.more_fields_values", values=shown | join(" · ")) if shown else t("session.more_fields") }}</summary>
+    <div class="set-form__fields">
+      {% for f in more %}{{ fields.input(f, prefix, b.form.texts, errors, "/seances/" ~ sid ~ "/exercices/" ~ b.id ~ "/serie", prefix ~ "-serie", prefix ~ "-valider") }}{% endfor %}
+    </div>
+  </details>
+  {% endif %}
+  <div class="session-block__actions" id="{{ prefix }}-actions">
+    <button type="submit" class="button button--primary button--confirm" id="{{ prefix }}-valider"{% if focus == prefix ~ "-valider" %} autofocus{% endif %}>{{ t("session.confirm_round" if intervals else "session.confirm_set", n=b.number) }}</button>
+    {# The status slot follows the ✓ (not first in the form): a failure message never moves the ✓. #}
+    {{ form_status() }}
+    {% include "session_actions.html" %}
+  </div>
+</form>

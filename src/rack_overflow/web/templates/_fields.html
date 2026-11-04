@@ -1,0 +1,22 @@
+{# Field pieces shared by the catalog forms (docs/ui-spec.md, L2; refusals per D-050).
+   `errors` is a web.forms.FormErrors; ids follow `<id>-erreur` / `<id>-aide`. #}
+{% macro described(id, errors, hint=true) -%}
+{% set message = errors.get(id) %}
+{% if message or hint %} aria-describedby="{% if message %}{{ id }}-erreur{% if hint %} {% endif %}{% endif %}{% if hint %}{{ id }}-aide{% endif %}"{% endif %}{% if message %} aria-invalid="true"{% endif %}{% if errors.first_id == id %} autofocus{% endif %}
+{%- endmacro %}
+
+{% macro field_error(id, errors) -%}
+{% if errors.get(id) %}<p id="{{ id }}-erreur" class="field__error">{{ errors.get(id) }}</p>{% endif %}
+{%- endmacro %}
+
+{% macro field_hint(id, text) -%}
+<p id="{{ id }}-aide" class="field__hint">{{ text }}</p>
+{%- endmacro %}
+
+{% macro optional() -%}
+<span class="field__optional">{{ t("form.optional") }}</span>
+{%- endmacro %}
+
+{% macro oob_announce(text) -%}
+{% if text %}<div id="annonce" hx-swap-oob="innerHTML">{{ text }}</div>{% endif %}
+{%- endmacro %}

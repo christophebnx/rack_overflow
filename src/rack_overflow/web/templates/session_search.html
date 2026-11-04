@@ -1,0 +1,19 @@
+{# « Ajouter un exercice » (docs/ui-spec.md "L4 — Session page", add an exercise). Rendered with the
+   page for an empty query; out of band (closed) after an exercise was added. #}
+{% from "_form_status.html" import form_status %}
+{% set sid = session_id %}
+<details class="session-add" id="ajout"{% if not view.items %} open{% endif %}{% if plan_oob is defined and plan_oob %} hx-swap-oob="true"{% endif %}>
+  <summary class="button session-add__summary">{{ t("session.add_exercise") }}</summary>
+  <form role="search" class="search" action="/seances/{{ sid }}/recherche" method="get" hx-get="/seances/{{ sid }}/recherche" hx-target="#ajout-resultats" hx-swap="innerHTML" hx-trigger="input changed delay:200ms from:find input[name=q], search from:find input[name=q], submit">
+    {{ form_status(data_message=t("error.search_failed")) }}
+    <div class="field">
+      <label class="field__label" for="ajout-q">{{ t("exercises.search_label") }}</label>
+      <input class="input" id="ajout-q" name="q" type="search" value="" autocomplete="off" spellcheck="false" autocapitalize="off" autocorrect="off" enterkeyhint="search" maxlength="80" aria-describedby="ajout-q-aide">
+      <p id="ajout-q-aide" class="field__hint">{{ t("exercises.search_hint") }}</p>
+    </div>
+  </form>
+  <div id="ajout-resultats" data-request-scope>
+    {% set change_row = none %}
+    {% include "session_search_results.html" %}
+  </div>
+</details>

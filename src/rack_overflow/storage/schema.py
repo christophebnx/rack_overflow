@@ -106,9 +106,11 @@ exercise = sa.Table(
     _text("equipment", nullable=True),
     _text("location"),
     _text("archived_at", nullable=True),
+    _text("seed_key", nullable=True),
     sa.UniqueConstraint("user_id", "name"),
     _one_of("category", vocabulary.EXERCISE_CATEGORIES),
     _one_of("location", vocabulary.LOCATIONS),
+    sa.Index("uq_exercise_user_id_seed_key", "user_id", "seed_key", unique=True),
 )
 
 exercise_field = sa.Table(
@@ -158,6 +160,7 @@ template = sa.Table(
     _position(),
     _text("archived_at", nullable=True),
     _one_of("location", vocabulary.LOCATIONS),
+    sa.Index("uq_template_user_id_name", "user_id", "name", unique=True),
 )
 
 template_slot = sa.Table(
@@ -174,6 +177,7 @@ template_slot = sa.Table(
     _int("target_duration_s"),
     _int("target_distance_m"),
     _text("target_note", nullable=True),
+    _text("deleted_at", nullable=True),
     _exactly_one("exercise_id", "movement_pattern", "one_source"),
     sa.CheckConstraint("target_sets > 0", name="target_sets"),
     sa.CheckConstraint("target_reps_min >= 0", name="target_reps_min"),
@@ -232,6 +236,7 @@ session_exercise = sa.Table(
     _position(),
     _text("notes", nullable=True),
     sa.Index(None, "session_id"),
+    sa.Index(None, "exercise_id"),
 )
 
 exercise_setting = sa.Table(
