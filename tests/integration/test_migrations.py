@@ -9,22 +9,11 @@ import pytest
 import sqlalchemy as sa
 from alembic.config import Config
 from sqlalchemy.engine import Engine
+from support.migrations import REAL_UPGRADE, upgrade_to
 
 from rack_overflow.config import Settings
 from rack_overflow.storage import db, migrate, schema
 from rack_overflow.storage.errors import MigrationError
-
-REAL_UPGRADE = migrate.command.upgrade
-
-
-def upgrade_to(target: str) -> Any:
-    """A replacement of `command.upgrade` that stops at `target` instead of the head."""
-
-    def upgrade(config: Config, revision: str, **kwargs: Any) -> None:
-        del revision
-        REAL_UPGRADE(config, target, **kwargs)
-
-    return upgrade
 
 
 def _tables(engine: Engine) -> set[str]:

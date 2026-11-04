@@ -30,7 +30,7 @@ Main flows:
 - **History**: `GET /historique` (sessions per week, then month groups of 20 sessions by keyset, « Plus anciennes » appends the next page) → a closed `GET /seances/{id}` is the detail: sets and settings corrected through the L4 paths with `require_open=False`, answer the exercise section and the totals out of band; `DELETE /seances/{id}` sets `session.deleted_at` only, every reader filters it out (D-067, D-070).
 - **Progress**: `GET /progression` (exercises with history) → `GET /progression/{id}` (last performance, RM table for strength, chart caption and data table, records) → `progress-chart.js` fetches `GET /api/progression/{id}` (display numbers and French labels from the server) and draws it with vendored Chart.js; `POST /rm/{id}` and `DELETE /rm/mesures/{id}` re-render the RM section; `PATCH /reglages` stores the 1RM formula (`app_setting` `rm.formula`). Every indicator is recomputed from stored facts on each request (D-068, D-069). Design note `docs/architecture/2026-11-03-l5-tracking.md`.
 - **Pairing**: `rack device add NAME` prints a one-time code → the browser posts it to `/appairage` → hashed token stored, `rack_device` cookie set (D-040, D-049).
-- **Operations**: `rack migrate` (upgrade, then the pending seed steps: exercises, then templates; D-057, D-060), `rack backup`, `rack export` (JSON or CSV to a new file, D-074), `rack device …`, `rack serve` (CLI calls the same services and storage); `rack supervise` runs `rack serve` as a child; `rack update` pulls `main`, syncs, migrates in a new process, then sends SIGHUP to the supervisor, which re-executes itself (D-051, D-052). Install guide: `docs/deployment/nas.md`.
+- **Operations**: `rack migrate` (upgrade, then the pending seed steps: exercises, then templates; D-057, D-060), `rack backup`, `rack export` (JSON or CSV to a new file, D-074), `rack restore` (server stopped: supervisor lock and port probe; the current database kept aside, an older snapshot migrated, D-075), `rack device …`, `rack serve` (CLI calls the same services and storage); `rack supervise` runs `rack serve` as a child; `rack update` pulls `main`, syncs, migrates in a new process, then sends SIGHUP to the supervisor, which re-executes itself (D-051, D-052). Install guide: `docs/deployment/nas.md`.
 
 ## Layers
 
@@ -111,6 +111,12 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Open the database only when it is at the head revision (CLI) | `cli._open_current_database` |
 | Snapshot naming, ordering, due-ness, retention | `domain/backups` |
 | Take, list and prune database snapshots | `storage/backup` |
+| Revision of a database file without opening it read-write; order of a revision against the shipped ones | `storage/migrate.revision_of_file`, `revision_order`, `known_revisions` |
+| Restore a snapshot as the database (stage, check, keep the current aside, swap) | `storage/backup.restore_snapshot` (through `services/backups.restore`) |
+| Name of a database kept aside by a restore; SQLite side-file suffixes | `domain/backups.aside_name`, `SIDE_SUFFIXES` |
+| Refuse while a server runs on the data folder (supervisor lock, port probe) | `ops/restore.server_stopped` |
+| Upgrade then seed (the `rack migrate` step, reused for a restored older snapshot) | `cli._upgrade_and_seed` |
+| Stop a test migration at an older revision | `tests/support/migrations.upgrade_to` |
 | Backup operation (snapshot then prune, or only when due) | `services/backups` |
 | Export format (JSON document, CSV zip, file names, format version; D-072, D-073) | `domain/export` |
 | What an export holds (tables, columns, secret columns excluded) and the database dump | `storage/export` (`exported_columns`, `dump`, `SECRET_COLUMNS`) |

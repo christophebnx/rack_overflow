@@ -1,20 +1,25 @@
-"""Database snapshots by `VACUUM INTO` through the atomic writer, and their pruning (D-037, D-045).
+"""Database snapshots by `VACUUM INTO` through the atomic writer, their pruning (D-037, D-045),
+and the restore of a snapshot as the database (D-075).
 
-A corrupt database is never backed up, moved or deleted. Only names that `domain.backups` parses
-are listed or pruned: temp files, `.corrupt-*` and foreign files are never touched.
+A corrupt database is never backed up or deleted; a restore only moves it aside. Only names that
+`domain.backups` parses are listed or pruned: temp files, `.corrupt-*`, `.before-restore-*` and
+foreign files are never touched.
 """
 
 from __future__ import annotations
 
+import os
+import shutil
 import sqlite3
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
 from sqlalchemy.exc import DBAPIError
 
 from rack_overflow.domain import backups as rules
-from rack_overflow.storage import db, files
-from rack_overflow.storage.errors import BackupError, CorruptDatabaseError
+from rack_overflow.storage import db, files, migrate
+from rack_overflow.storage.errors import BackupError, CorruptDatabaseError, MigrationError
 
 INTEGRITY_OK = [("ok",)]
 
@@ -31,8 +36,9 @@ def check_integrity(database_path: Path) -> bool:
     return _is_sound(database_path, read_only=False)
 
 
-def _copy_is_sound(path: Path) -> bool:
-    """Integrity of a fresh `VACUUM INTO` copy (rollback journal), opened read-only."""
+def check_copy(path: Path) -> bool:
+    """Integrity of a database copy in rollback-journal mode (a fresh `VACUUM INTO` snapshot, a
+    staged restore), opened read-only: the file is never written."""
     return _is_sound(path, read_only=True)
 
 
@@ -83,7 +89,7 @@ def take_snapshot(database_path: Path, backups_dir: Path, now: datetime) -> Path
                 connection.driver_connection.execute("VACUUM INTO ?", (str(temp),))
             finally:
                 connection.close()
-            if not _copy_is_sound(temp):
+            if not check_copy(temp):
                 raise BackupError(f"snapshot copy failed the integrity check: {target.name}")
 
         files.atomic_produce(target, vacuum_into)
@@ -104,3 +110,73 @@ def prune(backups_dir: Path, now: datetime, retention_days: int) -> list[Path]:
         except OSError as error:
             raise BackupError(f"cannot delete expired snapshot {path}: {error.strerror}") from error
     return deleted
+
+
+@dataclass(frozen=True)
+class Restored:
+    """A restore done: the revision of the restored file and the paths kept aside, in order."""
+
+    revision: str
+    kept: list[Path]
+
+
+def _check_staged(temp: Path) -> str:
+    """The revision of the staged copy, once it is sound and its revision known to this code."""
+    if not check_copy(temp):
+        raise BackupError("snapshot failed the integrity check")
+    revision = migrate.revision_of_file(temp)
+    if revision is None:
+        raise MigrationError("snapshot is not a Rack Overflow database (no schema revision)")
+    if migrate.revision_order(revision) == migrate.UNKNOWN:
+        raise MigrationError(
+            f"snapshot is at revision {revision}, unknown to this version (head "
+            f"{migrate.head_revision()}); update the code first"
+        )
+    return revision
+
+
+def _set_aside(database_path: Path, now: datetime) -> list[Path]:
+    """Rename the database and every side file beside it to the `aside_name` set (never deleted)."""
+    folder = database_path.parent
+    aside = rules.aside_name(database_path.name, now, _names(folder))
+    kept = []
+    for suffix in ("", *rules.SIDE_SUFFIXES):
+        source = folder / f"{database_path.name}{suffix}"
+        if source.exists():
+            target = folder / f"{aside}{suffix}"
+            try:
+                os.rename(source, target)
+            except OSError as error:
+                raise BackupError(f"cannot move {source} aside to {target}: {error.strerror}") from error
+            kept.append(target)
+    return kept
+
+
+def restore_snapshot(snapshot: Path, database_path: Path, now: datetime) -> Restored:
+    """Make a copy of `snapshot` the database (D-075): stage the copy beside the database, check
+    its integrity and revision (`head` or `older`), move the current database and its side files
+    aside, then rename the copy into place. The snapshot is only read. Any refusal leaves the
+    database untouched and removes the staged copy; nothing is ever deleted."""
+    if not snapshot.is_file():
+        raise BackupError(f"snapshot not found: {snapshot}")
+    if database_path.exists() and snapshot.resolve() == database_path.resolve():
+        raise BackupError("the snapshot is the database itself; choose a file from the backups folder")
+    revision: list[str] = []
+    kept: list[Path] = []
+
+    def produce(temp: Path) -> None:
+        try:
+            shutil.copyfile(snapshot, temp)
+        except OSError as error:
+            raise BackupError(f"cannot copy {snapshot}: {error.strerror}") from error
+        revision.append(_check_staged(temp))
+        kept.extend(_set_aside(database_path, now))
+
+    try:
+        files.atomic_produce(database_path, produce)
+    except OSError as error:
+        moved = ", ".join(str(path) for path in kept) or "nothing"
+        raise BackupError(
+            f"restore interrupted ({error.strerror}); kept aside: {moved}; run rack restore again"
+        ) from error
+    return Restored(revision[0], kept)

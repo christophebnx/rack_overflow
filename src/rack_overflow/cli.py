@@ -30,6 +30,7 @@ from rack_overflow.domain import devices as device_rules
 from rack_overflow.domain.errors import DomainError
 from rack_overflow.domain.timestamps import to_text
 from rack_overflow.domain.users import SINGLE_USER_ID
+from rack_overflow.ops import restore as restore_guard
 from rack_overflow.ops import supervise, update
 from rack_overflow.ops.commands import self_command
 from rack_overflow.ops.errors import OpsError
@@ -58,30 +59,41 @@ def _backup_now(settings: Settings) -> Path:
     )
 
 
-def run_migrate(settings: Settings, args: argparse.Namespace) -> None:
-    """Create the data folder if needed, snapshot an existing database with pending revisions,
-    upgrade, then apply the pending catalog seed steps (D-057, D-060; `seeded N exercises` and
-    `seeded M templates` lines, each only when not zero, follow the revision line on stdout)."""
-    del args
+def _make_data_dir(settings: Settings) -> None:
     data_dir = settings.storage.data_dir
     try:
         data_dir.mkdir(parents=True, exist_ok=True)
     except OSError as error:
         raise MigrationError(f"cannot create data folder {data_dir}: {error.strerror}") from error
+
+
+def _upgrade_and_seed(settings: Settings, engine: Engine) -> None:
+    """Upgrade the database to the head (one transaction), print the revision, then apply the
+    pending catalog seed steps (`seeded N exercises` / `seeded M templates`, each only when not
+    zero): the one path of `rack migrate` and of a restored older snapshot."""
+    revision = migrate.upgrade_to_head(engine)
+    print(f"database {settings.database_path} at revision {revision}")
+    report = seed.seed_catalog(engine, SINGLE_USER_ID)
+    if report.exercises:
+        print(f"seeded {report.exercises} exercises")
+    if report.templates:
+        print(f"seeded {report.templates} templates")
+
+
+def run_migrate(settings: Settings, args: argparse.Namespace) -> None:
+    """Create the data folder if needed, snapshot an existing database with pending revisions,
+    upgrade, then apply the pending catalog seed steps (D-057, D-060; `seeded N exercises` and
+    `seeded M templates` lines, each only when not zero, follow the revision line on stdout)."""
+    del args
+    _make_data_dir(settings)
     existed = settings.database_path.is_file()
     engine = db.create_engine(settings.database_path)
     try:
         if existed and not migrate.is_up_to_date(engine):
             print(f"backup {_backup_now(settings)}")
-        revision = migrate.upgrade_to_head(engine)
-        print(f"database {settings.database_path} at revision {revision}")
-        report = seed.seed_catalog(engine, SINGLE_USER_ID)
+        _upgrade_and_seed(settings, engine)
     finally:
         engine.dispose()
-    if report.exercises:
-        print(f"seeded {report.exercises} exercises")
-    if report.templates:
-        print(f"seeded {report.templates} templates")
 
 
 def run_backup(settings: Settings, args: argparse.Namespace) -> None:
@@ -113,6 +125,42 @@ def run_export(settings: Settings, args: argparse.Namespace) -> None:
     except OSError as error:
         raise StorageError(f"cannot write {target}: {error.strerror}") from error
     print(f"exported {exported.rows} rows to {target}")
+
+
+def _snapshot_path(settings: Settings, raw: Path) -> Path:
+    """A bare snapshot name is looked up in the backups folder first; anything else is a path."""
+    if raw.parent == Path(".") and (settings.backups_dir / raw.name).is_file():
+        return settings.backups_dir / raw.name
+    return raw
+
+
+def _migrate_restored(settings: Settings, revision: str) -> None:
+    """Bring a restored older snapshot to the head as `rack migrate` does (no pre-migration
+    snapshot: the restored file is itself a backup)."""
+    engine = db.create_engine(settings.database_path)
+    try:
+        _upgrade_and_seed(settings, engine)
+    except MigrationError as error:
+        raise MigrationError(
+            f"{error}; the restored database is at revision {revision}; run rack migrate"
+        ) from error
+    finally:
+        engine.dispose()
+
+
+def run_restore(settings: Settings, args: argparse.Namespace) -> None:
+    """Restore a snapshot as the database with the server stopped (D-075): the current database
+    and its side files are kept aside, never deleted; an older revision is then migrated."""
+    _make_data_dir(settings)
+    snapshot = _snapshot_path(settings, args.snapshot)
+    server = settings.server
+    with restore_guard.server_stopped(settings.storage.data_dir, server.host, server.port):
+        restored = backups.restore(snapshot, settings.database_path, _now())
+        for path in restored.kept:
+            print(f"kept {path}")
+        print(f"restored {snapshot} as {settings.database_path} at revision {restored.revision}")
+        if migrate.revision_order(restored.revision) == migrate.OLDER:
+            _migrate_restored(settings, restored.revision)
 
 
 def configure_logging() -> None:
@@ -298,6 +346,13 @@ def _export_arguments(parser: argparse.ArgumentParser) -> None:
     _config_argument(parser)
 
 
+def _restore_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "snapshot", type=Path, help="snapshot file, or a bare name looked up in <data_dir>/backups/"
+    )
+    _config_argument(parser)
+
+
 @dataclass(frozen=True)
 class Command:
     """A `rack` sub-command: help text, handler, and its extra arguments if any."""
@@ -310,6 +365,11 @@ class Command:
 COMMANDS: dict[str, Command] = {
     "migrate": Command("create or upgrade the database to the latest schema", run_migrate),
     "backup": Command("snapshot the database now and prune expired snapshots", run_backup),
+    "restore": Command(
+        "replace the database by a snapshot (server stopped; the current one is kept aside)",
+        run_restore,
+        _restore_arguments,
+    ),
     "serve": Command("serve the web app (host and port from the settings file)", run_serve),
     "supervise": Command("run the server, restart it after a crash, write logs", run_supervise),
     "export": Command("write every stored fact to a new JSON or CSV file", run_export, _export_arguments),

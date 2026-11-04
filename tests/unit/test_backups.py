@@ -63,3 +63,28 @@ def test_ordered_uses_time_then_rank() -> None:
         f"{base}_100.sqlite",
     ]
     assert backups.newest(names) == f"{base}_100.sqlite"
+
+
+ASIDE_AT = datetime(2026, 11, 3, 19, 42, 0, tzinfo=timezone(timedelta(hours=1)))
+
+
+def test_aside_name_in_utc() -> None:
+    assert backups.aside_name("rack.sqlite", ASIDE_AT, []) == "rack.sqlite.before-restore-20261103T184200Z"
+
+
+def test_aside_name_collisions_include_side_files() -> None:
+    base = "rack.sqlite.before-restore-20261103T184200Z"
+    assert backups.aside_name("rack.sqlite", ASIDE_AT, [base]) == f"{base}_02"
+    assert backups.aside_name("rack.sqlite", ASIDE_AT, [f"{base}-wal"]) == f"{base}_02"
+    assert backups.aside_name("rack.sqlite", ASIDE_AT, [base, f"{base}_02-shm"]) == f"{base}_03"
+
+
+def test_aside_names_are_never_snapshots() -> None:
+    names = [backups.aside_name("rack.sqlite", ASIDE_AT, []), "rack-20261103T184200Z.sqlite.before-restore-x"]
+    assert [backups.parse_snapshot_time(name) for name in names] == [None, None]
+    assert backups.ordered(names) == []
+    assert backups.expired(names, ASIDE_AT + timedelta(days=400), 30) == []
+
+
+def test_side_suffixes() -> None:
+    assert backups.SIDE_SUFFIXES == ("-wal", "-shm", "-journal")

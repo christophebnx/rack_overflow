@@ -89,7 +89,7 @@ def test_unsound_copy_leaves_no_file_and_prunes_nothing(
     del migrated_engine
     _old_snapshots(settings.backups_dir, range(40, 45))
     before = isolation.snapshot(settings.backups_dir)
-    monkeypatch.setattr(backup, "_copy_is_sound", lambda path: False)
+    monkeypatch.setattr(backup, "check_copy", lambda path: False)
     with pytest.raises(BackupError, match="failed the integrity check"):
         backups.backup_now(settings.database_path, settings.backups_dir, NOW, 30)
     assert isolation.snapshot(settings.backups_dir) == before
