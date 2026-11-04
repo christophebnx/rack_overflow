@@ -1,21 +1,23 @@
 """Progress pages (docs/ui-spec.md "L5 — Progress index", "L5 — Progress of an exercise", "L5 —
-Settings"; D-068 to D-070): the progression index, an exercise's progress page and the JSON of
-its chart, the measured RM entries and the 1RM formula setting. Thin: request →
+Settings", "L6 — Settings: export"; D-068 to D-070, D-074): the progression index, an
+exercise's progress page and the JSON of its chart, the measured RM entries, the 1RM formula
+setting and the data export download. Thin: request →
 `services.progress` → page, fragment or JSON. Refused input re-renders the section `200` (D-050);
 unknown or foreign ids are 404."""
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from pydantic import BaseModel, Field
 
+from rack_overflow import __version__
 from rack_overflow.domain import units
 from rack_overflow.domain.catalog import CatalogError
 from rack_overflow.domain.indicators import DEFAULT_FORMULA, RM_FORMULAS, Series
-from rack_overflow.services import progress
+from rack_overflow.services import export, progress
 from rack_overflow.services.progress import ChartData, RmView
 from rack_overflow.web.auth import device_user
 from rack_overflow.web.display import Display
@@ -284,3 +286,14 @@ def save_settings_page(request: Request, body: FormulaBody) -> HTMLResponse:
     saved = _text(request, "settings.formula_saved", formula=_show(request).formula(chosen))
     context = _settings_context(chosen, saved=saved, announce=saved, focus=f"formule-{chosen}")
     return render(request, "settings_formula.html", context)
+
+
+@router.get("/api/export")
+def export_data(request: Request, fmt: Annotated[str | None, Query(alias="format")] = None) -> Response:
+    """The whole database as a JSON or CSV download (D-074): saved by the browser, the settings
+    page stays; unknown or missing `format` → 422. `/api/` origin check and `no-store` (D-047)."""
+    if fmt not in export.FORMATS:
+        raise HTTPException(status_code=422)
+    exported = export.export(_engine(request), fmt, request.app.state.clock(), __version__)
+    headers = {"Content-Disposition": f'attachment; filename="{exported.file_name}"'}
+    return Response(exported.data, media_type=exported.media_type, headers=headers)

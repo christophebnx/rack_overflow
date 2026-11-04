@@ -362,3 +362,22 @@ def test_measured_rm_wins_and_the_formula_changes_only_the_estimate(flow_phone: 
     estimate_after = first_row.locator(".rm-row__line").nth(1).inner_text()
     assert "Brzycki" in estimate_after and estimate_after != estimate_before
     flow_phone.check_clean()
+
+
+def test_export_link_downloads_and_keeps_the_page(browser: Browser, flow_phone: Watched) -> None:
+    """« Exporter en JSON » saves a `.json` file and the settings page stays (ui-spec "L6 —
+    Settings: export"; the download event is checked in Chromium)."""
+    if browser.browser_type.name != "chromium":
+        pytest.skip("download event checked in Chromium (ui-spec L6)")
+    page = flow_phone.page
+    flow_phone.goto("/reglages")
+    link = page.locator("#export-json")
+    expect(link).to_have_text(TEXT("settings.export_json"))
+    with page.expect_download() as download_info:
+        link.click()
+    download = download_info.value
+    assert re.fullmatch(r"rack-overflow-\d{8}T\d{6}Z\.json", download.suggested_filename)
+    assert download.failure() is None
+    assert page.url.endswith("/reglages")
+    expect(link).to_be_focused()
+    flow_phone.check_clean()

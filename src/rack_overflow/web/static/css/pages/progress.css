@@ -304,3 +304,41 @@
   font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
 }
+
+/* Settings: data export (docs/ui-spec.md "L6 — Settings: export"). Below 40rem a full-width
+   button with its hint under it; from 40rem button left (fixed width), hint right. */
+.exports {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.export__link {
+  width: 100%;
+}
+
+.export__hint {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+}
+
+.export__note {
+  margin-top: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+@media (min-width: 40rem) {
+  .export {
+    display: grid;
+    grid-template-columns: 12rem minmax(0, 1fr);
+    column-gap: var(--space-4);
+    align-items: center;
+  }
+
+  .export__hint {
+    margin-top: 0;
+  }
+}

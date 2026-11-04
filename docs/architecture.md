@@ -116,6 +116,7 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | What an export holds (tables, columns, secret columns excluded) and the database dump | `storage/export` (`exported_columns`, `dump`, `SECRET_COLUMNS`) |
 | Export operation (one consistent read, JSON or CSV bytes, file name, media type) | `services/export.export` |
 | Export to a new file from the CLI (never overwrites) | `cli.run_export` |
+| Export download from the settings page | `web/routes/progress.export_data` (`GET /api/export`) |
 | A database with a row in every table; test readers of an export (JSON loader, CSV parser) | `tests/support/populated.py`, `tests/support/export_loader.py` |
 | Daily backup in the server | `web/scheduler` |
 | Build the web app | `web/app.create_app` |

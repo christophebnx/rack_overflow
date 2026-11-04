@@ -149,6 +149,7 @@ def test_the_lists_cover_every_l5_route() -> None:
     listed = {(method, real(path)) for method, path in ACTIONS}
     listed |= {("GET", real(path)) for path in PAGES + FRAGMENTS}
     listed |= {("GET", "/api/progression/{exercise_id}")}
+    listed |= {("GET", "/api/export")}  # L6 route of the same router: tests/integration/test_web_export.py
     assert found == listed
 
 

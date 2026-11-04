@@ -139,7 +139,7 @@ Shown for a browser navigation only; requests refused by the security middleware
 +----------------------------+       +--------------------------------------------------------+
 ```
 
-Below 40rem the actions sit at the bottom of the viewport (thumb zone), stacked, full width, primary first; from 40rem they follow the text in a row. « Réessayer » is a link to the current path as sent (still percent-encoded, query dropped; GET), primary; « Retour à l’accueil » is primary when alone, secondary otherwise.
+Below 40rem the actions sit at the bottom of the viewport (thumb zone), stacked, full width, primary first; from 40rem they follow the text in a row. « Réessayer » is a link to the current path and query as sent (still percent-encoded; from L6 the query is kept so a retried `/api/export?format=json` keeps its format, "L6 — Settings: export"; leading slashes collapsed, any byte outside the URL characters percent-encoded, so the link stays same-origin and echoes nothing unsafe; GET), primary; « Retour à l’accueil » is primary when alone, secondary otherwise.
 
 | Case | Title | Message | Actions |
 |---|---|---|---|

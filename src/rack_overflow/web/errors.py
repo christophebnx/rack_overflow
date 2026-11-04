@@ -6,6 +6,7 @@ The error page reads no data, so it renders even when the database or a service 
 from __future__ import annotations
 
 import logging
+from urllib.parse import quote_from_bytes
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -45,6 +46,9 @@ TITLE_KEYS: dict[int, str] = {404: "error.title.not_found", 500: "error.title.in
 GENERIC_CODE = "error"
 GENERIC_TITLE_KEY = "error.title.generic"
 GENERIC_MESSAGE_KEY = "error.generic"
+PATH_SAFE = "/:@!$&'()*+,;=-._~%"
+QUERY_SAFE = PATH_SAFE + "?"
+"""Characters a retry link keeps as sent in its path and query (RFC 3986, `%` escapes kept)."""
 
 
 def wants_page(request: Request) -> bool:
@@ -67,13 +71,22 @@ def error_response(request: Request, status: int) -> Response:
 
 
 def _retry_path(request: Request) -> str:
-    """The current path as sent (still percent-encoded, no query) as a same-origin link.
+    """The current path and query as sent, as a same-origin link (« Réessayer » of a 5xx page).
 
-    The raw path keeps `%3F` encoded, so retrying goes to the same address; `//host` would leave the site.
+    The raw path keeps `%3F` encoded, so retrying goes to the same address; its leading slashes
+    are collapsed and a backslash is encoded (`//host` or `/\\host` would leave the site). The
+    query is kept (`/api/export?format=json` must not lose its format; ui-spec "L6 — Settings:
+    export"). Any byte outside the URL characters (space, quotes, `<`, `>`, `#`, backslash,
+    non-ASCII, controls) is percent-encoded, existing `%XX` escapes are kept, and Jinja escapes
+    the attribute.
     """
     raw = request.scope.get("raw_path")
-    path = raw.decode("latin-1") if isinstance(raw, bytes) else request.url.path
-    return "/" + path.lstrip("/")
+    path = raw if isinstance(raw, bytes) else request.url.path.encode("utf-8")
+    link = "/" + quote_from_bytes(path.lstrip(b"/"), safe=PATH_SAFE)
+    query = request.scope.get("query_string", b"")
+    if isinstance(query, bytes) and query:
+        link += "?" + quote_from_bytes(query, safe=QUERY_SAFE)
+    return link
 
 
 async def _http_error(request: Request, error: Exception) -> Response:
