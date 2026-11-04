@@ -4,6 +4,8 @@ All notable changes are listed here, newest first. Format: [Keep a Changelog](ht
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-04
+
 - Export of every stored fact: `rack export PATH [--format json|csv]` and « Exporter en JSON » / « Exporter en CSV » in « Réglages » → « Données » (`GET /api/export?format=json|csv`); JSON format version 1 in canonical units, CSV a zip of one `;`-separated UTF-8 file per table; credential hashes excluded (D-072 to D-074) (L6).
 - The export reads the database in one read-only transaction (consistent, never blocks a write) and publishes a new file atomically, never replacing an existing one (L6).
 - `rack restore SNAPSHOT` with the server stopped (supervisor lock and port probe): the snapshot is checked and staged as one file holding its WAL contents, the current database and its side files are kept aside as `.before-restore-<ts>`, an older snapshot is migrated; a blank instance is restored as is (D-075) (L6).
