@@ -112,8 +112,8 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Snapshot naming, ordering, due-ness, retention | `domain/backups` |
 | Take, list and prune database snapshots | `storage/backup` |
 | Revision of a database file without opening it read-write; order of a revision against the shipped ones | `storage/migrate.revision_of_file`, `revision_order`, `known_revisions` |
-| Restore a snapshot as the database (stage, check, keep the current aside, swap) | `storage/backup.restore_snapshot` (through `services/backups.restore`) |
-| Name of a database kept aside by a restore; SQLite side-file suffixes | `domain/backups.aside_name`, `SIDE_SUFFIXES` |
+| Restore a snapshot as the database (stage a single-file copy of the snapshot set, check, keep the current aside, swap) | `storage/backup.restore_snapshot` (through `services/backups.restore`) |
+| Name of a database kept aside by a restore; SQLite side-file suffixes | `domain/backups.aside_name`, `SIDE_SUFFIXES`, `SNAPSHOT_SIDE_SUFFIXES` (the ones a restore copies with a snapshot) |
 | Refuse while a server runs on the data folder (supervisor lock, port probe) | `ops/restore.server_stopped` |
 | Upgrade then seed (the `rack migrate` step, reused for a restored older snapshot) | `cli._upgrade_and_seed` |
 | Stop a test migration at an older revision | `tests/support/migrations.upgrade_to` |

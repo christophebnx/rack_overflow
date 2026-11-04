@@ -177,12 +177,20 @@ Restore replaces the database by one of the daily snapshots in `/volume1/rack/da
    .venv/bin/rack restore rack-20261103T020000Z.sqlite --config config.toml
    ```
 
-   It copies the snapshot beside the database, checks its integrity and its schema revision, then moves the current database aside, **never deleting it**: `kept /volume1/rack/data/rack.sqlite.before-restore-<UTC time>` (with its `-wal` / `-shm` files when present, so the copy opens with its latest writes), then `restored … as /volume1/rack/data/rack.sqlite at revision 0004`. A snapshot taken by an older version is then migrated as `rack migrate` does (`database … at revision …`). The snapshot file itself is only read.
+   It copies the snapshot (with its `-wal` / `-journal` files when present) into a scratch folder beside the database, writes one checked single-file copy of it (latest writes included), checks its schema revision, then moves the current database aside, **never deleting it**: `kept /volume1/rack/data/rack.sqlite.before-restore-<UTC time>` (with its `-wal` / `-shm` files when present, so the copy opens with its latest writes), then `restored … as /volume1/rack/data/rack.sqlite at revision 0004`. A snapshot taken by an older version is then migrated as `rack migrate` does (`database … at revision …`). The snapshot file itself is only read.
 4. Start again with the task's **Run** button (DSM → Control Panel → Task Scheduler → `rack`).
 
 Refusals print `rack: error: …`, exit with code 1 and leave the current database as it was: a corrupt or truncated snapshot (`snapshot failed the integrity check`), a file that is not a Rack Overflow database, a snapshot from a newer version (`… unknown to this version …; update the code first`: run `rack update` first), the database itself, a running server (`… stop it first`).
 
-If the restore is interrupted between moving the current database aside and the final rename (power cut, disk error), `rack.sqlite` is missing and the server refuses to start (`database is not up to date; run rack migrate`): **run the same `rack restore` command again**; it completes (nothing is left to move aside). Keep the `.before-restore-*` files until you are sure you do not need them: they are not snapshots and are never pruned.
+If the restore is interrupted between moving the current database aside and the final rename (power cut, disk error), `rack.sqlite` is missing and the server refuses to start (`database is not up to date; run rack migrate`): **run the same `rack restore` command again**; it completes (nothing is left to move aside). Keep the `.before-restore-*` files until you are sure you do not need them: they are not snapshots and are never pruned. The restore needs free space for about two copies of the snapshot while it runs; the scratch folder is removed at the end.
+
+To **undo a restore**, restore the set kept aside, by its full path (a bare name is looked up in the backups folder): stop the server, then
+
+```bash
+.venv/bin/rack restore /volume1/rack/data/rack.sqlite.before-restore-<UTC time> --config config.toml
+```
+
+It reads the file and the `-wal` / `-shm` beside it without changing them, keeps every row (those still in the `-wal` included), and moves the database it replaces aside in its turn (`….before-restore-<new time>`).
 
 **Check**: `ls /volume1/rack/data` → `rack.sqlite` and `rack.sqlite.before-restore-…`; after **Run**, « Historique » ends at the snapshot's date. The snapshot holds the devices as they were then: a device paired, or whose cookie was renewed, after the snapshot is sent to « Appairage »; pair it again with `rack device revoke <name>` then `rack device add <name>`.
 

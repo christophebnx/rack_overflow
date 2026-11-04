@@ -11,6 +11,7 @@ from __future__ import annotations
 import os
 import shutil
 import sqlite3
+import tempfile
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -135,11 +136,47 @@ def _check_staged(temp: Path) -> str:
     return revision
 
 
+def _vacuum_copy(source: Path, target: Path) -> None:
+    """`VACUUM INTO target` from the database at `source` through a bare read-write connection
+    (no engine pragmas): `target` is a single rollback-journal file holding every committed row,
+    the ones still in a `-wal` included."""
+    connection = sqlite3.connect(f"{source.resolve().as_uri()}?mode=rw", uri=True, isolation_level=None)
+    try:
+        connection.execute("VACUUM INTO ?", (str(target),))
+    finally:
+        connection.close()
+
+
+def _stage(snapshot: Path, temp: Path) -> None:
+    """Write into `temp` a checked single-file copy of the snapshot set (the file and its `-wal` /
+    `-journal`). The set is copied into a scratch folder beside `temp` first, so the snapshot and
+    its side files are only read (opening a WAL file, even read-only, writes its `-shm`, and the
+    last read-write close checkpoints and removes its `-wal`); the scratch folder is removed."""
+    with tempfile.TemporaryDirectory(prefix=".tmp-restore-", dir=temp.parent) as scratch:
+        copy = Path(scratch) / "snapshot.sqlite"
+        for suffix in ("", *rules.SNAPSHOT_SIDE_SUFFIXES):
+            source = Path(f"{snapshot}{suffix}")
+            if suffix and not source.is_file():
+                continue
+            try:
+                shutil.copyfile(source, f"{copy}{suffix}")
+            except OSError as error:
+                raise BackupError(f"cannot copy {source}: {error.strerror}") from error
+        if not check_integrity(copy):
+            raise BackupError("snapshot failed the integrity check")
+        try:
+            _vacuum_copy(copy, temp)
+        except sqlite3.Error as error:
+            raise BackupError(f"cannot stage a copy of {snapshot}: {error}") from error
+
+
 def _set_aside(database_path: Path, now: datetime) -> list[Path]:
-    """Rename the database and every side file beside it to the `aside_name` set (never deleted)."""
+    """Rename the database and every side file beside it to the `aside_name` set (never deleted).
+    A failed rename moves the files already renamed back, so the set is never split; the error
+    names what was moved and whether it is back."""
     folder = database_path.parent
     aside = rules.aside_name(database_path.name, now, _names(folder))
-    kept = []
+    kept: list[tuple[Path, Path]] = []
     for suffix in ("", *rules.SIDE_SUFFIXES):
         source = folder / f"{database_path.name}{suffix}"
         if source.exists():
@@ -147,16 +184,34 @@ def _set_aside(database_path: Path, now: datetime) -> list[Path]:
             try:
                 os.rename(source, target)
             except OSError as error:
-                raise BackupError(f"cannot move {source} aside to {target}: {error.strerror}") from error
-            kept.append(target)
-    return kept
+                raise BackupError(
+                    f"cannot move {source} aside to {target}: {error.strerror}; {_roll_back(kept)}"
+                ) from error
+            kept.append((source, target))
+    return [target for _, target in kept]
+
+
+def _roll_back(moved: list[tuple[Path, Path]]) -> str:
+    """Rename each `(source, target)` back, last first; a report of what is where now."""
+    if not moved:
+        return "nothing was moved"
+    left = []
+    for source, target in reversed(moved):
+        try:
+            os.rename(target, source)
+        except OSError:
+            left.append(f"{target} (was {source})")
+    if left:
+        return "still moved aside: " + ", ".join(reversed(left)) + "; move them back by hand"
+    return "moved back: " + ", ".join(str(source) for source, _ in moved)
 
 
 def restore_snapshot(snapshot: Path, database_path: Path, now: datetime) -> Restored:
-    """Make a copy of `snapshot` the database (D-075): stage the copy beside the database, check
-    its integrity and revision (`head` or `older`), move the current database and its side files
-    aside, then rename the copy into place. The snapshot is only read. Any refusal leaves the
-    database untouched and removes the staged copy; nothing is ever deleted."""
+    """Make a copy of `snapshot` the database (D-075): stage a single-file copy of the snapshot
+    set beside the database (`VACUUM INTO` from a scratch copy, so rows in its `-wal` are kept),
+    check its integrity and revision (`head` or `older`), move the current database and its side
+    files aside, then rename the copy into place. The snapshot set is only read. Any refusal
+    leaves the database untouched and removes the staged copy; nothing is ever deleted."""
     if not snapshot.is_file():
         raise BackupError(f"snapshot not found: {snapshot}")
     if database_path.exists() and snapshot.resolve() == database_path.resolve():
@@ -165,10 +220,7 @@ def restore_snapshot(snapshot: Path, database_path: Path, now: datetime) -> Rest
     kept: list[Path] = []
 
     def produce(temp: Path) -> None:
-        try:
-            shutil.copyfile(snapshot, temp)
-        except OSError as error:
-            raise BackupError(f"cannot copy {snapshot}: {error.strerror}") from error
+        _stage(snapshot, temp)
         revision.append(_check_staged(temp))
         kept.extend(_set_aside(database_path, now))
 

@@ -456,26 +456,25 @@ def test_a_bare_name_prefers_the_backups_folder(
     assert dump(current) == dump(source.database_path)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="product bug: restore copies only the main file of a WAL-mode database "
-    "(storage/backup.py restore_snapshot, shutil.copyfile): the rows of its -wal are silently lost",
-)
 def test_restoring_a_wal_mode_aside_set_keeps_its_latest_rows(
     current: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     aside = current.parent / "rack.sqlite.before-restore-20261101T000000Z"
     _wal_set(aside, tmp_path / "scratch")
-    code = restore(current.parent.parent / "settings.toml", aside)
+    sides = [Path(f"{aside}{suffix}") for suffix in ("", "-wal", "-shm")]
+    digests = [sha(path) for path in sides]
+    reference = tmp_path / "reference"
+    reference.mkdir()
+    for path in sides:
+        shutil.copyfile(path, reference / path.name.replace(aside.name, "copy.sqlite"))
+    assert restore(current.parent.parent / "settings.toml", aside) == 0
     capsys.readouterr()
-    assert code == 1 or _latest(current) == ("in the wal",)  # refused, or restored with its rows
+    assert _latest(current) == ("in the wal",)
+    assert dump(current) == dump(reference / "copy.sqlite")  # undoing a restore keeps every row
+    assert [sha(path) for path in sides] == digests  # the set is only read
+    assert not Path(f"{current}-wal").exists() and not Path(f"{current}-shm").exists()
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="product bug: check_copy/revision_of_file open the staged WAL-mode copy read-only and "
-    "leave .tmp-rack.sqlite-*-wal / -shm behind (storage/backup.py _check_staged)",
-)
 def test_restoring_a_wal_mode_file_leaves_no_temp_side_files(
     current: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -486,11 +485,6 @@ def test_restoring_a_wal_mode_file_leaves_no_temp_side_files(
     assert [name.name for name in current.parent.iterdir() if name.name.startswith(".tmp-")] == []
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="product bug: a failed side-file rename leaves rack.sqlite-wal behind; the rerun moves "
-    "it to a new aside name (_02-wal), apart from its database (storage/backup.py _set_aside)",
-)
 def test_a_failed_side_file_rename_keeps_the_aside_wal_with_its_database(
     snapshot: Path,
     target: Path,
@@ -511,9 +505,80 @@ def test_a_failed_side_file_rename_keeps_the_aside_wal_with_its_database(
     with monkeypatch.context() as patch:
         patch.setattr(os, "rename", failing)
         assert restore(target, snapshot) == 1
+    err = capsys.readouterr().err
+    assert f"cannot move {database}-wal aside" in err
+    assert f"moved back: {database}" in err
+    assert database.exists() and Path(f"{database}-wal").exists()
+    assert not (database.parent / ASIDE).exists()
     assert restore(target, snapshot) == 0
     capsys.readouterr()
     assert _latest(database.parent / ASIDE) == ("in the wal",)
+
+
+def test_a_failed_move_back_names_what_stays_aside(
+    snapshot: Path,
+    target: Path,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    database = load_settings(target).database_path
+    database.parent.mkdir()
+    _wal_set(database, tmp_path / "scratch")
+    real_rename = os.rename
+
+    def failing(source_path: os.PathLike[str], target_path: os.PathLike[str]) -> None:
+        if str(source_path).endswith("-wal") or str(target_path) == str(database):
+            raise OSError(5, "Input/output error")
+        real_rename(source_path, target_path)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(os, "rename", failing)
+        assert restore(target, snapshot) == 1
+    err = capsys.readouterr().err
+    assert f"still moved aside: {database.parent / ASIDE} (was {database})" in err
+    assert (database.parent / ASIDE).exists()  # never deleted
+
+
+def test_a_failed_snapshot_copy_changes_nothing(
+    snapshot: Path,
+    current: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    statements, digest = dump(current), sha(current)
+
+    def failing(*args: object, **kwargs: object) -> None:
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(shutil, "copyfile", failing)
+    assert restore(current.parent.parent / "settings.toml", snapshot) == 1
+    assert f"cannot copy {snapshot}: No space left on device" in capsys.readouterr().err
+    assert_untouched(current, statements, digest)
+
+
+def test_a_failed_staging_vacuum_changes_nothing(
+    snapshot: Path,
+    current: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    statements, digest = dump(current), sha(current)
+
+    def failing(source: Path, staged: Path) -> None:
+        raise sqlite3.OperationalError("database or disk is full")
+
+    monkeypatch.setattr(backup, "_vacuum_copy", failing)
+    assert restore(current.parent.parent / "settings.toml", snapshot) == 1
+    assert "cannot stage a copy" in capsys.readouterr().err
+    assert_untouched(current, statements, digest)
+
+
+def test_a_file_sqlite_cannot_open_is_unsound_and_unreadable(tmp_path: Path) -> None:
+    missing = tmp_path / "absent" / "rack.sqlite"
+    assert backup.check_copy(missing) is False
+    with pytest.raises(migrate.MigrationError, match="database cannot be read"):
+        migrate.revision_of_file(missing)
 
 
 # --- forms disable every button, rendered

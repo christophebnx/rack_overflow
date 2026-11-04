@@ -14,6 +14,9 @@ INTERVAL = timedelta(hours=24)
 ASIDE_MARK = ".before-restore-"
 SIDE_SUFFIXES = ("-wal", "-shm", "-journal")
 """SQLite files beside a database (`<name>-wal`…): they move with it, never left beside another file."""
+SNAPSHOT_SIDE_SUFFIXES = ("-wal", "-journal")
+"""Side files that hold rows of a database (its `-shm` is only an index SQLite rebuilds): a
+restore copies them with the snapshot so its latest committed rows are kept."""
 _NAME = re.compile(r"^rack-(?P<time>\d{8}T\d{6}Z)(?:_(?P<rank>\d{2,}))?\.sqlite$")
 
 
