@@ -6,7 +6,7 @@
 {% else %}
 {% from "_form_status.html" import form_status %}
 {% set message = t(message_key, **message_params) if message_key else "" %}
-<form class="pairing-form" hx-post="{{ pairing_path }}" hx-target="this" hx-swap="outerHTML" hx-disabled-elt="find button">
+<form class="pairing-form" id="appairage-formulaire" hx-post="{{ pairing_path }}" hx-target="this" hx-swap="outerHTML" hx-disabled-elt="#appairage-formulaire button">
   {{ form_status() }}
   <div class="field">
     <label class="field__label" for="code">{{ t("pairing.code_label") }}</label>

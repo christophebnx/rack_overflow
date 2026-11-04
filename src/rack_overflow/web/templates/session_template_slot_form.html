@@ -3,7 +3,7 @@
 {% set v = typed if (is_open and typed) else values[slot.id] %}
 {% set errs = slot_errors if is_open else no_errors %}
 {% set option_errs = option_errors if is_open else no_errors %}
-<form id="{{ prefix }}-formulaire" class="slot-form" hx-patch="{{ base }}/{{ slot.id }}" hx-target="#blocs" hx-swap="outerHTML" hx-disabled-elt="find button">
+<form id="{{ prefix }}-formulaire" class="slot-form" hx-patch="{{ base }}/{{ slot.id }}" hx-target="#blocs" hx-swap="outerHTML" hx-disabled-elt="#{{ prefix }}-formulaire button">
   {{ form_status() }}
   {% if slot.kind == "menu" %}
   <div class="field">
@@ -93,7 +93,7 @@
 </div>
 {% set addable = detail.option_groups(slot) %}
 {% set add_id = prefix ~ "-option-ajout" %}
-<form class="add-field add-option" hx-post="{{ base }}/{{ slot.id }}/options" hx-target="#blocs" hx-swap="outerHTML" hx-disabled-elt="find button">
+<form id="{{ prefix }}-option-ajout-formulaire" class="add-field add-option" hx-post="{{ base }}/{{ slot.id }}/options" hx-target="#blocs" hx-swap="outerHTML" hx-disabled-elt="#{{ prefix }}-option-ajout-formulaire button">
   {{ form_status() }}
   {% if slot.options | length >= max_options or not addable %}
   {% set refused = option_errs.get(add_id) %}

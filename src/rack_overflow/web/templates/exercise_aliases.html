@@ -16,7 +16,7 @@
   {% else %}
   <p class="muted aliases-empty">{{ t("exercise.no_alias") }}</p>
   {% endif %}
-  <form class="alias-form" hx-post="/exercices/{{ detail.id }}/alias" hx-target="#exercice-alias" hx-swap="outerHTML" hx-disabled-elt="find button">
+  <form id="alias-formulaire" class="alias-form" hx-post="/exercices/{{ detail.id }}/alias" hx-target="#exercice-alias" hx-swap="outerHTML" hx-disabled-elt="#alias-formulaire button">
     {{ form_status() }}
     <div class="field">
       <label class="field__label" for="alias-nouveau">{{ t("exercise.alias_label") }}</label>

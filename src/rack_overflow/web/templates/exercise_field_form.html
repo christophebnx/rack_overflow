@@ -6,7 +6,7 @@
 {% set hint_key = {"weight": "unit.hint.weight", "distance": "unit.hint.distance", "duration": "unit.hint.duration", "decimal": "unit.hint.decimal"}.get(kind.kind) %}
 {% set unit_hint = t(hint_key, scale=kind.scale) if hint_key else "" %}
 {% set mode = v.mode if v else ("values" if p.discrete_values else "step") %}
-<form id="{{ prefix }}-formulaire" class="field-form" hx-patch="{{ base }}/{{ field.id }}" hx-target="#champs" hx-swap="outerHTML" hx-disabled-elt="find button">
+<form id="{{ prefix }}-formulaire" class="field-form" hx-patch="{{ base }}/{{ field.id }}" hx-target="#champs" hx-swap="outerHTML" hx-disabled-elt="#{{ prefix }}-formulaire button">
   {{ form_status() }}
   <label class="choice"><input type="checkbox" id="{{ prefix }}-obligatoire" name="required" value="1"{% if (v.required if v else p.required) %} checked{% endif %}{% if focus == prefix ~ "-obligatoire" %} autofocus{% endif %}> {{ t("field.required") }}</label>
   {% if kind.numeric %}

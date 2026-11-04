@@ -46,7 +46,7 @@
     <p class="muted">{{ t("template.no_slot_text") }}</p>
   </div>
   {% endif %}
-  <form class="add-slot" hx-post="{{ base }}" hx-target="#blocs" hx-swap="outerHTML" hx-disabled-elt="find button">
+  <form id="bloc-ajout-formulaire" class="add-slot" hx-post="{{ base }}" hx-target="#blocs" hx-swap="outerHTML" hx-disabled-elt="#bloc-ajout-formulaire button">
     {{ form_status() }}
     <h3 id="bloc-ajout-titre">{{ t("template.add_slot_heading") }}</h3>
     {% set full = detail.slots | length >= max_slots %}

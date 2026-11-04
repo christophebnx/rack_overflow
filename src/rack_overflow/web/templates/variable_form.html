@@ -3,7 +3,7 @@
 {% from "_labels.html" import SCOPE_KEYS, SCOPE_HINT_KEYS, TYPE_KEYS %}
 {% set editing = detail is not none %}
 {% set frozen = editing and detail.has_values %}
-<form id="variable-formulaire" class="form variable-form{% if frozen %} variable-form--{{ form.type }}{% endif %}" {% if editing %}hx-patch="/variables/{{ detail.id }}"{% else %}hx-post="/variables"{% endif %} hx-target="this" hx-swap="outerHTML" hx-disabled-elt="find button">
+<form id="variable-formulaire" class="form variable-form{% if frozen %} variable-form--{{ form.type }}{% endif %}" {% if editing %}hx-patch="/variables/{{ detail.id }}"{% else %}hx-post="/variables"{% endif %} hx-target="this" hx-swap="outerHTML" hx-disabled-elt="#variable-formulaire button">
   {{ form_status(t("status.saved") if saved else "", "ok" if saved else "") }}
   {% if for_exercise %}<input type="hidden" name="exercice" value="{{ for_exercise[0] }}">{% endif %}
   <div class="field">

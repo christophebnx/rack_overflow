@@ -2,7 +2,7 @@
 {% from "_fields.html" import described, field_error, field_hint, optional, oob_announce %}
 {% from "_labels.html" import CATEGORY_KEYS, LOCATION_KEYS %}
 {% set editing = detail is not none %}
-<form id="exercice-formulaire" class="form exercise-form" {% if editing %}hx-patch="/exercices/{{ detail.id }}"{% else %}hx-post="/exercices"{% endif %} hx-target="this" hx-swap="outerHTML" hx-disabled-elt="find button">
+<form id="exercice-formulaire" class="form exercise-form" {% if editing %}hx-patch="/exercices/{{ detail.id }}"{% else %}hx-post="/exercices"{% endif %} hx-target="this" hx-swap="outerHTML" hx-disabled-elt="#exercice-formulaire button">
   {{ form_status(t("status.saved") if saved else "", "ok" if saved else "") }}
   <div class="field">
     <label class="field__label" for="nom">{{ t("exercise.name_label") }}</label>

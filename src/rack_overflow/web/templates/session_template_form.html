@@ -4,7 +4,7 @@
 {% from "_fields.html" import described, field_error, field_hint, oob_announce %}
 {% from "_labels.html" import LOCATION_KEYS %}
 {% set editing = detail is not none %}
-<form id="seance-type-formulaire" class="form template-form" {% if editing %}hx-patch="/seances-types/{{ detail.id }}"{% else %}hx-post="/seances-types"{% endif %} hx-target="this" hx-swap="outerHTML" hx-disabled-elt="find button">
+<form id="seance-type-formulaire" class="form template-form" {% if editing %}hx-patch="/seances-types/{{ detail.id }}"{% else %}hx-post="/seances-types"{% endif %} hx-target="this" hx-swap="outerHTML" hx-disabled-elt="#seance-type-formulaire button">
   {{ form_status(t("status.saved") if saved else "", "ok" if saved else "") }}
   <div class="field">
     <label class="field__label" for="seance-nom">{{ t("template.name_label") }}</label>
