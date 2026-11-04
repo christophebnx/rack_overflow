@@ -8,8 +8,8 @@ from datetime import datetime
 from sqlalchemy.engine import Engine
 
 from rack_overflow.domain import export as rules
+from rack_overflow.storage import db, migrate
 from rack_overflow.storage import export as contents
-from rack_overflow.storage import migrate
 
 FORMATS = (rules.JSON_KIND, rules.CSV_KIND)
 MEDIA_TYPES = {rules.JSON_KIND: "application/json; charset=utf-8", rules.CSV_KIND: "application/zip"}
@@ -26,12 +26,13 @@ class ExportFile:
 
 
 def export(engine: Engine, fmt: str, now: datetime, app_version: str) -> ExportFile:
-    """The whole database as a `json` or `csv` export, read in one transaction (consistent);
-    an unknown format → `ExportError("unknown_format")`, nothing read."""
+    """The whole database as a `json` or `csv` export, read in one read transaction (consistent,
+    revision included; writers are not blocked); an unknown format →
+    `ExportError("unknown_format")`, nothing read."""
     if fmt not in FORMATS:
         raise rules.ExportError("unknown_format")
-    revision = migrate.current_revision(engine) or ""
-    with engine.begin() as connection:
+    with db.read_transaction(engine) as connection:
+        revision = migrate.revision_in(connection) or ""
         tables = contents.dump(connection)
     meta = rules.ExportMeta(rules.FORMAT_VERSION, app_version, revision, now)
     if fmt == rules.JSON_KIND:

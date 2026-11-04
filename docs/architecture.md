@@ -59,6 +59,7 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Time zone of session local dates and times | `config.Settings.calendar` (`[calendar] time_zone`, D-065) |
 | Allowed values of enumerated columns | `domain/vocabulary` |
 | Open the database with the project pragmas | `storage/db.create_engine` |
+| A transaction that only reads (deferred: never blocks a writer) | `storage/db.read_transaction` |
 | Database schema | `storage/schema.metadata` |
 | Apply / inspect migrations | `storage/migrate` |
 | Restart delay policy of the supervisor | `domain/supervision` |

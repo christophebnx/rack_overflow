@@ -141,3 +141,24 @@ def test_unknown_format_is_refused(migrated_engine: Engine) -> None:
     with pytest.raises(ExportError) as caught:
         export.export(migrated_engine, "xml", NOW, VERSION)
     assert caught.value.code == "unknown_format"
+
+
+def test_export_neither_waits_for_nor_sees_a_pending_write(
+    populated: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(db, "BUSY_TIMEOUT_MS", 0)  # a wait for the write lock would fail at once
+    before = rules.read_json(export.export(populated, "json", NOW, VERSION).data)[1]
+    populated.dispose()  # new connections take the patched timeout
+    with populated.begin() as writer:  # holds the write lock (BEGIN IMMEDIATE)
+        writer.exec_driver_sql("INSERT INTO app_setting (user_id, key, value) VALUES (1, 'pending', 'x')")
+        during = export.export(populated, "json", NOW, VERSION)
+    assert rules.read_json(during.data)[1] == before
+    assert json.loads(during.data)["schema_revision"] == migrate.head_revision()
+
+
+def test_read_transaction_begins_deferred_and_writes_stay_immediate(migrated_engine: Engine) -> None:
+    with db.read_transaction(migrated_engine) as reader:
+        assert reader.exec_driver_sql("SELECT count(*) FROM app_setting").scalar_one() >= 0
+        with migrated_engine.begin() as writer:  # the reader holds no write lock
+            writer.exec_driver_sql("INSERT INTO app_setting (user_id, key, value) VALUES (1, 'w', 'x')")
+        assert reader.exec_driver_sql("SELECT count(*) FROM app_setting WHERE key = 'w'").scalar_one() == 0

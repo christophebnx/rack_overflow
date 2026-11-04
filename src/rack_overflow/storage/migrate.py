@@ -92,6 +92,13 @@ def revision_of_file(path: Path) -> str | None:
 def current_revision(engine: Engine) -> str | None:
     """The revision the database is at, or None for an empty database."""
     with _as_migration_error(), engine.connect() as connection:
+        return revision_in(connection)
+
+
+def revision_in(connection: Connection) -> str | None:
+    """The revision read through the caller's connection (inside its transaction, e.g. the
+    export's read), or None for an empty database."""
+    with _as_migration_error():
         return MigrationContext.configure(connection).get_current_revision()
 
 
