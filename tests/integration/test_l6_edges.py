@@ -189,6 +189,7 @@ def test_export_write_failure_leaves_no_file(
         raise OSError(28, "No space left on device")
 
     monkeypatch.setattr(os, "replace", disk_full)
+    monkeypatch.setattr(os, "link", disk_full)  # a new export file is published by a hard link
     assert main(["export", str(out / "x.json"), "--config", config]) == 1
     assert "cannot write" in capsys.readouterr().err
     assert list(out.iterdir()) == []

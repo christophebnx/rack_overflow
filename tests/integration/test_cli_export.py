@@ -60,6 +60,23 @@ def test_existing_path_is_refused(config: str, tmp_path: Path, capsys: pytest.Ca
     assert target.read_text(encoding="utf-8") == "mine"
 
 
+def test_a_file_created_during_the_export_is_kept(
+    config: str, tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target = tmp_path / "late.json"
+    real_export = cli.export.export
+
+    def racing(*args: object, **kwargs: object) -> object:
+        target.write_text("theirs", encoding="utf-8")  # appears after the early check
+        return real_export(*args, **kwargs)
+
+    monkeypatch.setattr(cli.export, "export", racing)
+    assert main(["export", str(target), "--config", config]) == 1
+    assert capsys.readouterr().err == f"rack: error: {target} already exists; choose a new file name\n"
+    assert target.read_text(encoding="utf-8") == "theirs"
+    assert [path.name for path in tmp_path.iterdir() if path.name.startswith(".tmp-")] == []
+
+
 def test_missing_folder_is_refused(config: str, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     target = tmp_path / "nope" / "out.json"
     assert main(["export", str(target), "--config", config]) == 1

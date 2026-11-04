@@ -12,7 +12,7 @@
 
 | Module | Owns |
 |---|---|
-| `files.py` | `atomic_produce(path, produce)`: unused temp name in the same folder, `produce(temp)`, fsync, `os.replace`, folder fsync (POSIX), temp removed on failure; `atomic_write(path, data)` built on it |
+| `files.py` | `atomic_produce(path, produce)`: unused temp name in the same folder, `produce(temp)`, fsync, `os.replace`, folder fsync (POSIX), temp removed on failure; `atomic_write(path, data)` built on it; `overwrite=False` on either never replaces an existing name, even one created while producing (temp hard-linked as the name, `FileExistsError` when taken; check then rename where hard links are not supported) |
 | `errors.py` | `StorageError`, `MigrationError`, `BackupError`, `CorruptDatabaseError(BackupError)`, `DeviceNameTakenError`, `NameTakenError` (catalog uniques), `SessionOpenError` (`uq_session_one_open`) |
 | `db.py` | `create_engine(database_path)`: WAL, `foreign_keys`, `synchronous = SYNCHRONOUS` (tests: OFF), `busy_timeout`, `BEGIN IMMEDIATE` on every transaction except a `read_transaction(engine)` (`BEGIN DEFERRED`: one consistent WAL snapshot that never blocks or waits for a writer; reads only, e.g. the export); `guarded_write(connection, write, refusal)`: a write in a savepoint whose unique-constraint violation raises `refusal` (other integrity errors propagate), the one savepoint guard of every unique check |
 | `schema.py` | `metadata` (naming convention) and one `Table` per table of brief section 7.2; unique indexes added after 0001 are `sa.Index(..., unique=True)` (no SQLite table rebuild) |

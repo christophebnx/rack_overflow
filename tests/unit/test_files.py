@@ -1,3 +1,4 @@
+import errno
 import os
 from pathlib import Path
 
@@ -54,3 +55,54 @@ def test_atomic_produce_creates_the_file(tmp_path: Path) -> None:
     target = tmp_path / "out.bin"
     atomic_produce(target, lambda temp: temp.write_bytes(b"made"))
     assert target.read_bytes() == b"made"
+
+
+def test_no_overwrite_creates_a_new_file_without_temp(tmp_path: Path) -> None:
+    target = tmp_path / "export.json"
+    atomic_write(target, b"data", overwrite=False)
+    assert target.read_bytes() == b"data"
+    assert [path.name for path in tmp_path.iterdir()] == ["export.json"]
+
+
+def test_no_overwrite_keeps_a_file_created_while_producing(tmp_path: Path) -> None:
+    target = tmp_path / "export.json"
+
+    def racing(temp: Path) -> None:
+        temp.write_bytes(b"ours")
+        target.write_bytes(b"theirs")  # appears after any check made before the write
+
+    with pytest.raises(FileExistsError):
+        atomic_produce(target, racing, overwrite=False)
+    assert target.read_bytes() == b"theirs"
+    assert [path.name for path in tmp_path.iterdir()] == ["export.json"]
+
+
+@pytest.mark.parametrize("taken", [False, True])
+def test_no_overwrite_without_hard_links_checks_then_renames(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, taken: bool
+) -> None:
+    target = tmp_path / "export.json"
+    if taken:
+        target.write_bytes(b"theirs")
+
+    def no_links(src: object, dst: object) -> None:
+        raise OSError(errno.EPERM, "Operation not permitted")
+
+    monkeypatch.setattr(os, "link", no_links)
+    if taken:
+        with pytest.raises(FileExistsError):
+            atomic_write(target, b"ours", overwrite=False)
+    else:
+        atomic_write(target, b"ours", overwrite=False)
+    assert target.read_bytes() == (b"theirs" if taken else b"ours")
+    assert [path.name for path in tmp_path.iterdir()] == ["export.json"]
+
+
+def test_no_overwrite_propagates_other_link_errors(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def broken(src: object, dst: object) -> None:
+        raise OSError(errno.EIO, "Input/output error")
+
+    monkeypatch.setattr(os, "link", broken)
+    with pytest.raises(OSError, match="Input/output error"):
+        atomic_write(tmp_path / "export.json", b"ours", overwrite=False)
+    assert list(tmp_path.iterdir()) == []

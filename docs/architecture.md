@@ -53,7 +53,7 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Responsibility | Implementation |
 |---|---|
 | Base class of business errors | `domain/errors.DomainError` |
-| Write a file atomically (temp + fsync + rename) | `storage/files.atomic_write` (bytes), `storage/files.atomic_produce` (from a writer) |
+| Write a file atomically (temp + fsync + rename; `overwrite=False`: never replace an existing name) | `storage/files.atomic_write` (bytes), `storage/files.atomic_produce` (from a writer) |
 | Map an error to a CLI exit code and message | `cli.main` |
 | Load settings and secrets | `config.load_settings` |
 | Time zone of session local dates and times | `config.Settings.calendar` (`[calendar] time_zone`, D-065) |

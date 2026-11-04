@@ -102,10 +102,14 @@ def run_backup(settings: Settings, args: argparse.Namespace) -> None:
     print(_backup_now(settings))
 
 
+def _taken(path: Path) -> StorageError:
+    return StorageError(f"{path} already exists; choose a new file name")
+
+
 def _new_file(path: Path) -> Path:
     """`path` when it does not exist yet and its folder does (an export never overwrites a file)."""
     if path.exists() or path.is_symlink():
-        raise StorageError(f"{path} already exists; choose a new file name")
+        raise _taken(path)
     if not path.parent.is_dir():
         raise StorageError(f"folder not found: {path.parent}")
     return path
@@ -121,7 +125,9 @@ def run_export(settings: Settings, args: argparse.Namespace) -> None:
     finally:
         engine.dispose()
     try:
-        files.atomic_write(target, exported.data)
+        files.atomic_write(target, exported.data, overwrite=False)
+    except FileExistsError as error:  # created since `_new_file`: never replaced
+        raise _taken(target) from error
     except OSError as error:
         raise StorageError(f"cannot write {target}: {error.strerror}") from error
     print(f"exported {exported.rows} rows to {target}")
