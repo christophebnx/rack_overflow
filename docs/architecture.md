@@ -112,6 +112,10 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Snapshot naming, ordering, due-ness, retention | `domain/backups` |
 | Take, list and prune database snapshots | `storage/backup` |
 | Backup operation (snapshot then prune, or only when due) | `services/backups` |
+| Export format (JSON document, CSV zip, file names, format version; D-072, D-073) | `domain/export` |
+| What an export holds (tables, columns, secret columns excluded) and the database dump | `storage/export` (`exported_columns`, `dump`, `SECRET_COLUMNS`) |
+| Export operation (one consistent read, JSON or CSV bytes, file name, media type) | `services/export.export` |
+| A database with a row in every table; test readers of an export (JSON loader, CSV parser) | `tests/support/populated.py`, `tests/support/export_loader.py` |
 | Daily backup in the server | `web/scheduler` |
 | Build the web app | `web/app.create_app` |
 | HTTP request checks and security headers | `web/security.SecurityMiddleware` |
