@@ -168,3 +168,23 @@ Integration:
 6. `docs(deployment): restore and export on the NAS, Jelastic guide, host migration` — `nas.md`, `jelastic.md`, `migration.md`.
 7. `docs: close milestone L6` — `docs/architecture.md` map and flows, `docs/decisions.md` (already holds D-072 to D-076 from this note), `docs/roadmap.md`, `docs/progress.md`, `CHANGELOG.md` L6 entries.
 8. `chore(release): release v1.0.0` — `pyproject.toml`, `uv.lock`, `CHANGELOG.md`, progress; local annotated tag `v1.0.0` on it (not pushed).
+
+## Review (reviewer, loop 1)
+
+Checks: 2832 passed, 177 skipped (WebKit), 3 strict xfails; ruff and format clean; duplicate-code 10.00. Retry link sound (same-origin, percent-encoded, escaped); the find-button fix covers all ten forms; layering holds; reuse correct (`check_copy`, `atomic_produce` / `atomic_write`, `_upgrade_and_seed`); export complete (all tables minus the two hashes, format version 1, g/s/m, CSV with BOM, `;`, CRLF, minimal quoting); docs match D-013, D-076. The developer's test changes are legitimate (two of them stricter).
+
+1. **BLOCKING** `storage/backup.py:168` (`shutil.copyfile`): restoring a WAL-mode file copies only the main file; rows still in its `-wal` are lost, exit 0. `docs/deployment/nas.md:180,185` documents undoing a restore from the `.before-restore-*` set, so this path loses data. Stage a consistent copy of the snapshot including its WAL contents (e.g. SQLite backup API or `VACUUM INTO` from the snapshot), never modifying the snapshot set and leaving no stray files; turn xfail (1) into a passing test.
+2. **TO FIX** `storage/backup.py:125` (`_check_staged`): a WAL-mode staged file opened read-only leaves `.tmp-rack.sqlite-*-wal` / `-shm` in the data folder (xfail 2). The staged copy must be a non-WAL single file (fixed together with 1).
+3. **TO FIX** `storage/backup.py:137-147` (`_set_aside`): if renaming a side file fails after the database moved, the `-wal` stays and a rerun moves it to `<aside>_02-wal`, apart from its database (invariant 8, D-075); the `BackupError` raised is not an `OSError`, so the "kept aside: …" message (`:178-181`) is skipped (xfail 3). On a rerun give orphan side files their database's aside name (or roll back), and report what was moved.
+4. **SUGGESTION** `services/export.py:596-598`: the dump holds `BEGIN IMMEDIATE` (writers wait up to 5 s); read the schema revision inside the dump transaction; a read transaction would not block writers.
+5. **SUGGESTION** `cli.py:105-110` `_new_file` then `atomic_write`: TOCTOU overwrite; low risk; link the temp file instead of replacing.
+6. **SUGGESTION** `ops/restore.py:496`: the port probe misses a systemd unit between restarts; mention the window in `nas.md` §13 and `jelastic.md:174` (stop the service first).
+7. **SUGGESTION** cover the error branches `backup.py:50-51, 170-171` (copy failure before any move) and `migrate.py:76-77`.
+
+## UI review (ui-designer, loop 1)
+
+Chromium at 360 (touch) and 1280, light and dark: no BLOCKING, no TO FIX. Export buttons 48 px, hints tied by `aria-describedby`, no `download` attribute, downloads named `rack-overflow-YYYYMMDDTHHMMSSZ.json` / `…-csv.zip`, page and focus stay; forced 500 retry keeps the query; 422 for unknown or missing format; unpaired → pairing; all ten forms disable every button during a held request with no layout change.
+
+1. **SUGGESTION** `docs/ui-spec.md:2047-2048`: « Accueil » should read « Retour à l’accueil ».
+2. **SUGGESTION** `templates/settings_formula.html:7`: use `.section__intro` so both intros on `/reglages` share the 14 px size.
+3. **SUGGESTION** note in the states table that after a successful retry the error page stays displayed (the file downloads without navigation).
