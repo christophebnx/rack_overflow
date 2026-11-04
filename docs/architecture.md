@@ -4,7 +4,7 @@ How the system is built. Why it is built that way: `docs/decisions.md`. Design n
 
 ## Overview
 
-Rack Overflow is one FastAPI server and one SQLite database on the same host (Synology NAS, later possibly Jelastic), used from Safari on the iPhone and from a desktop browser (D-015, D-024). Full content and order of the build: `docs/release-1.0.0-brief.md` and `docs/roadmap.md`.
+Rack Overflow is one FastAPI server and one SQLite database on the same host (Synology NAS, or an Infomaniak Jelastic Linux node, D-076), used from Safari on the iPhone and from a desktop browser (D-015, D-024). Full content and order of the build: `docs/release-1.0.0-brief.md` and `docs/roadmap.md`.
 
 ```
 browser (iPhone / desktop)
@@ -30,7 +30,7 @@ Main flows:
 - **History**: `GET /historique` (sessions per week, then month groups of 20 sessions by keyset, « Plus anciennes » appends the next page) → a closed `GET /seances/{id}` is the detail: sets and settings corrected through the L4 paths with `require_open=False`, answer the exercise section and the totals out of band; `DELETE /seances/{id}` sets `session.deleted_at` only, every reader filters it out (D-067, D-070).
 - **Progress**: `GET /progression` (exercises with history) → `GET /progression/{id}` (last performance, RM table for strength, chart caption and data table, records) → `progress-chart.js` fetches `GET /api/progression/{id}` (display numbers and French labels from the server) and draws it with vendored Chart.js; `POST /rm/{id}` and `DELETE /rm/mesures/{id}` re-render the RM section; `PATCH /reglages` stores the 1RM formula (`app_setting` `rm.formula`). Every indicator is recomputed from stored facts on each request (D-068, D-069). Design note `docs/architecture/2026-11-03-l5-tracking.md`.
 - **Pairing**: `rack device add NAME` prints a one-time code → the browser posts it to `/appairage` → hashed token stored, `rack_device` cookie set (D-040, D-049).
-- **Operations**: `rack migrate` (upgrade, then the pending seed steps: exercises, then templates; D-057, D-060), `rack backup`, `rack export` (JSON or CSV to a new file, D-074), `rack restore` (server stopped: supervisor lock and port probe; the current database kept aside, an older snapshot migrated, D-075), `rack device …`, `rack serve` (CLI calls the same services and storage); `rack supervise` runs `rack serve` as a child; `rack update` pulls `main`, syncs, migrates in a new process, then sends SIGHUP to the supervisor, which re-executes itself (D-051, D-052). Install guide: `docs/deployment/nas.md`.
+- **Operations**: `rack migrate` (upgrade, then the pending seed steps: exercises, then templates; D-057, D-060), `rack backup`, `rack export` (JSON or CSV to a new file, D-074), `rack restore` (server stopped: supervisor lock and port probe; the current database kept aside, an older snapshot migrated, D-075), `rack device …`, `rack serve` (CLI calls the same services and storage); `rack supervise` runs `rack serve` as a child; `rack update` pulls `main`, syncs, migrates in a new process, then sends SIGHUP to the supervisor, which re-executes itself (D-051, D-052); on Jelastic, systemd runs `rack serve` instead of `rack supervise` (D-076). Install guides: `docs/deployment/nas.md`, `docs/deployment/jelastic.md`; moving between them: `docs/deployment/migration.md`.
 
 ## Layers
 
