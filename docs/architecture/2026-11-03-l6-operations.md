@@ -198,3 +198,8 @@ Chromium at 360 (touch) and 1280, light and dark: no BLOCKING, no TO FIX. Export
 - **Reviewer 6** (`01321b6`): the one-shot port probe is documented in `nas.md` §13 and `jelastic.md` §12.
 - **Reviewer 7** (`768a003`): tests for a failed snapshot copy, a failed staging `VACUUM`, `check_copy` and `revision_of_file` on a file SQLite cannot open.
 - **UI 1, 2, 3** (`c59e1ad`): « Retour à l’accueil » in the export states table, `.section__intro` on the formula intro, the note that a successful retry leaves the error page displayed.
+
+## Fix loop 2
+
+- **Duplication** (`d5c85dd`): `storage/backup._vacuum_copy(source, target, busy_timeout_ms=0)` is the one `VACUUM INTO` of a database; `take_snapshot` calls it with `db.BUSY_TIMEOUT_MS` (it no longer opens an engine), the restore staging with no timeout. Both keep a bare read-write autocommit connection, so the last close leaves no `-wal`.
+- **Docs**: `domain/CLAUDE.md` names `SIDE_SUFFIXES` (`-wal`, `-shm`, `-journal`) and `SNAPSHOT_SIDE_SUFFIXES` (`-wal`, `-journal`) correctly; `nas.md` says a restore reads the file, its `-wal` and `-journal`, and ignores a `-shm`.

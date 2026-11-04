@@ -190,7 +190,7 @@ To **undo a restore**, restore the set kept aside, by its full path (a bare name
 .venv/bin/rack restore /volume1/rack/data/rack.sqlite.before-restore-<UTC time> --config config.toml
 ```
 
-It reads the file and the `-wal` / `-shm` beside it without changing them, keeps every row (those still in the `-wal` included), and moves the database it replaces aside in its turn (`….before-restore-<new time>`).
+It reads the file and the `-wal` / `-journal` beside it without changing them (a `-shm` is ignored), keeps every row (those still in the `-wal` included), and moves the database it replaces aside in its turn (`….before-restore-<new time>`).
 
 **Check**: `ls /volume1/rack/data` → `rack.sqlite` and `rack.sqlite.before-restore-…`; after **Run**, « Historique » ends at the snapshot's date. The snapshot holds the devices as they were then: a device paired, or whose cookie was renewed, after the snapshot is sent to « Appairage »; pair it again with `rack device revoke <name>` then `rack device add <name>`.
 
