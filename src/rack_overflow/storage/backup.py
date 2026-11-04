@@ -16,8 +16,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from sqlalchemy.exc import DBAPIError
-
 from rack_overflow.domain import backups as rules
 from rack_overflow.storage import db, files, migrate
 from rack_overflow.storage.errors import BackupError, CorruptDatabaseError, MigrationError
@@ -81,23 +79,16 @@ def take_snapshot(database_path: Path, backups_dir: Path, now: datetime) -> Path
     except OSError as error:
         raise BackupError(f"cannot create backups folder {backups_dir}: {error.strerror}") from error
     target = backups_dir / rules.snapshot_name(now, _names(backups_dir))
-    engine = db.create_engine(database_path)
     try:
 
         def vacuum_into(temp: Path) -> None:
-            connection = engine.raw_connection()  # autocommit: VACUUM cannot run in a transaction
-            try:
-                connection.driver_connection.execute("VACUUM INTO ?", (str(temp),))
-            finally:
-                connection.close()
+            _vacuum_copy(database_path, temp, busy_timeout_ms=db.BUSY_TIMEOUT_MS)
             if not check_copy(temp):
                 raise BackupError(f"snapshot copy failed the integrity check: {target.name}")
 
         files.atomic_produce(target, vacuum_into)
-    except (sqlite3.Error, DBAPIError, OSError) as error:
+    except (sqlite3.Error, OSError) as error:
         raise BackupError(f"snapshot failed: {error}") from error
-    finally:
-        engine.dispose()
     return target
 
 
@@ -136,12 +127,15 @@ def _check_staged(temp: Path) -> str:
     return revision
 
 
-def _vacuum_copy(source: Path, target: Path) -> None:
-    """`VACUUM INTO target` from the database at `source` through a bare read-write connection
-    (no engine pragmas): `target` is a single rollback-journal file holding every committed row,
-    the ones still in a `-wal` included."""
+def _vacuum_copy(source: Path, target: Path, *, busy_timeout_ms: int = 0) -> None:
+    """`VACUUM INTO target` from the database at `source`: the one single-file copy of a database
+    (snapshot and staged restore). A bare read-write autocommit connection (no engine pragmas, so
+    the last close removes any `-wal` it opened); `busy_timeout_ms` lets a snapshot of the live
+    database wait for a writer. `target` is a single rollback-journal file holding every committed
+    row, the ones still in a `-wal` included."""
     connection = sqlite3.connect(f"{source.resolve().as_uri()}?mode=rw", uri=True, isolation_level=None)
     try:
+        connection.execute(f"PRAGMA busy_timeout = {int(busy_timeout_ms)}")
         connection.execute("VACUUM INTO ?", (str(target),))
     finally:
         connection.close()
