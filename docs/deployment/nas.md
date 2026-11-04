@@ -168,7 +168,7 @@ Values are in stored units: weights in grams (`weight_g`), durations in seconds,
 
 Restore replaces the database by one of the daily snapshots in `/volume1/rack/data/backups/` (or any snapshot file). **Stop the server first**: `rack restore` refuses while `rack supervise` holds its lock or while anything answers on the configured port, and then changes nothing.
 
-1. Stop: `kill $(cat /volume1/rack/data/supervise.pid)`.
+1. Stop: `kill $(cat /volume1/rack/data/supervise.pid)`. Do not start the server again (task **Run**, a reboot) until step 4: `rack restore` holds the supervise lock while it runs, so `rack supervise` cannot start meanwhile, but it probes the port only once, at its start, so a plain `rack serve` started during the restore would not be caught.
 2. Choose the snapshot: `ls /volume1/rack/data/backups` → `rack-20261103T020000Z.sqlite` … (UTC times, newest last).
 3. Restore (a bare name is looked up in the backups folder; a path works too):
 

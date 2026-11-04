@@ -171,7 +171,7 @@ $ .venv/bin/rack restore rack-20261103T020000Z.sqlite --config config.toml
 # systemctl start rack
 ```
 
-`rack restore` refuses while a server answers on the configured port (`a server answers on 127.0.0.1:18765; stop it first`). It keeps the current database aside as `rack.sqlite.before-restore-<UTC time>` (never deleted), restores the snapshot and migrates it when it comes from an older version; details, refusals and an interrupted restore (rerun the command) as in `docs/deployment/nas.md` section 13.
+`rack restore` refuses while a server answers on the configured port (`a server answers on 127.0.0.1:18765; stop it first`). It probes the port once, at its start, and systemd is not covered by the supervise lock: stop the unit with `systemctl stop rack` (never by killing the process: `Restart=on-failure` would start it again within 5 s, possibly after the probe and in the middle of the restore), and start it only once the restore has printed its last line. It keeps the current database aside as `rack.sqlite.before-restore-<UTC time>` (never deleted), restores the snapshot and migrates it when it comes from an older version; details, refusals and an interrupted restore (rerun the command) as in `docs/deployment/nas.md` section 13.
 
 **Check**: the output ends with `restored … at revision …` (and `database … at revision …` after a migration); `# systemctl is-active rack` → `active` after the start.
 
