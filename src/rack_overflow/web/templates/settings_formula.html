@@ -4,7 +4,7 @@
 {% from "_fields.html" import field_error, oob_announce %}
 <form class="form settings-formula" id="reglages-formule" hx-patch="/reglages" hx-trigger="change" hx-target="this" hx-swap="outerHTML">
   {{ form_status(saved or "", "ok" if saved else "") }}
-  <p class="muted">{{ t("settings.formula_intro") }}</p>
+  <p class="muted section__intro">{{ t("settings.formula_intro") }}</p>
   <fieldset class="choices"{% if formula_errors.get("reglages-formule") %} aria-describedby="reglages-formule-erreur"{% endif %}>
     <legend>{{ t("settings.formula_legend") }}</legend>
     {% for key in formulas %}

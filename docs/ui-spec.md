@@ -1818,7 +1818,7 @@ Task: choose the 1RM formula. Information: names, expressions, the current one.
 +------------------------------+        +---------------------------------------------------+
 ```
 
-- `<form class="form" id="reglages-formule" hx-patch="/reglages" hx-trigger="change" hx-target="this" hx-swap="outerHTML">` (no save button, L4 settings pattern): slot first; muted intro; `<fieldset class="choices">` legend « Formule », five `<label class="choice">` radios `name="rm_formula"` (`epley`, `brzycki`, `lombardi`, `oconner`, `wathan`), each text: name (weight 600, « Epley » followed by the tag « par défaut ») and the expression on the next line (muted `--text-sm`, tabular). The current one checked. Then muted « Une série d’une répétition compte pour sa charge, quelle que soit la formule. ».
+- `<form class="form" id="reglages-formule" hx-patch="/reglages" hx-trigger="change" hx-target="this" hx-swap="outerHTML">` (no save button, L4 settings pattern): slot first; muted intro (`.section__intro`, `--text-sm` like the « Données » intro; L6 fix loop 1); `<fieldset class="choices">` legend « Formule », five `<label class="choice">` radios `name="rm_formula"` (`epley`, `brzycki`, `lombardi`, `oconner`, `wathan`), each text: name (weight 600, « Epley » followed by the tag « par défaut ») and the expression on the next line (muted `--text-sm`, tabular). The current one checked. Then muted « Une série d’une répétition compte pour sa charge, quelle que soit la formule. ».
 - Saved → form re-rendered, slot « Formule enregistrée : Brzycki. » (`kind="ok"`), focus kept on the radio (ids `formule-{key}`), same text announced. Refused (`invalid_choice`) → message under the legend. Failure → D-053.
 - Secondary link-button « Voir la progression » → `/progression` (full width below 40rem).
 - Tab order: header, the radio group (one stop, arrows inside), « Voir la progression ». Tab title `settings.title`.
@@ -2044,8 +2044,8 @@ States:
 | Default | the section as drawn; always present (the export of an empty database is valid) | — |
 | Downloading | the browser's own download indicator (desktop bar or list; Safari on iOS asks where to save, then Files); the page does not change | stays on the link |
 | Done | the file in the browser's downloads (iOS: Files → Téléchargements); no message in the page, none needed | stays on the link |
-| Server failure (500) | the error page (L1a — Error pages): « Erreur du serveur », `error.internal`, « Code 500 », « Réessayer » then « Accueil ». « Réessayer » must lead to the same export: the retry link keeps the request's query (`/api/export?format=json`), never `/api/export` alone, which would answer 422 | error page, as L1a |
-| Unknown or missing `format` (typed URL only) | error page `422`, `error.invalid_request` « Demande non valable. », « Accueil » | as L1a |
+| Server failure (500) | the error page (L1a — Error pages): « Erreur du serveur », `error.internal`, « Code 500 », « Réessayer » then « Retour à l’accueil ». « Réessayer » must lead to the same export: the retry link keeps the request's query (`/api/export?format=json`), never `/api/export` alone, which would answer 422. A retry that succeeds downloads the file without navigating (`Content-Disposition: attachment`), so the error page stays displayed; the browser's download indicator is the only sign of success | error page, as L1a |
+| Unknown or missing `format` (typed URL only) | error page `422`, `error.invalid_request` « Demande non valable. », « Retour à l’accueil » | as L1a |
 | Unpaired browser | `303` to `/appairage` | as L1b |
 
 Layout and style (`pages/progress.css`, tokens only, no new colour; light and dark come from the tokens):
