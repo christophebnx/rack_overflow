@@ -34,8 +34,8 @@ from rack_overflow.ops import supervise, update
 from rack_overflow.ops.commands import self_command
 from rack_overflow.ops.errors import OpsError
 from rack_overflow.ops.logs import utc_formatter
-from rack_overflow.services import backups, devices, seed
-from rack_overflow.storage import db, migrate
+from rack_overflow.services import backups, devices, export, seed
+from rack_overflow.storage import db, files, migrate
 from rack_overflow.storage.errors import MigrationError, StorageError
 from rack_overflow.web.app import create_app
 from rack_overflow.web.auth import PAIRING_PATH
@@ -88,6 +88,31 @@ def run_backup(settings: Settings, args: argparse.Namespace) -> None:
     """Snapshot the database now and prune expired snapshots."""
     del args
     print(_backup_now(settings))
+
+
+def _new_file(path: Path) -> Path:
+    """`path` when it does not exist yet and its folder does (an export never overwrites a file)."""
+    if path.exists() or path.is_symlink():
+        raise StorageError(f"{path} already exists; choose a new file name")
+    if not path.parent.is_dir():
+        raise StorageError(f"folder not found: {path.parent}")
+    return path
+
+
+def run_export(settings: Settings, args: argparse.Namespace) -> None:
+    """Write the whole database as a JSON or CSV export to a new file (safe while the server
+    runs: one short read transaction under WAL; D-072 to D-074)."""
+    target = _new_file(args.path)
+    engine = _open_current_database(settings)
+    try:
+        exported = export.export(engine, args.format, _now(), __version__)
+    finally:
+        engine.dispose()
+    try:
+        files.atomic_write(target, exported.data)
+    except OSError as error:
+        raise StorageError(f"cannot write {target}: {error.strerror}") from error
+    print(f"exported {exported.rows} rows to {target}")
 
 
 def configure_logging() -> None:
@@ -265,6 +290,14 @@ def _device_arguments(parser: argparse.ArgumentParser) -> None:
         _config_argument(action)
 
 
+def _export_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("path", type=Path, help="new file to write (an existing file is never replaced)")
+    parser.add_argument(
+        "--format", choices=export.FORMATS, default=export.FORMATS[0], help="json (default) or csv (a zip)"
+    )
+    _config_argument(parser)
+
+
 @dataclass(frozen=True)
 class Command:
     """A `rack` sub-command: help text, handler, and its extra arguments if any."""
@@ -279,6 +312,7 @@ COMMANDS: dict[str, Command] = {
     "backup": Command("snapshot the database now and prune expired snapshots", run_backup),
     "serve": Command("serve the web app (host and port from the settings file)", run_serve),
     "supervise": Command("run the server, restart it after a crash, write logs", run_supervise),
+    "export": Command("write every stored fact to a new JSON or CSV file", run_export, _export_arguments),
     "update": Command("pull main, sync, migrate, then restart rack supervise", run_update),
     "device": Command(
         "add, list or revoke the devices allowed to use the app", run_device, _device_arguments
