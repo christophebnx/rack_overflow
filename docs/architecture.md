@@ -19,7 +19,7 @@ storage/    SQLAlchemy Core queries, Alembic migrations, backups, atomic file wr
    ▼
 SQLite (WAL) in the data folder  ──  daily VACUUM INTO backups
 
-ops/        rack supervise (restarts rack serve, rotating logs), rack update (host side, beside the stack)
+ops/        rack supervise (restarts rack serve, rotating logs), rack update, the server-stopped guard of rack restore (host side, beside the stack)
 ```
 
 Main flows:
@@ -30,7 +30,7 @@ Main flows:
 - **History**: `GET /historique` (sessions per week, then month groups of 20 sessions by keyset, « Plus anciennes » appends the next page) → a closed `GET /seances/{id}` is the detail: sets and settings corrected through the L4 paths with `require_open=False`, answer the exercise section and the totals out of band; `DELETE /seances/{id}` sets `session.deleted_at` only, every reader filters it out (D-067, D-070).
 - **Progress**: `GET /progression` (exercises with history) → `GET /progression/{id}` (last performance, RM table for strength, chart caption and data table, records) → `progress-chart.js` fetches `GET /api/progression/{id}` (display numbers and French labels from the server) and draws it with vendored Chart.js; `POST /rm/{id}` and `DELETE /rm/mesures/{id}` re-render the RM section; `PATCH /reglages` stores the 1RM formula (`app_setting` `rm.formula`). Every indicator is recomputed from stored facts on each request (D-068, D-069). Design note `docs/architecture/2026-11-03-l5-tracking.md`.
 - **Pairing**: `rack device add NAME` prints a one-time code → the browser posts it to `/appairage` → hashed token stored, `rack_device` cookie set (D-040, D-049).
-- **Operations**: `rack migrate` (upgrade, then the pending seed steps: exercises, then templates; D-057, D-060), `rack backup`, `rack export` (JSON or CSV to a new file, D-074), `rack restore` (server stopped: supervisor lock and port probe; the current database kept aside, an older snapshot migrated, D-075), `rack device …`, `rack serve` (CLI calls the same services and storage); `rack supervise` runs `rack serve` as a child; `rack update` pulls `main`, syncs, migrates in a new process, then sends SIGHUP to the supervisor, which re-executes itself (D-051, D-052); on Jelastic, systemd runs `rack serve` instead of `rack supervise` (D-076). Install guides: `docs/deployment/nas.md`, `docs/deployment/jelastic.md`; moving between them: `docs/deployment/migration.md`.
+- **Operations**: `rack migrate` (upgrade, then the pending seed steps: exercises, then templates; D-057, D-060), `rack backup`, `rack export` (JSON or CSV to a new file, one read transaction; the same bytes as the « Réglages » download `GET /api/export`, D-074), `rack restore` (server stopped: supervisor lock and port probe; the current database kept aside, an older snapshot migrated, D-075), `rack device …`, `rack serve` (CLI calls the same services and storage); `rack supervise` runs `rack serve` as a child; `rack update` pulls `main`, syncs, migrates in a new process, then sends SIGHUP to the supervisor, which re-executes itself (D-051, D-052); on Jelastic, systemd runs `rack serve` instead of `rack supervise` (D-076). Install guides: `docs/deployment/nas.md`, `docs/deployment/jelastic.md`; moving between them: `docs/deployment/migration.md`.
 
 ## Layers
 
@@ -40,7 +40,7 @@ Main flows:
 | `storage/` | File system and persistence; the single atomic writer. | `domain` |
 | `services/` | Business operations, one use case each, shared by the CLI and the web layer. | `domain`, `storage` |
 | `web/` | FastAPI app factory, routes, Jinja2 templates, CSS, vendored htmx and Chart.js (`static/vendor/manifest.json`), string catalog, security middleware, daily backup task. | `domain`, `services`, `config` |
-| `ops/` | Host process management: `rack supervise` (restart, rotating logs, single instance) and `rack update`. POSIX only. | `domain`, `storage` |
+| `ops/` | Host process management: `rack supervise` (restart, rotating logs, single instance), `rack update` and the server-stopped guard of `rack restore`. POSIX only. | `domain`, `storage` |
 | `config.py` | Load and validate the settings file and the secrets file beside it, once (D-044). | `domain` |
 | `cli.py` | Command-line entry point: parses arguments, calls the layers, maps errors to exit codes (D-004). | everything |
 
@@ -62,6 +62,7 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | A transaction that only reads (deferred: never blocks a writer) | `storage/db.read_transaction` |
 | Database schema | `storage/schema.metadata` |
 | Apply / inspect migrations | `storage/migrate` |
+| Revision of the database inside the caller's transaction | `storage/migrate.revision_in` |
 | Restart delay policy of the supervisor | `domain/supervision` |
 | Supervise `rack serve` (restart, logs, single instance) | `ops/supervise` |
 | Self-update of a deployed clone (pull, sync, migrate, restart) | `ops/update` |
@@ -112,6 +113,8 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Open the database only when it is at the head revision (CLI) | `cli._open_current_database` |
 | Snapshot naming, ordering, due-ness, retention | `domain/backups` |
 | Take, list and prune database snapshots | `storage/backup` |
+| Copy a database into a new single file by `VACUUM INTO` (snapshot, restore staging) | `storage/backup._vacuum_copy` |
+| Integrity of a rollback-journal copy, read-only (snapshot, staged restore) | `storage/backup.check_copy` |
 | Revision of a database file without opening it read-write; order of a revision against the shipped ones | `storage/migrate.revision_of_file`, `revision_order`, `known_revisions` |
 | Restore a snapshot as the database (stage a single-file copy of the snapshot set, check, keep the current aside, swap) | `storage/backup.restore_snapshot` (through `services/backups.restore`) |
 | Name of a database kept aside by a restore; SQLite side-file suffixes | `domain/backups.aside_name`, `SIDE_SUFFIXES`, `SNAPSHOT_SIDE_SUFFIXES` (the ones a restore copies with a snapshot) |
@@ -146,7 +149,7 @@ One responsibility, one implementation (CLAUDE.md invariant 2). Check here befor
 | Chart JSON shape (labels, display numbers, French labels) | `web/routes/progress.chart_json` |
 | Computed values, table cells, formula names, series labels, RM origin text (L5) | `web/display.Display.rate`, `cell`, `formula`, `series_label`, `rm_origin` |
 | Today's local date in a route | `web/routes/history.local_today` (through `domain/sessions.local_start`) |
-| HTTP error → error page or JSON code | `web/errors` |
+| HTTP error → error page or JSON code; « Réessayer » link of a 5xx page (path and query kept) | `web/errors` (`_retry_path`) |
 | Check a commit message | `tools/check_commit_message.problems` |
 | Block secrets, protected folders, commits and pushes on `main` (Claude Code) | `.claude/hooks/guard_paths.py` |
 | Format and lint-fix an edited file (Claude Code) | `.claude/hooks/format.py` |

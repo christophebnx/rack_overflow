@@ -11,11 +11,11 @@ Maintained by the `/build-roadmap` skill. Branch: the session's designated branc
 | L3 Templates | done | fb545d1 | Built: session templates with blocs (exercise or menu), targets, archive, reordering; migration `0003`; seed of the four templates with seed keys (D-058 to D-060); « Séances types » nav, ids beyond int64 → 404.<br>Tests: 1921 passed, 156 WebKit skipped.<br>Open: WebKit run pending; on a full-menu or full-template refusal the limit text (« … au plus ») is shown and read twice (muted line + error) (`session_template_slot_form.html`, `session_template_slots.html`). |
 | L4 Session logging | done | f4bdfb3 | Built: start or resume from home, session page (plan, menus, search recent first), prefill, server steppers, choice chips, settings saved on change, set types, edit / delete sets, records (⭐) and volume computed, close and summary; `[calendar] time_zone` and `tzdata`; migration `0004` (D-061 to D-066).<br>Tests: 2249 passed, 164 WebKit skipped; tap counts checked on Chromium; set confirmation median ≈ 15–20 ms.<br>Open: WebKit run pending, including a check for CSP messages on swaps; the « Autres valeurs » chevron not seen live in the Salle A flow. |
 | L5 Tracking | done | 1a472d6 | Built: history by month with the weekly chart, closed-session corrections, session soft delete; progress per exercise (last performance, records, Chart.js 4.6.1 chart and data table), RM measured or estimated with five formulas and `/reglages`; three-row phone header; no migration (D-067 to D-071).<br>Tests: 2639 passed, 176 WebKit skipped.<br>Open: WebKit run pending; kg values above 999 have no thousands separator (no ui-spec rule). |
-| L6 Operations and release 1.0.0 | in progress | | |
+| L6 Operations and release 1.0.0 | done | ac4dd90 | Built: JSON / CSV export (`rack export`, « Réglages » → « Données »), `rack restore` with the server stopped, Jelastic and NAS ↔ Jelastic guides, every form button disabled during a request, retry link keeps the query (D-072 to D-076).<br>Tests: 2847 passed, 177 WebKit skipped.<br>Open: WebKit run pending; release 1.0.0 pending the user's check (planned stop). |
 
 ## Follow-ups
 
-- Older forms still disable only their first button with `hx-disabled-elt="find button"` (htmx's `find` takes the first match): `pairing_form.html`, `variable_form.html`, `exercise_form.html`, `exercise_fields.html`, `exercise_field_form.html`, `exercise_aliases.html`, `session_template_form.html`, `session_template_slots.html`, `session_template_slot_form.html`. Switch them to an id selector of every button of the form, as L4 does (`#<form id> button`), and correct `docs/ui-spec.md` lines that still write `find button` (pairing, exercise create, template create). Found by the L4 review (loop 1), not fixed in L4.
+None.
 
 ## User validations pending
 
@@ -27,6 +27,8 @@ Maintained by the `/build-roadmap` skill. Branch: the session's designated branc
 - L3: check the four seed templates (Salle A, Salle B, Maison, Cardio) on the iPhone.
 - L4: log a real session at the gym on the iPhone.
 - L5: check the history and progress pages (chart, RM, corrections) on the iPhone.
+- L6: download both exports from « Réglages » → « Données » (iPhone and desktop) and open them.
+- L6: run a restore drill on the NAS following `docs/deployment/nas.md` section 13.
 
 ## Blocking question
 

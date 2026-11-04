@@ -4,6 +4,13 @@ All notable changes are listed here, newest first. Format: [Keep a Changelog](ht
 
 ## [Unreleased]
 
+- Export of every stored fact: `rack export PATH [--format json|csv]` and « Exporter en JSON » / « Exporter en CSV » in « Réglages » → « Données » (`GET /api/export?format=json|csv`); JSON format version 1 in canonical units, CSV a zip of one `;`-separated UTF-8 file per table; credential hashes excluded (D-072 to D-074) (L6).
+- The export reads the database in one read-only transaction (consistent, never blocks a write) and publishes a new file atomically, never replacing an existing one (L6).
+- `rack restore SNAPSHOT` with the server stopped (supervisor lock and port probe): the snapshot is checked and staged as one file holding its WAL contents, the current database and its side files are kept aside as `.before-restore-<ts>`, an older snapshot is migrated; a blank instance is restored as is (D-075) (L6).
+- Guides: Infomaniak Jelastic install on a Linux node with the database on local disk (`docs/deployment/jelastic.md`, D-076), NAS ↔ Jelastic migration (`docs/deployment/migration.md`), export and restore in `docs/deployment/nas.md` (L6).
+- Fixed: older forms disable every button during a request, not only the first (L6).
+- Fixed: « Réessayer » on a server-error page keeps the query string (L6).
+
 - History (`/historique`): sessions newest first, grouped by month, 20 per page with « Plus anciennes »; a 12-week chart of sessions per week with the average above (D-067, D-070) (L5).
 - Closed session detail: sets and settings corrected in place, every indicator recomputed; a session (open or closed) soft-deleted after confirmation, kept in the database (D-067) (L5).
 - Progress (`/progression`, `/progression/{id}`): per exercise the last performance, records by category, a chart of the main indicator drawn by vendored Chart.js 4.6.1 from `GET /api/progression/{id}`, and its data table (D-068) (L5).
