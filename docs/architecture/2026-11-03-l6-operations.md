@@ -188,3 +188,13 @@ Chromium at 360 (touch) and 1280, light and dark: no BLOCKING, no TO FIX. Export
 1. **SUGGESTION** `docs/ui-spec.md:2047-2048`: « Accueil » should read « Retour à l’accueil ».
 2. **SUGGESTION** `templates/settings_formula.html:7`: use `.section__intro` so both intros on `/reglages` share the 14 px size.
 3. **SUGGESTION** note in the states table that after a successful retry the error page stays displayed (the file downloads without navigation).
+
+## Fix loop 1
+
+- **Reviewer 1 and 2** (`768a003`): `restore_snapshot` copies the snapshot set (file, `-wal`, `-journal`; never `-shm`) into a scratch folder `.tmp-restore-*` beside the database, runs the integrity check on that copy, then `VACUUM INTO` the `atomic_produce` temp: one rollback-journal file holding every committed row, the `-wal` ones included; the scratch folder is removed. Chosen over opening the snapshot directly: opening a WAL file writes its `-shm` even read-only, and the last read-write close checkpoints and removes its `-wal`, so the snapshot set would be modified. Cost: free space for two copies during the restore (documented). Undoing a restore from a `.before-restore-*` set keeps every row; steps added to `nas.md` §13. D-075 refined (2026-11-04). Xfails (1) and (2) pass, (1) made stricter (exit 0, full dump equal, set bytes unchanged, no `-wal` / `-shm` beside the restored file).
+- **Reviewer 3** (`768a003`): `_set_aside` moves back what it already renamed when a rename fails (roll back rather than guess an orphan's owner on a rerun, which could pair a `-wal` with the wrong database); the error names the failed move and either « moved back: … » or « still moved aside: X (was Y) ». Xfail (3) passes with message checks; a failed move-back is tested.
+- **Reviewer 4** (`49d1dbb`): `storage/db.read_transaction` (`BEGIN DEFERRED`), with `migrate.revision_in(connection)`: the export reads revision and rows in one snapshot without blocking writers.
+- **Reviewer 5** (`bd33a5c`): `files.atomic_write(..., overwrite=False)` hard-links the temp as PATH (check-then-rename where hard links are unsupported); `rack export` uses it. `test_export_write_failure_leaves_no_file` now also patches `os.link` (the call that publishes a new file); same assertion.
+- **Reviewer 6** (`01321b6`): the one-shot port probe is documented in `nas.md` §13 and `jelastic.md` §12.
+- **Reviewer 7** (`768a003`): tests for a failed snapshot copy, a failed staging `VACUUM`, `check_copy` and `revision_of_file` on a file SQLite cannot open.
+- **UI 1, 2, 3** (`c59e1ad`): « Retour à l’accueil » in the export states table, `.section__intro` on the formula intro, the note that a successful retry leaves the error page displayed.
