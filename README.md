@@ -21,6 +21,16 @@ Status: V1 in development. Scope and milestones: [`docs/release-1.0.0-brief.md`]
 | `docs/deployment/migration.md` | Moving the data between the NAS and Jelastic, in either direction |
 | `docs/deployment/mac.md` | Install on a Mac, alone or as the server for the iPhone on the same Wi-Fi; start at login with launchd |
 
+## Install
+
+On a Mac or a Linux machine (NAS included), `install.sh` installs uv, the clone on `main`, the dependencies, a settings file and the database; it can be run again safely:
+
+```bash
+curl -LsSf https://raw.githubusercontent.com/christophebnx/rack_overflow/main/install.sh | bash
+```
+
+or `./install.sh` from a clone. Then follow the guide for your machine in [`docs/deployment/`](docs/deployment/) (pairing, iPhone access, start at boot).
+
 ## Development
 
 Requires [uv](https://docs.astral.sh/uv/).
@@ -37,7 +47,7 @@ uv run rack serve --config config.example.toml   # http://127.0.0.1:8765
 
 Every page except `/appairage` needs a paired browser: run `uv run rack device add NAME --config config.example.toml` and type the printed code. More commands (backup, export, restore, devices, supervise, update, browser tests): `CLAUDE.md`, section "Commands". Install guides: [`docs/deployment/`](docs/deployment/).
 
-No automatic CI until V1 is done (D-012): checks run locally and in pre-commit.
+CI (`.github/workflows/ci.yml`, D-077) runs pytest, ruff and gitleaks on pull requests and pushes to `main`; duplicate detection and the commit-message check run locally in pre-commit.
 
 ## Claude Code workflow
 

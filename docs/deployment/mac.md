@@ -2,6 +2,16 @@
 
 Run Rack Overflow on a Mac: alone (use it from the Mac's browser) or as the server for the iPhone on the same Wi-Fi. Same native deployment as the NAS (D-024): a git clone on `main`, uv, `rack migrate`, `rack serve` or `rack supervise`. Plain HTTP, local network only (D-013). The server stops while the Mac sleeps.
 
+## Quick install
+
+Steps 1 to 4 in one command (git must be installed: `xcode-select --install`). It installs uv, clones into `~/rack_overflow`, creates the settings file with the data folder `~/RackOverflow` and the database; run it again any time, it overwrites nothing:
+
+```bash
+curl -LsSf https://raw.githubusercontent.com/christophebnx/rack_overflow/main/install.sh | bash
+```
+
+`RACK_DIR` and `RACK_DATA_DIR` change the two folders. Then go on with section 5.
+
 ## 1. Prerequisites (once)
 
 ```bash
