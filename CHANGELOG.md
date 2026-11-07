@@ -4,6 +4,10 @@ All notable changes are listed here, newest first. Format: [Keep a Changelog](ht
 
 ## [Unreleased]
 
+- `install.sh`: one-command install on a Mac or Linux machine (uv, clone, dependencies, settings file, database), safe to run again.
+- Mac install guide `docs/deployment/mac.md` (iPhone access on the same Wi-Fi, start at login with launchd).
+- CI on pull requests and pushes to `main`: pytest, ruff and gitleaks in one Ubuntu job (D-077, supersedes D-012).
+
 ## [1.0.0] - 2026-11-04
 
 - Export of every stored fact: `rack export PATH [--format json|csv]` and « Exporter en JSON » / « Exporter en CSV » in « Réglages » → « Données » (`GET /api/export?format=json|csv`); JSON format version 1 in canonical units, CSV a zip of one `;`-separated UTF-8 file per table; credential hashes excluded (D-072 to D-074) (L6).

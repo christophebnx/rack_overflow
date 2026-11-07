@@ -64,7 +64,7 @@ Always pass `--config config.example.toml` in development: the default `config.t
 - For any feature or change, use the `/feature` skill: architect → ui-designer (UI changes only) → developer → tester → reviewer (+ ui-designer review for UI changes) → documentation.
 - To build the roadmap autonomously, or resume it, use `/build-roadmap`. Progress and blocking questions live in `docs/progress.md`.
 - Each agent returns at most ten lines. Details go into `docs/`, not into the conversation.
-- Definition of done, checked locally (no automatic CI, D-012): tests green (`not live`), ruff clean, no new duplicate-code finding, docs and the relevant `CLAUDE.md` updated, `CHANGELOG.md` entry added.
+- Definition of done, checked locally (CI on pull requests runs pytest, ruff and gitleaks only, D-077): tests green (`not live`), ruff clean, no new duplicate-code finding, docs and the relevant `CLAUDE.md` updated, `CHANGELOG.md` entry added.
 - Each package under `src/rack_overflow/` has its own `CLAUDE.md` (rules and module table). Read it before touching the package; keep it true after.
 
 ## Git workflow
@@ -90,7 +90,7 @@ Always pass `--config config.example.toml` in development: the default `config.t
 V1 excludes (brief section 3.2):
 
 - Offline mode, PWA, service worker, separate mobile app (D-015).
-- HTTPS, reverse proxy (D-013) and automatic CI (D-012): V2 / after V1.
+- HTTPS and reverse proxy (D-013): V2.
 - Rest timer, work / rest ratio of intervals, unit switch (D-028, D-041, D-029).
 - Excel import, %1RM targets (V1.x); AI features, body metrics, actual multi-user (V2).
 - External integrations (Garmin, Apple Health, Strava), scanned log import, social, nutrition, auto-progression programs.
