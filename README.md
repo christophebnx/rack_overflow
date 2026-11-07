@@ -19,6 +19,7 @@ Status: V1 in development. Scope and milestones: [`docs/release-1.0.0-brief.md`]
 | `docs/deployment/nas.md` | Install, pairing, update, export and restore on the Synology NAS (LAN only) |
 | `docs/deployment/jelastic.md` | Install, update and restore on an Infomaniak Jelastic Linux node (systemd, local disk) |
 | `docs/deployment/migration.md` | Moving the data between the NAS and Jelastic, in either direction |
+| `docs/deployment/mac.md` | Install on a Mac, alone or as the server for the iPhone on the same Wi-Fi; start at login with launchd |
 
 ## Development
 
